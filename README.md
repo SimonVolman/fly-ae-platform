@@ -1,98 +1,201 @@
-# vinext-starter
+# fly.ae V0
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Рабочая V0 сервиса загрузки и отправки авиационных PDF-документов. Реализованы
+два полных сценария: первая гостевая загрузка до 10 MiB без email и загрузка до
+100 MiB через email OTP. Оба проходят прямой multipart upload в приватный S3,
+проверку PDF, локальную асинхронную обработку, `APPROVED`, share-ссылку и
+удаление. Авторизованный путь также включает My Documents.
 
-## Prerequisites
+## Структура
 
-- Node.js `>=22.13.0`
+```text
+/apps/web       Next.js, React, TypeScript, Uppy
+/apps/backend   Kotlin, Spring Boot REST API, JPA, Flyway, AWS SDK
+/apps/worker    граница будущего отдельного worker
+/infra          PostgreSQL, MinIO и backend в Docker Compose
+/docs           архитектура, БД, OpenAPI и дизайн-система
+/scripts        воспроизводимая проверка happy path
+```
 
-## Quick Start
+В V0 worker работает внутри backend-процесса через `JobQueue` и Spring
+after-commit event. Интерфейсы `ObjectStorage`, `JobQueue`, `EmailSender` и
+`DocumentClassifier` отделяют локальные реализации от будущих S3/SQS/email/LLM
+адаптеров.
+
+## Требования
+
+- Node.js `>=22.13.0`;
+- JDK 21;
+- Docker с Compose;
+- свободные порты `3000`, `8080`, `55432`, `9000`, `9001`.
+
+На macOS с Homebrew JDK можно добавить к командам backend:
 
 ```bash
-npm install
-npm run dev
+JAVA_HOME=/opt/homebrew/opt/openjdk@21
+```
+
+## Локальный запуск
+
+1. Установить frontend-зависимости:
+
+   ```bash
+   npm install
+   ```
+
+2. Поднять PostgreSQL и приватный MinIO bucket:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d postgres minio minio-init
+   ```
+
+3. Запустить backend:
+
+   ```bash
+   ./scripts/start-backend.sh
+   ```
+
+   Альтернативная команда: `npm run backend`. Скрипт сам выбирает Java 21,
+   очищает старые build-файлы, проверяет порт `8080` и не запускает PostgreSQL
+   или MinIO.
+
+   Flyway применит миграции и добавит категории Aircraft, APU, Engine и Landing
+   Gear. В local profile одноразовый OTP выводится только в консоль backend.
+
+4. В другом терминале запустить web:
+
+   ```bash
+   npm run dev
+   ```
+
+5. Открыть [http://localhost:3000](http://localhost:3000).
+
+Локальные адреса:
+
+| Сервис | URL |
+|---|---|
+| Web | http://localhost:3000 |
+| REST API | http://localhost:8080/api/v1 |
+| Health | http://localhost:8080/actuator/health |
+| OpenAPI | http://localhost:8080/openapi.yaml |
+| MinIO S3 | http://localhost:9000 |
+| MinIO Console | http://localhost:9001 |
+| PostgreSQL | localhost:55432 |
+
+Конфигурация и перечень production secrets находятся в
+[`.env.example`](./.env.example). Local profile имеет безопасные для локальной
+разработки значения по умолчанию; production должен передавать собственные
+секреты через environment variables.
+
+## Проверка happy path
+
+При запущенных PostgreSQL, MinIO и backend:
+
+Гостевой UP-003 без OTP:
+
+```bash
+npm run happy-path:guest
+```
+
+Путь с email OTP:
+
+```bash
+npm run happy-path
+```
+
+Скрипт запросит OTP. Скопируйте шестизначный код из консоли backend в prompt.
+После этого он автоматически:
+
+1. создаст bearer session и зафиксирует принятие Terms/Privacy;
+2. создаст метаданные документа;
+3. загрузит тестовый PDF напрямую в MinIO по presigned multipart URL;
+4. дождётся статуса `APPROVED`;
+5. проверит share-ссылку и защищённое скачивание;
+6. проверит My Documents;
+7. удалит документ и подтвердит `404` для share token и S3 object.
+
+## Проверки
+
+Frontend:
+
+```bash
 npm run build
+npm run lint
+npm run test:web
 ```
 
-This starter does not use `wrangler.jsonc`.
+Backend unit tests и PostgreSQL/Flyway Testcontainers test:
 
-## Included Shape
-
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
+  ./apps/backend/gradlew -p apps/backend test
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+Testcontainers test автоматически пропускается, если Docker недоступен. Для
+Colima при необходимости укажите её socket:
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+```bash
+DOCKER_HOST=unix://$HOME/.colima/default/docker.sock \
+TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
+JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
+  ./apps/backend/gradlew -p apps/backend --no-daemon test
+```
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+Полный backend вместе с инфраструктурой можно собрать через application
+profile Compose:
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+```bash
+docker compose -f infra/docker-compose.yml --profile application up --build
+```
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+Остановить локальные зависимости:
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+```bash
+docker compose -f infra/docker-compose.yml down
+```
 
-## Useful Commands
+## API, данные и дизайн
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+- [OpenAPI 3.1](./docs/api/openapi.yaml)
+- [Архитектура и screen flow](./docs/architecture.md)
+- [User paths и acceptance tests](./docs/user-paths.md)
+- [Схема PostgreSQL и состояния](./docs/database.md)
+- [Допущения V0](./docs/assumptions.md)
+- [Дизайн-схема и правила](./docs/design-system.md)
+- [Машиночитаемые design tokens](./docs/design-system.json)
+- живой style guide: `/style-guide`
 
-## Learn More
+Дизайн-система основана на
+[fly.ae Figma UI Kit](https://www.figma.com/design/p8QjkewBdCS8qv1J21OoxW/fly.ae?node-id=160-1088&t=78eXDSBlGsjRRSB5-1).
+Цепочка изменений:
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+```text
+Figma → design-system.json → CSS tokens → components → screens
+```
+
+## Безопасность V0
+
+- bucket приватный, browser получает только короткоживущие presigned URLs;
+- upload URL действует один час, download URL — 15 минут;
+- backend проверяет владельца, MIME, заявленный и фактический размер и `%PDF-`;
+- guest capability живёт 12 часов, привязан к одному документу и не открывает
+  My Documents; guest PDF ограничен 10 MiB;
+- OTP одноразовый, живёт 10 минут и имеет лимит попыток;
+- OTP, upload и share endpoints имеют rate limiting;
+- share token создаётся через `SecureRandom`, в БД хранится HMAC lookup hash и
+  AES-GCM ciphertext;
+- удаление отзывает share token и удаляет объект из S3;
+- содержимое PDF и OTP не попадают в production-логи;
+- session, OTP и share secrets задаются environment variables.
+
+## Ограничения V0
+
+- local classifier детерминированно возвращает `APPROVED`;
+- SQS, отдельный process worker, PDFBox и LLM оставлены за интерфейсами, но ещё
+  не подключены;
+- local `JobQueue` и rate limiter находятся в памяти одного backend instance;
+- local OTP выводится в консоль, production email adapter ещё не подключён;
+- тексты Terms и Privacy — явные placeholders до получения утверждённого текста
+  от заказчика;
+- нет OCR, DOCX, папок, admin UI, ручной модерации, уведомлений, browser-restart
+  resume и staging-окружения.

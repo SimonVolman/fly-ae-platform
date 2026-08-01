@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: fly-ae-backend
+  profiles:
+    default: local
+  datasource:
+    url: ${FLY_DATABASE_URL:jdbc:postgresql://localhost:55432/flyae}
+    username: ${FLY_DATABASE_USER:flyae}
+    password: ${FLY_DATABASE_PASSWORD:flyae}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: ${FLY_BACKEND_PORT:8080}
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+fly:
+  security:
+    session-secret: ${FLY_SESSION_SECRET}
+    otp-pepper: ${FLY_OTP_PEPPER}
+    share-encryption-secret: ${FLY_SHARE_ENCRYPTION_SECRET}
+    session-ttl: 12h
+    guest-session-ttl: ${FLY_GUEST_SESSION_TTL:12h}
+    otp-ttl: 10m
+    otp-max-attempts: 5
+  documents:
+    authenticated-max-file-size-bytes: ${FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES:104857600}
+    guest-max-file-size-bytes: ${FLY_GUEST_MAX_FILE_SIZE_BYTES:10485760}
+  web:
+    allowed-origins: ${FLY_ALLOWED_ORIGINS:http://localhost:3000}
+    public-base-url: ${FLY_PUBLIC_BASE_URL:http://localhost:3000}
+  storage:
+    endpoint: ${FLY_S3_ENDPOINT:}
+    region: ${FLY_S3_REGION:us-east-1}
+    bucket: ${FLY_S3_BUCKET:fly-ae-documents}
+    access-key: ${FLY_S3_ACCESS_KEY}
+    secret-key: ${FLY_S3_SECRET_KEY}
+    path-style: ${FLY_S3_PATH_STYLE:false}
+    upload-signature-ttl: ${FLY_UPLOAD_SIGNATURE_TTL:PT1H}
+    download-signature-ttl: ${FLY_DOWNLOAD_SIGNATURE_TTL:PT15M}

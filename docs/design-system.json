@@ -1,0 +1,271 @@
+{
+  "schemaVersion": "1.0",
+  "name": "fly.ae Design System",
+  "version": "1.0.0",
+  "status": "active",
+  "source": {
+    "type": "figma",
+    "file": "fly.ae",
+    "url": "https://www.figma.com/design/p8QjkewBdCS8qv1J21OoxW/fly.ae?node-id=160-1088&t=78eXDSBlGsjRRSB5-1",
+    "node": "160:1088"
+  },
+  "principles": [
+    {
+      "id": "precise",
+      "title": "Precise",
+      "description": "Technical information is compact, aligned and easy to scan."
+    },
+    {
+      "id": "secure",
+      "title": "Secure",
+      "description": "Actions and system states are explicit; the interface never hides consequences."
+    },
+    {
+      "id": "efficient",
+      "title": "Efficient",
+      "description": "Each surface has one primary action and short verb-led labels."
+    }
+  ],
+  "tokens": {
+    "color": {
+      "ink": {
+        "value": "#101A3A",
+        "css": "--color-ink",
+        "role": "Brand, text, navigation and primary actions"
+      },
+      "inkHover": {
+        "value": "#1B2A58",
+        "css": "--color-ink-hover",
+        "role": "Primary interactive hover"
+      },
+      "sky": {
+        "value": "#258FE0",
+        "css": "--color-sky",
+        "role": "Category cards and selected states"
+      },
+      "skyDeep": {
+        "value": "#075BB7",
+        "css": "--color-sky-deep",
+        "role": "Category gradients and labels"
+      },
+      "success": {
+        "value": "#35C63F",
+        "css": "--color-success",
+        "role": "Completed and successful states"
+      },
+      "danger": {
+        "value": "#E34C61",
+        "css": "--color-danger",
+        "role": "Errors, required fields and destructive actions"
+      },
+      "info": {
+        "value": "#EAF6FB",
+        "css": "--color-info",
+        "role": "Informational surfaces"
+      },
+      "warning": {
+        "value": "#FFD9C8",
+        "css": "--color-warning",
+        "role": "Verification and caution messages"
+      },
+      "canvas": {
+        "value": "#F4F6FA",
+        "css": "--color-canvas",
+        "role": "Page and grouped-content background"
+      },
+      "surface": {
+        "value": "#FFFFFF",
+        "css": "--color-surface",
+        "role": "Cards, dialogs and form surfaces"
+      },
+      "muted": {
+        "value": "#6F7A91",
+        "css": "--color-muted",
+        "role": "Secondary text and metadata"
+      },
+      "line": {
+        "value": "#D8DEE9",
+        "css": "--color-line",
+        "role": "Dividers and default borders"
+      }
+    },
+    "spacing": {
+      "1": {
+        "value": "4px",
+        "css": "--space-1"
+      },
+      "2": {
+        "value": "8px",
+        "css": "--space-2"
+      },
+      "3": {
+        "value": "12px",
+        "css": "--space-3"
+      },
+      "4": {
+        "value": "16px",
+        "css": "--space-4"
+      },
+      "6": {
+        "value": "24px",
+        "css": "--space-6"
+      },
+      "8": {
+        "value": "32px",
+        "css": "--space-8"
+      },
+      "12": {
+        "value": "48px",
+        "css": "--space-12"
+      },
+      "16": {
+        "value": "64px",
+        "css": "--space-16"
+      }
+    },
+    "radius": {
+      "control": {
+        "value": "6px",
+        "css": "--radius-control"
+      },
+      "surface": {
+        "value": "10px",
+        "css": "--radius-surface"
+      },
+      "dialog": {
+        "value": "14px",
+        "css": "--radius-dialog"
+      },
+      "avatar": {
+        "value": "50%",
+        "css": null
+      }
+    },
+    "typography": {
+      "display": {
+        "size": "56px",
+        "lineHeight": "56px",
+        "weight": 800,
+        "family": "Arial Narrow, Roboto Condensed, Helvetica Neue, Arial, sans-serif"
+      },
+      "heading1": {
+        "size": "40px",
+        "lineHeight": "44px",
+        "weight": 800,
+        "family": "Arial Narrow, Roboto Condensed, Helvetica Neue, Arial, sans-serif"
+      },
+      "heading2": {
+        "size": "32px",
+        "lineHeight": "36px",
+        "weight": 800,
+        "family": "Arial Narrow, Roboto Condensed, Helvetica Neue, Arial, sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "24px",
+        "weight": 400,
+        "family": "Helvetica Neue, Arial, sans-serif"
+      },
+      "caption": {
+        "size": "12px",
+        "lineHeight": "16px",
+        "weight": 700,
+        "family": "Arial Narrow, Roboto Condensed, Helvetica Neue, Arial, sans-serif"
+      }
+    }
+  },
+  "components": {
+    "brand": {
+      "css": [".brand", ".brand-mark", ".brand-word"],
+      "canonicalMark": "fly-loop-variant-3",
+      "figmaVariants": ["Brand / Variant 3", "Brand / Variant 4", "Brand / Variant 5"],
+      "appIcon": "fly-loop mark without wordmark",
+      "rules": [
+        "Use the fly/infinity loop mark with the central beacon; never use the legacy airplane mark.",
+        "Use the navy lockup on light surfaces and the white lockup on navy.",
+        "Keep clear space equal to the cap height of the wordmark.",
+        "Do not underline, stretch or recolour individual letters."
+      ]
+    },
+    "button": {
+      "css": [
+        ".button-primary",
+        ".button-success",
+        ".button-secondary",
+        ".button-tertiary",
+        ".button-icon"
+      ],
+      "height": "44px",
+      "rules": [
+        "Use one primary action per surface.",
+        "Use compact rectangular controls with a 6px radius.",
+        "Use verb-led labels."
+      ]
+    },
+    "field": {
+      "css": [".field", ".dialog input"],
+      "height": "44px",
+      "rules": [
+        "Keep the label visible above the control.",
+        "Mark required fields with the danger token.",
+        "Show validation text below the field."
+      ]
+    },
+    "message": {
+      "css": [".message-info", ".message-warning", ".message-success"],
+      "rules": [
+        "Use colour only to communicate system meaning.",
+        "Pair colour with a clear heading and explanatory text."
+      ]
+    },
+    "categoryCard": {
+      "css": [".folder-card", ".empty-folder-card"],
+      "rules": [
+        "Use the sky-to-deep-sky gradient.",
+        "Show one category, one identifier and one metadata line."
+      ]
+    },
+    "dialog": {
+      "css": [".dialog", ".dialog-top", ".dialog-actions"],
+      "rules": [
+        "Use a 14px radius.",
+        "Place the close control in the top-right corner.",
+        "Keep the primary action in the bottom action area."
+      ]
+    }
+  },
+  "patterns": {
+    "navigation": {
+      "desktop": "Brand left, product navigation centred, identity or login right.",
+      "mobile": "Brand left, identity and menu action right."
+    },
+    "uploadFlow": [
+      "Choose a document category and enter MSN",
+      "Upload one text PDF to private storage",
+      "Create a protected link after approval"
+    ],
+    "authenticationFlow": [
+      "Enter an email address",
+      "Enter the one-time code",
+      "Return to the interrupted product action"
+    ],
+    "history": "Use category cards for empty states and compact rows for My Documents."
+  },
+  "implementation": {
+    "tokenSource": "apps/web/app/globals.css",
+    "livingGuide": "/style-guide",
+    "livingGuideSource": "apps/web/app/style-guide/page.tsx",
+    "productSource": "apps/web/app/page.tsx",
+    "documentation": "docs/design-system.md",
+    "tests": "apps/web/tests/rendered-html.test.mjs"
+  },
+  "governance": {
+    "sourceOfTruthOrder": [
+      "Approved Figma UI Kit",
+      "docs/design-system.json",
+      "CSS custom properties in app/globals.css",
+      "Component and screen implementations"
+    ],
+    "changeRule": "Update the manifest, CSS tokens, living style guide and affected tests in the same change."
+  }
+}

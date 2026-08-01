@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flyae_test
+    username: flyae
+    password: flyae
+
+fly:
+  security:
+    session-secret: test-session-secret-with-at-least-32-characters
+    otp-pepper: test-otp-pepper-with-at-least-32-characters
+    share-encryption-secret: test-share-encryption-secret-at-least-32-characters
