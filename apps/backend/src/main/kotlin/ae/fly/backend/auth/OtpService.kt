@@ -33,6 +33,7 @@ class OtpService(
         val now = clock.instant()
         otpCodes.findAllByEmailAndConsumedAtIsNull(email).forEach {
             it.consumedAt = now
+            otpCodes.save(it)
         }
 
         val code = random.nextInt(1_000_000).toString().padStart(6, '0')

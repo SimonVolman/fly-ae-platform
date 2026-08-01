@@ -24,7 +24,6 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
 import org.springframework.http.HttpStatus
 import java.time.Instant
-import java.util.Optional
 import java.util.UUID
 
 class DocumentServiceTest {
@@ -51,10 +50,11 @@ class DocumentServiceTest {
     )
 
     init {
-        `when`(guests.findById(guestId)).thenReturn(Optional.of(guestSession))
+        `when`(guests.findById(guestId)).thenReturn(guestSession)
         `when`(documents.existsByGuestSessionId(guestId)).thenReturn(false)
         `when`(categories.findByIdAndActiveTrue(categoryId)).thenReturn(category)
-        `when`(documents.save(any(Document::class.java))).thenAnswer { it.arguments[0] }
+        `when`(documents.save(any(Document::class.java) ?: Document()))
+            .thenAnswer { it.arguments[0] }
     }
 
     @Test

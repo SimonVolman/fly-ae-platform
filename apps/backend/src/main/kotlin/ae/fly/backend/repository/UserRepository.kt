@@ -1,9 +1,11 @@
 package ae.fly.backend.repository
 
 import ae.fly.backend.domain.User
-import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 
-interface UserRepository : JpaRepository<User, UUID> {
+interface UserRepository {
+    fun findById(id: UUID): User?
+    fun existsById(id: UUID): Boolean
     fun findByEmail(email: String): User?
+    fun save(user: User): User
 }

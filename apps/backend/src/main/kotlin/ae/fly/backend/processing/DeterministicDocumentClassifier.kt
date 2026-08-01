@@ -7,11 +7,11 @@ import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 
 @Component
-@Profile("local", "test")
+@Profile("local", "test", "v0-prod")
 class DeterministicDocumentClassifier : DocumentClassifier {
     override fun classify(documentId: String, text: String): ClassificationResult =
         ClassificationResult(
             classification = Classification.APPROVED,
-            reason = "V0 deterministic local approval",
+            reason = "V0 deterministic approval",
         )
 }

@@ -10,7 +10,7 @@
 
 ```text
 /apps/web       Next.js, React, TypeScript, Uppy
-/apps/backend   Kotlin, Spring Boot REST API, JPA, Flyway, AWS SDK
+/apps/backend   Kotlin, Spring Boot REST API, PostgreSQL/DynamoDB adapters, AWS SDK
 /apps/worker    граница будущего отдельного worker
 /infra          PostgreSQL, MinIO и backend в Docker Compose
 /docs           архитектура, БД, OpenAPI и дизайн-система
@@ -87,6 +87,11 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21
 разработки значения по умолчанию; production должен передавать собственные
 секреты через environment variables.
 
+Локальная разработка всегда использует PostgreSQL. Профиль `v0-prod` выбирает
+DynamoDB и не запускает JDBC, Hibernate или Flyway. Оба варианта реализуют один
+набор repository-контрактов, поэтому REST API и frontend остаются одинаковыми.
+Подробности: [persistence adapters](./docs/persistence.md).
+
 ## Проверка happy path
 
 При запущенных PostgreSQL, MinIO и backend:
@@ -160,6 +165,7 @@ docker compose -f infra/docker-compose.yml down
 - [Архитектура и screen flow](./docs/architecture.md)
 - [User paths и acceptance tests](./docs/user-paths.md)
 - [Схема PostgreSQL и состояния](./docs/database.md)
+- [PostgreSQL/DynamoDB persistence adapters](./docs/persistence.md)
 - [Допущения V0](./docs/assumptions.md)
 - [Дизайн-схема и правила](./docs/design-system.md)
 - [Машиночитаемые design tokens](./docs/design-system.json)

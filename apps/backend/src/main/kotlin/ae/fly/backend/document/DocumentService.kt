@@ -35,14 +35,18 @@ class DocumentService(
     @Transactional
     fun create(owner: FlyPrincipal, request: CreateDocumentRequest): DocumentResponse {
         val user = (owner as? AuthenticatedUser)?.let {
-            users.findById(it.id).orElseThrow {
-                ApiProblem(HttpStatus.UNAUTHORIZED, "The authenticated user no longer exists.")
-            }
+            users.findById(it.id)
+                ?: throw ApiProblem(
+                    HttpStatus.UNAUTHORIZED,
+                    "The authenticated user no longer exists.",
+                )
         }
         val guestSession = (owner as? AuthenticatedGuest)?.let {
-            guestSessions.findById(it.id).orElseThrow {
-                ApiProblem(HttpStatus.UNAUTHORIZED, "The guest session no longer exists.")
-            }
+            guestSessions.findById(it.id)
+                ?: throw ApiProblem(
+                    HttpStatus.UNAUTHORIZED,
+                    "The guest session no longer exists.",
+                )
         }
         val maxFileSize = when (owner) {
             is AuthenticatedUser -> documentProperties.authenticatedMaxFileSizeBytes

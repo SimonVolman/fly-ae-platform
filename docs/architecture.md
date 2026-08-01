@@ -18,11 +18,13 @@
 flowchart LR
     U["Browser"] -->|Guest session or OTP; metadata| API["Spring Boot API"]
     U -->|presigned multipart PUT| S3["Private S3 / MinIO"]
-    API --> DB["PostgreSQL"]
+    API --> P["Persistence contracts"]
+    P -->|local/test| PG["PostgreSQL"]
+    P -->|v0-prod| DDB["DynamoDB"]
     API -->|enqueue| Q["JobQueue"]
     Q --> W["Local async worker / future SQS worker"]
     W -->|head/read/delete| S3
-    W -->|status update| DB
+    W -->|status update| P
     U -->|share token| API
     API -->|short-lived download URL| S3
 ```
@@ -30,6 +32,10 @@ flowchart LR
 Local V0 uses an in-process `JobQueue` and deterministic
 `DocumentClassifier`. The interfaces are stable boundaries for an SQS adapter
 and an AI-backed classifier later.
+
+Persistence uses the same pattern: services depend on repository contracts.
+Local/test selects the JPA/Flyway PostgreSQL adapter; `v0-prod` selects the AWS
+SDK DynamoDB adapter. See [`persistence.md`](./persistence.md).
 
 ## Vertical slices
 
@@ -84,6 +90,7 @@ invalidates its share token.
 ## Source-of-truth documents
 
 - API contract: [`api/openapi.yaml`](./api/openapi.yaml)
-- Database model: [`database.md`](./database.md)
+- PostgreSQL model: [`database.md`](./database.md)
+- Persistence adapters: [`persistence.md`](./persistence.md)
 - Product assumptions: [`assumptions.md`](./assumptions.md)
 - Design system: [`design-system.md`](./design-system.md)

@@ -26,7 +26,7 @@ class DocumentProcessingService(
 
     @Transactional
     fun process(documentId: UUID) {
-        val document = documents.findById(documentId).orElse(null) ?: return
+        val document = documents.findById(documentId) ?: return
         if (document.status != DocumentStatus.PENDING) return
 
         val now = clock.instant()

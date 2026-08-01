@@ -51,7 +51,7 @@ class OtpServiceTest {
 
         `when`(otpCodes.findAllByEmailAndConsumedAtIsNull("pilot@fly.ae"))
             .thenReturn(emptyList())
-        `when`(otpCodes.save(any(OtpCode::class.java))).thenAnswer {
+        `when`(otpCodes.save(any(OtpCode::class.java) ?: OtpCode())).thenAnswer {
             (it.arguments[0] as OtpCode).also { value -> savedOtp = value }
         }
         `when`(otpCodes.findFirstByEmailAndConsumedAtIsNullOrderByCreatedAtDesc("pilot@fly.ae"))
