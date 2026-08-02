@@ -12,13 +12,13 @@ Parameters:
     Type: String
   SessionSecretParameter:
     Type: String
-    Default: /fly-ae/v0-prod/session-secret
+    Default: fly-ae/v0-prod/session-secret
   OtpPepperParameter:
     Type: String
-    Default: /fly-ae/v0-prod/otp-pepper
+    Default: fly-ae/v0-prod/otp-pepper
   ShareEncryptionSecretParameter:
     Type: String
-    Default: /fly-ae/v0-prod/share-encryption-secret
+    Default: fly-ae/v0-prod/share-encryption-secret
 
 Globals:
   Function:
