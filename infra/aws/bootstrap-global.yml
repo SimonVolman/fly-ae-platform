@@ -96,17 +96,8 @@ Resources:
                 Resource: !Sub arn:${AWS::Partition}:cloudformation:${ApplicationRegion}:aws:transform/Serverless-2016-10-31
               - Sid: ReadApplicationSecrets
                 Effect: Allow
-                Action:
-                  - ssm:GetParameter
-                  - ssm:GetParameters
-                Resource: !Sub arn:${AWS::Partition}:ssm:${ApplicationRegion}:${AWS::AccountId}:parameter/fly-ae/v0-prod/*
-              - Sid: DecryptApplicationSecrets
-                Effect: Allow
-                Action: kms:Decrypt
-                Resource: "*"
-                Condition:
-                  StringEquals:
-                    kms:ViaService: !Sub ssm.${ApplicationRegion}.amazonaws.com
+                Action: secretsmanager:GetSecretValue
+                Resource: !Sub arn:${AWS::Partition}:secretsmanager:${ApplicationRegion}:${AWS::AccountId}:secret:fly-ae/v0-prod/*
 
   GitHubDeployRole:
     Type: AWS::IAM::Role

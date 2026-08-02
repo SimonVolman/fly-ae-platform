@@ -36,6 +36,60 @@ Resources:
         - Key: Environment
           Value: v0-prod
 
+  SessionSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: fly-ae/v0-prod/session-secret
+      Description: fly.ae V0 production session signing secret
+      GenerateSecretString:
+        PasswordLength: 64
+        ExcludePunctuation: true
+      Tags:
+        - Key: Application
+          Value: fly.ae
+        - Key: Environment
+          Value: v0-prod
+
+  OtpPepper:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: fly-ae/v0-prod/otp-pepper
+      Description: fly.ae V0 production OTP pepper
+      GenerateSecretString:
+        PasswordLength: 64
+        ExcludePunctuation: true
+      Tags:
+        - Key: Application
+          Value: fly.ae
+        - Key: Environment
+          Value: v0-prod
+
+  ShareEncryptionSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: fly-ae/v0-prod/share-encryption-secret
+      Description: fly.ae V0 production share encryption secret
+      GenerateSecretString:
+        PasswordLength: 64
+        ExcludePunctuation: true
+      Tags:
+        - Key: Application
+          Value: fly.ae
+        - Key: Environment
+          Value: v0-prod
+
 Outputs:
   ArtifactBucketName:
     Value: !Ref SamArtifactsBucket
+  SessionSecretId:
+    Value: !Ref SessionSecret
+  OtpPepperId:
+    Value: !Ref OtpPepper
+  ShareEncryptionSecretId:
+    Value: !Ref ShareEncryptionSecret

@@ -251,8 +251,10 @@ SQS и AI без изменения публичного REST API.
 
 ## Секреты и IAM
 
-Для минимальной стоимости используются encrypted Lambda environment variables
-или Standard Parameters в SSM Parameter Store. Secrets Manager для V0 не нужен.
+Секреты хранятся в AWS Secrets Manager и создаются региональным bootstrap-стеком.
+CloudFormation передаёт их в зашифрованные environment variables Lambda через
+dynamic references; значения не хранятся в GitHub и не выводятся в deployment
+logs.
 
 Секретами являются:
 
@@ -434,8 +436,9 @@ GitHub Actions получает доступ к AWS через GitHub OIDC и к
 | S3 | зависит от объёма PDF |
 | CloudFront/frontend | $0-1 при малом трафике |
 | CloudWatch | $0-1 |
+| Secrets Manager | около $1.20 за три секрета |
 | ACM | $0 |
-| **Ориентир всего** | **$1-5/месяц** |
+| **Ориентир всего** | **$2-6/месяц** |
 
 Отдельно оплачиваются домен, хранение большого количества PDF, исходящий трафик
 при скачивании документов и возможные налоги AWS.
