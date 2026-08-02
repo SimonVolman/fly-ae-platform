@@ -435,6 +435,7 @@ export default function Home() {
           return { location: completed.shareUrl ?? undefined };
         },
         abortMultipartUpload: async (file, { uploadId }) => {
+          if (!uploadId) return;
           await api<void>(
             `/documents/${file.meta.documentId}/multipart/${encodeURIComponent(uploadId)}`,
             { method: "DELETE" },

@@ -59,6 +59,9 @@ fly:
   web:
     allowed-origins: ${FLY_ALLOWED_ORIGINS:http://localhost:3000}
     public-base-url: ${FLY_PUBLIC_BASE_URL:http://localhost:3000}
+  email:
+    from: ${FLY_EMAIL_FROM:no-reply@fly.ae}
+    region: ${FLY_EMAIL_REGION:eu-central-1}
   storage:
     endpoint: ${FLY_S3_ENDPOINT:}
     region: ${FLY_S3_REGION:us-east-1}

@@ -4,7 +4,7 @@ import ae.fly.backend.api.ApiProblem
 import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.FlyPrincipal
 import ae.fly.backend.document.DocumentResponse
-import ae.fly.backend.security.FixedWindowRateLimiter
+import ae.fly.backend.security.RateLimiter
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -23,7 +23,7 @@ import java.util.UUID
 @RequestMapping("/api/v1/documents/{documentId}/multipart")
 class UploadController(
     private val uploads: UploadService,
-    private val rateLimiter: FixedWindowRateLimiter,
+    private val rateLimiter: RateLimiter,
 ) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

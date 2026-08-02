@@ -25,3 +25,9 @@ data class WebProperties(
     val allowedOrigins: List<String> = listOf("http://localhost:3000"),
     val publicBaseUrl: String = "http://localhost:3000",
 )
+
+@ConfigurationProperties("fly.email")
+data class EmailProperties(
+    val from: String = "no-reply@fly.ae",
+    val region: String = "eu-central-1",
+)

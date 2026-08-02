@@ -36,6 +36,9 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sqs")
     implementation("software.amazon.awssdk:dynamodb")
+    implementation("software.amazon.awssdk:sesv2")
+
+    implementation("com.amazonaws.serverless:aws-serverless-java-container-springboot4:3.0.2")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -63,5 +66,18 @@ tasks.withType<Test> {
 tasks.processResources {
     from("../../docs/api/openapi.yaml") {
         into("static")
+    }
+}
+
+tasks.register<Zip>("buildLambdaZip") {
+    group = "build"
+    description = "Builds the Java 21 ZIP deployment package for AWS Lambda"
+    dependsOn(tasks.named("jar"))
+    archiveFileName.set("fly-ae-backend-lambda.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+
+    into("lib") {
+        from(tasks.named("jar"))
+        from(configurations.runtimeClasspath)
     }
 }

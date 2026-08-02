@@ -1,0 +1,146 @@
+name: Deploy V0 production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: v0-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Test, build and deploy
+    runs-on: ubuntu-latest
+    environment: v0-prod
+    env:
+      AWS_ACCOUNT_ID: "808906610083"
+      AWS_REGION: eu-central-1
+      AWS_GLOBAL_REGION: us-east-1
+      AWS_STACK_NAME: fly-ae-v0-prod
+      AWS_BOOTSTRAP_STACK_NAME: fly-ae-bootstrap-global
+      AWS_ARTIFACT_BUCKET: fly-ae-sam-artifacts-808906610083-eu-central-1
+      AWS_DEPLOY_ROLE_ARN: arn:aws:iam::808906610083:role/fly-ae-v0-prod-github-deploy
+      AWS_CLOUDFORMATION_ROLE_ARN: arn:aws:iam::808906610083:role/fly-ae-v0-prod-cloudformation
+      FRONTEND_DOMAIN: fly.turbulencesimtrading.com
+      HOSTED_ZONE_ID: Z07421363JCB3HEDXSCDK
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Test and lint frontend
+        run: |
+          npm run test:web
+          npm run lint
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Test and package backend
+        run: ./apps/backend/gradlew -p apps/backend --no-daemon test buildLambdaZip
+
+      - name: Set up AWS SAM
+        uses: aws-actions/setup-sam@v2
+
+      - name: Configure short-lived AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve bootstrap outputs
+        id: bootstrap
+        run: |
+          certificate_arn="$(aws cloudformation describe-stacks \
+            --region "$AWS_GLOBAL_REGION" \
+            --stack-name "$AWS_BOOTSTRAP_STACK_NAME" \
+            --query 'Stacks[0].Outputs[?OutputKey==`FrontendCertificateArn`].OutputValue' \
+            --output text)"
+          echo "certificate_arn=$certificate_arn" >> "$GITHUB_OUTPUT"
+
+      - name: Validate SAM template
+        run: sam validate --lint --template-file infra/aws/template.yml
+
+      - name: Deploy application stack
+        run: |
+          sam deploy \
+            --region "$AWS_REGION" \
+            --stack-name "$AWS_STACK_NAME" \
+            --template-file infra/aws/template.yml \
+            --s3-bucket "$AWS_ARTIFACT_BUCKET" \
+            --s3-prefix "$AWS_STACK_NAME" \
+            --role-arn "$AWS_CLOUDFORMATION_ROLE_ARN" \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              FrontendDomainName="$FRONTEND_DOMAIN" \
+              HostedZoneId="$HOSTED_ZONE_ID" \
+              FrontendCertificateArn="${{ steps.bootstrap.outputs.certificate_arn }}" \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
+
+      - name: Resolve application outputs
+        id: application
+        run: |
+          api_url="$(aws cloudformation describe-stacks \
+            --stack-name "$AWS_STACK_NAME" \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiBaseUrl`].OutputValue' \
+            --output text)"
+          frontend_bucket="$(aws cloudformation describe-stacks \
+            --stack-name "$AWS_STACK_NAME" \
+            --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucketName`].OutputValue' \
+            --output text)"
+          distribution_id="$(aws cloudformation describe-stacks \
+            --stack-name "$AWS_STACK_NAME" \
+            --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue' \
+            --output text)"
+          echo "api_url=$api_url" >> "$GITHUB_OUTPUT"
+          echo "frontend_bucket=$frontend_bucket" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=$distribution_id" >> "$GITHUB_OUTPUT"
+
+      - name: Build static frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.application.outputs.api_url }}/api/v1
+        run: npm run build:aws --workspace @fly-ae/web
+
+      - name: Publish static frontend
+        run: |
+          aws s3 sync apps/web/out "s3://${{ steps.application.outputs.frontend_bucket }}" \
+            --delete \
+            --only-show-errors
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.application.outputs.distribution_id }}" \
+            --paths '/*' >/dev/null
+
+      - name: Smoke test
+        env:
+          API_URL: ${{ steps.application.outputs.api_url }}
+        run: |
+          for attempt in {1..18}; do
+            if curl --fail --silent --show-error "$API_URL/api/v1/categories" >/dev/null && \
+               curl --fail --silent --show-error "https://$FRONTEND_DOMAIN" >/dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Smoke test did not become healthy in time." >&2
+          exit 1

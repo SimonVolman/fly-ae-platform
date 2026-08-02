@@ -2,7 +2,7 @@ package ae.fly.backend.share
 
 import ae.fly.backend.config.StorageProperties
 import ae.fly.backend.ports.ObjectStorage
-import ae.fly.backend.security.FixedWindowRateLimiter
+import ae.fly.backend.security.RateLimiter
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -24,7 +24,7 @@ class ShareController(
     private val shareTokens: ShareTokenService,
     private val storage: ObjectStorage,
     private val storageProperties: StorageProperties,
-    private val rateLimiter: FixedWindowRateLimiter,
+    private val rateLimiter: RateLimiter,
 ) {
     @GetMapping("/{token}")
     fun resolve(

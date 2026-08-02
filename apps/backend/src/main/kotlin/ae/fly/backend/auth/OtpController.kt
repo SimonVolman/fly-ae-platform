@@ -1,6 +1,6 @@
 package ae.fly.backend.auth
 
-import ae.fly.backend.security.FixedWindowRateLimiter
+import ae.fly.backend.security.RateLimiter
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
@@ -14,7 +14,7 @@ import java.time.Duration
 @RequestMapping("/api/v1/auth/otp")
 class OtpController(
     private val otpService: OtpService,
-    private val rateLimiter: FixedWindowRateLimiter,
+    private val rateLimiter: RateLimiter,
 ) {
     @PostMapping("/request")
     fun requestOtp(

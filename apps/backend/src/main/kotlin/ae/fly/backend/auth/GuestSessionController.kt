@@ -1,6 +1,6 @@
 package ae.fly.backend.auth
 
-import ae.fly.backend.security.FixedWindowRateLimiter
+import ae.fly.backend.security.RateLimiter
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -15,7 +15,7 @@ import java.time.Duration
 @RequestMapping("/api/v1/guest/sessions")
 class GuestSessionController(
     private val guestSessionService: GuestSessionService,
-    private val rateLimiter: FixedWindowRateLimiter,
+    private val rateLimiter: RateLimiter,
 ) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

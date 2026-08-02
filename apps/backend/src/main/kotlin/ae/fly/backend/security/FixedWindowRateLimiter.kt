@@ -1,5 +1,6 @@
 package ae.fly.backend.security
 
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Service
 import java.time.Clock
 import java.time.Duration
@@ -10,10 +11,15 @@ class RateLimitExceeded(
     val retryAfterSeconds: Long,
 ) : RuntimeException("Rate limit exceeded")
 
+interface RateLimiter {
+    fun check(key: String, limit: Int, duration: Duration)
+}
+
 @Service
+@Profile("!v0-prod")
 class FixedWindowRateLimiter(
     private val clock: Clock,
-) {
+) : RateLimiter {
     private data class Window(
         val startedAt: Instant,
         val count: Int,
@@ -21,7 +27,7 @@ class FixedWindowRateLimiter(
 
     private val windows = ConcurrentHashMap<String, Window>()
 
-    fun check(key: String, limit: Int, duration: Duration) {
+    override fun check(key: String, limit: Int, duration: Duration) {
         val now = clock.instant()
         var allowed = true
         var retryAfter = duration.seconds
