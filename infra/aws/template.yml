@@ -195,6 +195,7 @@ Resources:
       Environment:
         Variables:
           SPRING_PROFILES_ACTIVE: v0-prod
+          SERVER_FORWARD_HEADERS_STRATEGY: none
           FLY_PERSISTENCE: dynamodb
           FLY_DYNAMODB_REGION: !Ref AWS::Region
           FLY_DYNAMODB_TABLE: !Ref FlyAeTable
