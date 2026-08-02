@@ -90,6 +90,10 @@ Resources:
                   - iam:UntagRole
                   - iam:UpdateAssumeRolePolicy
                 Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/fly-ae-v0-prod-*
+              - Sid: ExpandServerlessTransform
+                Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:${ApplicationRegion}:aws:transform/Serverless-2016-10-31
               - Sid: ReadApplicationSecrets
                 Effect: Allow
                 Action:
