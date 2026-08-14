@@ -182,7 +182,10 @@ Resources:
               - Sid: SendOtpEmail
                 Effect: Allow
                 Action: ses:SendEmail
-                Resource: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${FrontendDomainName}
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ses:FromAddress: !Sub no-reply@${FrontendDomainName}
 
   BackendFunction:
     Type: AWS::Serverless::Function
