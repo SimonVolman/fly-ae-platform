@@ -92,14 +92,6 @@ export default function StyleGuide() {
               <span>Secure</span>
               <span>Efficient</span>
             </div>
-            <a
-              className="guide-source-link"
-              href="https://www.figma.com/design/p8QjkewBdCS8qv1J21OoxW/fly.ae?node-id=160-1088&t=78eXDSBlGsjRRSB5-1"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Figma UI Kit · node 160:1088 ↗
-            </a>
           </div>
         </section>
 

@@ -53,6 +53,7 @@ test("server-renders the fly.ae style guide", async () => {
   assert.match(html, /Brand and colour/);
   assert.match(html, /Controls and states/);
   assert.match(html, /Product building blocks/);
+  assert.doesNotMatch(html, /Figma UI Kit|node 160:1088/);
 });
 
 test("server-renders customer-copy legal placeholders", async () => {

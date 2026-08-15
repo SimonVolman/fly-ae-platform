@@ -994,15 +994,6 @@ footer a {
   padding: 8px 10px;
 }
 
-.guide-source-link {
-  display: inline-block;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  margin-top: 24px;
-  text-underline-offset: 4px;
-}
-
 .guide-section {
   border-top: 1px solid var(--color-line-strong);
   padding: 80px 0 104px;
