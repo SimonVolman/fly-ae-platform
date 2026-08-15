@@ -14,12 +14,12 @@ import {
 } from "react";
 import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
+import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 const AUTHENTICATED_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const GUEST_MAX_FILE_SIZE = 10 * 1024 * 1024;
-const LEGAL_VERSION = "customer-v1";
 
 type Category = {
   id: string;
@@ -234,8 +234,8 @@ export default function Home() {
           email,
           code: otpCode,
           acceptedLegal,
-          termsVersion: LEGAL_VERSION,
-          privacyVersion: LEGAL_VERSION,
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
         }),
       });
       setSession(nextSession);
@@ -358,8 +358,8 @@ export default function Home() {
             method: "POST",
             body: JSON.stringify({
               acceptedLegal: true,
-              termsVersion: LEGAL_VERSION,
-              privacyVersion: LEGAL_VERSION,
+              termsVersion: TERMS_VERSION,
+              privacyVersion: PRIVACY_VERSION,
             }),
           });
       const accessToken =

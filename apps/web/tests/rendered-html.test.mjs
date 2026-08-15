@@ -82,14 +82,19 @@ test("server-renders the fly.ae style guide", async () => {
   assert.doesNotMatch(html, /Figma UI Kit|node 160:1088/);
 });
 
-test("server-renders customer-copy legal placeholders", async () => {
+test("server-renders the Terms draft and Privacy placeholder", async () => {
   const [terms, privacy] = await Promise.all([
     render("/terms"),
     render("/privacy"),
   ]);
   assert.equal(terms.status, 200);
   assert.equal(privacy.status, 200);
-  assert.match(await terms.text(), /Terms and Conditions/);
+  const termsHtml = await terms.text();
+  assert.match(termsHtml, /Terms and Conditions/);
+  assert.match(termsHtml, /Draft — not approved for production/);
+  assert.match(termsHtml, /An “approved” status does not certify/);
+  assert.match(termsHtml, /LEGAL ENTITY NAME/);
+  assert.doesNotMatch(termsHtml, /Content pending/);
   assert.match(await privacy.text(), /Privacy Policy/);
 });
 

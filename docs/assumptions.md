@@ -31,9 +31,11 @@ available.
 9. **Share links have no product-level expiry in V0.** Object upload signatures
    expire after one hour. The manual revoke and share TTL features remain out of
    scope.
-10. **Terms and Privacy copy is not invented.** Routes and acceptance storage
-    are prepared, but final text must be supplied by the customer before a
-    production release.
+10. **Legal copy is not production-approved.** The Terms route contains an
+    English draft dated 15 August 2026; operator details, governing jurisdiction,
+    UAE legal review and any required Arabic version remain outstanding. The
+    Privacy route remains a placeholder. Acceptance storage is implemented for
+    both documents.
 11. **Existing UI work is preserved.** The fly.ae design system and
     `/style-guide` move into `apps/web` and remain the source for all V0 screens.
 12. **OpenAI Sites remains a frontend preview target.** The authoritative V0

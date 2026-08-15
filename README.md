@@ -201,7 +201,8 @@ Figma → design-system.json → CSS tokens → components → screens
   не подключены;
 - local `JobQueue` и rate limiter находятся в памяти одного backend instance;
 - local OTP выводится в консоль, production email adapter ещё не подключён;
-- тексты Terms и Privacy — явные placeholders до получения утверждённого текста
-  от заказчика;
+- Terms содержит английский черновик от 15 августа 2026 года, который требует
+  реквизитов оператора, UAE legal review и при необходимости арабской версии;
+  Privacy остаётся placeholder до получения утверждённого текста;
 - нет OCR, DOCX, папок, admin UI, ручной модерации, уведомлений, browser-restart
   resume и staging-окружения.
