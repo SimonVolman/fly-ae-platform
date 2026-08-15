@@ -243,6 +243,8 @@ Resources:
         AllowHeaders:
           - Authorization
           - Content-Type
+        ExposeHeaders:
+          - Retry-After
         MaxAge: 3600
       Tags:
         Application: fly.ae

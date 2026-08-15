@@ -2547,6 +2547,10 @@ footer a {
   font-size: 13px;
 }
 
+.auth-dialog-error {
+  margin: 24px 0 0;
+}
+
 .app-section-heading {
   align-items: flex-end;
   display: flex;

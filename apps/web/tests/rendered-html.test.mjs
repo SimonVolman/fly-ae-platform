@@ -1,8 +1,34 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
+import {
+  apiRequestError,
+  formatRetryAfter,
+  parseRetryAfter,
+} from "../app/api-error.ts";
 
 const templateRoot = new URL("../", import.meta.url);
+
+test("formats API rate limits with a useful wait time", () => {
+  assert.equal(parseRetryAfter("2806"), 2806);
+  assert.equal(parseRetryAfter("invalid"), null);
+  assert.equal(formatRetryAfter(1), "1 second");
+  assert.equal(formatRetryAfter(60), "1 minute");
+  assert.equal(formatRetryAfter(2806), "47 minutes");
+  assert.equal(formatRetryAfter(3600), "1 hour");
+
+  const error = apiRequestError(
+    new Response(null, {
+      status: 429,
+      headers: { "Retry-After": "2806" },
+    }),
+    { detail: "Too many requests. Try again later." },
+  );
+
+  assert.equal(error.status, 429);
+  assert.equal(error.retryAfterSeconds, 2806);
+  assert.equal(error.message, "Too many requests. Try again in 47 minutes.");
+});
 
 async function render(pathname = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -68,7 +94,17 @@ test("server-renders customer-copy legal placeholders", async () => {
 });
 
 test("removes the disposable starter preview", async () => {
-  const [css, page, layout, packageJson, readme, designDocument, designManifest] =
+  const [
+    css,
+    page,
+    layout,
+    packageJson,
+    readme,
+    designDocument,
+    designManifest,
+    infrastructureTemplate,
+    securityConfig,
+  ] =
     await Promise.all([
       readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
       readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
@@ -77,6 +113,14 @@ test("removes the disposable starter preview", async () => {
       readFile(new URL("../../../README.md", import.meta.url), "utf8"),
       readFile(new URL("../../../docs/design-system.md", import.meta.url), "utf8"),
       readFile(new URL("../../../docs/design-system.json", import.meta.url), "utf8"),
+      readFile(new URL("../../../infra/aws/template.yml", import.meta.url), "utf8"),
+      readFile(
+        new URL(
+          "../../backend/src/main/kotlin/ae/fly/backend/config/SecurityConfig.kt",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
     ]);
 
   const designSystem = JSON.parse(designManifest);
@@ -99,6 +143,8 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /mobile-navigation/);
   assert.match(page, /Open account menu/);
   assert.match(page, /empty-documents-state/);
+  assert.match(page, /auth-dialog-error/);
+  assert.match(css, /\.auth-dialog-error/);
   assert.match(css, /\.aviation-notice/);
   assert.match(css, /--color-ink:\s*#101a3a/);
   assert.match(css, /--radius-control:\s*6px/);
@@ -109,6 +155,8 @@ test("removes the disposable starter preview", async () => {
   assert.equal(designSystem.name, "fly.ae Design System");
   assert.equal(designSystem.tokens.color.ink.css, "--color-ink");
   assert.equal(designSystem.implementation.livingGuide, "/style-guide");
+  assert.match(infrastructureTemplate, /ExposeHeaders:\s*\n\s*- Retry-After/);
+  assert.match(securityConfig, /exposedHeaders = listOf\([^)]*"Retry-After"/s);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.doesNotMatch(layout, /codex-preview|_sites-preview|Starter Project/);
 

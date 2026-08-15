@@ -65,7 +65,7 @@ class SecurityConfig {
             allowedOrigins = properties.allowedOrigins
             allowedMethods = listOf("GET", "POST", "DELETE", "OPTIONS")
             allowedHeaders = listOf("Authorization", "Content-Type")
-            exposedHeaders = listOf("ETag", "Location")
+            exposedHeaders = listOf("ETag", "Location", "Retry-After")
             allowCredentials = false
             maxAge = 3600
         }

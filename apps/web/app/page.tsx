@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
 
 const API_URL =
@@ -82,11 +83,6 @@ type UploadState =
 
 type WorkflowStep = 1 | 2 | 3;
 
-type ApiProblem = {
-  detail?: string;
-  title?: string;
-};
-
 async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -103,7 +99,7 @@ async function api<T>(
 
   if (!response.ok) {
     const problem = (await response.json().catch(() => ({}))) as ApiProblem;
-    throw new Error(problem.detail ?? problem.title ?? "Request failed.");
+    throw apiRequestError(response, problem);
   }
   if (response.status === 204 || response.status === 202) {
     return undefined as T;
@@ -143,6 +139,7 @@ export default function Home() {
   const [activeDocument, setActiveDocument] = useState<FlyDocument | null>(null);
   const [activeDocumentAccessToken, setActiveDocumentAccessToken] = useState("");
   const [error, setError] = useState("");
+  const [authError, setAuthError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
   const [authStep, setAuthStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -211,7 +208,7 @@ export default function Home() {
   async function requestOtp(event: FormEvent) {
     event.preventDefault();
     setAuthBusy(true);
-    setError("");
+    setAuthError("");
     try {
       await api<void>("/auth/otp/request", {
         method: "POST",
@@ -219,7 +216,7 @@ export default function Home() {
       });
       setAuthStep("code");
     } catch (requestError) {
-      setError((requestError as Error).message);
+      setAuthError((requestError as Error).message);
     } finally {
       setAuthBusy(false);
     }
@@ -229,7 +226,7 @@ export default function Home() {
     event.preventDefault();
     if (!acceptedLegal) return;
     setAuthBusy(true);
-    setError("");
+    setAuthError("");
     try {
       const nextSession = await api<Session>("/auth/otp/verify", {
         method: "POST",
@@ -249,7 +246,7 @@ export default function Home() {
       setUploadState(selectedFile ? "ready" : "idle");
       await loadDocuments(nextSession);
     } catch (requestError) {
-      setError((requestError as Error).message);
+      setAuthError((requestError as Error).message);
     } finally {
       setAuthBusy(false);
     }
@@ -555,6 +552,17 @@ export default function Home() {
     if (session) void loadDocuments(session);
   }
 
+  function openAuth() {
+    setAuthStep("email");
+    setAuthError("");
+    setAuthOpen(true);
+  }
+
+  function closeAuth() {
+    setAuthOpen(false);
+    setAuthError("");
+  }
+
   function logOut() {
     window.sessionStorage.removeItem("flyae:session");
     setSession(null);
@@ -615,12 +623,12 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <button className="text-button desktop-login" onClick={() => setAuthOpen(true)}>
+              <button className="text-button desktop-login" onClick={openAuth}>
                 Log in
               </button>
               <button
                 className="mobile-login-button"
-                onClick={() => setAuthOpen(true)}
+                onClick={openAuth}
                 aria-label="Log in"
               >
                 Login
@@ -692,7 +700,7 @@ export default function Home() {
                 className="button button-primary mobile-navigation-login"
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  setAuthOpen(true);
+                  openAuth();
                 }}
               >
                 Login
@@ -722,7 +730,7 @@ export default function Home() {
             <div className="empty-app-state">
               <h2>Log in to view your documents</h2>
               <p>My Documents is available after email verification.</p>
-              <button className="button button-primary" onClick={() => setAuthOpen(true)}>
+              <button className="button button-primary" onClick={openAuth}>
                 Log in
               </button>
             </div>
@@ -963,8 +971,7 @@ export default function Home() {
                       type="button"
                       className="guest-login-link"
                       onClick={() => {
-                        setAuthStep("email");
-                        setAuthOpen(true);
+                        openAuth();
                       }}
                     >
                       Log in to upload up to 100 MB and use My Documents
@@ -1065,7 +1072,7 @@ export default function Home() {
       </footer>
 
       {authOpen && (
-        <div className="overlay" role="presentation" onMouseDown={() => setAuthOpen(false)}>
+        <div className="overlay" role="presentation" onMouseDown={closeAuth}>
           <section
             className="dialog login-dialog"
             role="dialog"
@@ -1075,10 +1082,19 @@ export default function Home() {
           >
             <div className="dialog-top">
               <Brand />
-              <button className="close" onClick={() => setAuthOpen(false)} aria-label="Close">
+              <button className="close" onClick={closeAuth} aria-label="Close">
                 ×
               </button>
             </div>
+
+            {authError && (
+              <div className="app-error auth-dialog-error" role="alert">
+                <strong>
+                  {authStep === "email" ? "Unable to send the code" : "Unable to verify the code"}
+                </strong>
+                <span>{authError}</span>
+              </div>
+            )}
 
             {authStep === "email" ? (
               <form onSubmit={requestOtp}>
@@ -1105,7 +1121,14 @@ export default function Home() {
               </form>
             ) : (
               <form onSubmit={verifyOtp}>
-                <button type="button" className="back-link" onClick={() => setAuthStep("email")}>
+                <button
+                  type="button"
+                  className="back-link"
+                  onClick={() => {
+                    setAuthError("");
+                    setAuthStep("email");
+                  }}
+                >
                   ← Change email
                 </button>
                 <h2 id="auth-title">Enter your code</h2>
