@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -27,7 +28,7 @@
   --radius-dialog: 14px;
   --shadow-dialog: 0 24px 72px rgb(16 26 58 / 24%);
   --content-width: 1120px;
-  --font-sans: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Titillium Web", "Helvetica Neue", Arial, sans-serif;
   --font-body: "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -90,49 +91,25 @@ a {
   align-items: center;
   background: none;
   border: 0;
-  color: var(--color-ink);
   display: inline-flex;
-  font-family: var(--font-sans);
-  font-size: clamp(46px, 5vw, 68px);
-  font-stretch: condensed;
-  font-weight: 800;
-  gap: 0.28em;
-  letter-spacing: -0.055em;
-  line-height: 0.9;
   margin: 0;
   padding: 0;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 button.brand {
   cursor: pointer;
 }
 
-.brand-mark {
+.brand-logo {
   display: block;
   flex: 0 0 auto;
-  height: 1.22em;
-  overflow: visible;
-  width: 2.15em;
-}
-
-.brand-mark-wing,
-.brand-mark-head,
-.brand-mark-antenna {
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 4;
-}
-
-.brand-word {
-  font-family: Arial, "Helvetica Neue", sans-serif;
-  font-weight: 700;
+  height: 32px;
+  width: 121px;
 }
 
 .brand-small {
-  font-size: 25px;
+  min-height: 32px;
 }
 
 .primary-nav,
@@ -425,14 +402,16 @@ button.brand {
 
 .empty-folder-card,
 .folder-card {
-  background: linear-gradient(160deg, var(--color-sky) 0%, var(--color-sky-deep) 100%);
-  border-radius: var(--radius-surface);
+  background: linear-gradient(180deg, #30a1f2 0%, #1459bb 100%);
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 8px;
   color: var(--color-surface);
   display: flex;
   flex-direction: column;
   min-height: 174px;
   padding: 22px;
   position: relative;
+  text-align: left;
   width: min(100%, 290px);
 }
 
@@ -450,20 +429,23 @@ button.brand {
 
 .empty-folder-card strong {
   font-family: var(--font-sans);
-  font-size: 20px;
+  font-size: 24px;
+  font-weight: 600;
   line-height: 1.2;
   margin: auto 0 18px;
 }
 
 .empty-folder-card > span:last-child {
-  color: rgb(255 255 255 / 72%);
-  font-size: 13px;
+  color: #b6ccf4;
+  font-family: var(--font-sans);
+  font-size: 24px;
+  font-weight: 600;
 }
 
 .folder-label {
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 600;
 }
 
 .history-list {
@@ -547,8 +529,8 @@ footer {
   padding: 72px max(24px, calc((100% - var(--content-width)) / 2));
 }
 
-footer .brand {
-  color: var(--color-surface);
+footer .brand-logo {
+  filter: brightness(0) invert(1);
 }
 
 .footer-brand {
@@ -1062,7 +1044,12 @@ footer a {
 }
 
 .brand-display {
-  font-size: clamp(56px, 8vw, 96px);
+  width: min(100%, 360px);
+}
+
+.brand-display .brand-logo {
+  height: auto;
+  width: 100%;
 }
 
 .brand-stage > div p {
@@ -1443,25 +1430,29 @@ footer a {
   align-items: center;
   display: flex;
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 600;
   justify-content: space-between;
 }
 
 .folder-card-top strong {
   font-size: 24px;
+  font-weight: 600;
   line-height: 1;
 }
 
 .folder-card h3 {
   font-family: var(--font-sans);
-  font-size: 28px;
+  font-size: 24px;
+  font-weight: 600;
   margin: auto 0 8px;
 }
 
 .folder-card p {
-  color: rgb(255 255 255 / 72%);
-  font-size: 13px;
+  color: #b6ccf4;
+  font-family: var(--font-sans);
+  font-size: 24px;
+  font-weight: 600;
   margin: 0;
 }
 
@@ -1775,11 +1766,13 @@ footer a {
 /* V0 product application */
 
 .product-app {
+  --app-inline: clamp(24px, 4vw, 64px);
   background: var(--color-canvas);
   min-height: 100vh;
 }
 
 .product-topbar {
+  padding-inline: var(--app-inline);
   position: sticky;
   top: 0;
 }
@@ -1791,14 +1784,15 @@ footer a {
   justify-self: end;
 }
 
-.mobile-account,
+.mobile-login-button,
 .mobile-menu-button {
   display: none;
 }
 
 .brand-button,
 .primary-nav button,
-.user-control,
+.user-avatar,
+.account-menu button,
 .document-actions button {
   background: none;
   border: 0;
@@ -1849,20 +1843,58 @@ footer a {
   justify-self: end;
   max-width: 250px;
   padding: 0;
+  position: relative;
 }
 
-.user-control > span:last-child {
+.desktop-user-email {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.user-avatar:focus-visible,
+.mobile-menu-button:focus-visible,
+.mobile-login-button:focus-visible {
+  outline: 3px solid rgb(37 143 224 / 35%);
+  outline-offset: 3px;
+}
+
+.account-menu {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  box-shadow: 0 14px 36px rgb(16 26 58 / 16%);
+  display: grid;
+  gap: 12px;
+  min-width: 230px;
+  padding: 14px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  z-index: 12;
+}
+
+.account-menu span {
+  overflow-wrap: anywhere;
+}
+
+.account-menu button {
+  color: var(--color-danger);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+}
+
+.mobile-navigation-overlay {
+  display: none;
+}
+
 .upload-workspace,
 .documents-view {
-  margin: 0 auto;
-  max-width: calc(var(--content-width) + 48px);
+  max-width: none;
   min-height: calc(100vh - 72px);
-  padding: 72px 24px 112px;
+  padding: 72px var(--app-inline) 112px;
 }
 
 .workspace-intro {
@@ -2193,20 +2225,17 @@ footer a {
 
 .upload-panel .upload-icon {
   border-radius: 9px;
-  font-size: 25px;
   height: 52px;
-  position: relative;
   width: 52px;
 }
 
-.upload-panel .upload-icon::after {
-  background: currentColor;
-  bottom: 12px;
-  content: "";
-  height: 2px;
-  left: 16px;
-  position: absolute;
-  width: 20px;
+.upload-panel .upload-icon svg {
+  height: 28px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  width: 28px;
 }
 
 .app-drop-zone:hover {
@@ -2652,6 +2681,17 @@ footer a {
   margin: 0 0 24px;
 }
 
+.empty-documents-state {
+  min-height: 260px;
+}
+
+.empty-documents-state > strong {
+  color: var(--color-line-strong);
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 600;
+}
+
 .product-footer {
   min-height: 180px;
   padding-block: 48px;
@@ -2811,10 +2851,6 @@ footer a {
     padding-inline: 18px;
   }
 
-  .product-topbar .brand-small {
-    font-size: 23px;
-  }
-
   .header-actions {
     gap: 10px;
   }
@@ -2823,7 +2859,7 @@ footer a {
     display: none;
   }
 
-  .mobile-account,
+  .mobile-login-button,
   .mobile-menu-button {
     align-items: center;
     background: var(--color-ink);
@@ -2838,16 +2874,17 @@ footer a {
     height: 40px;
     justify-content: center;
     padding: 0;
-    width: 40px;
   }
 
-  .mobile-account {
-    border-radius: 50%;
+  .mobile-login-button {
+    border-radius: 6px;
+    width: 84px;
   }
 
   .mobile-menu-button {
     background: transparent;
     color: var(--color-ink);
+    width: 40px;
   }
 
   .mobile-menu-button i,
@@ -2878,8 +2915,111 @@ footer a {
     top: 7px;
   }
 
-  .user-control > span:last-child {
+  .desktop-user-email {
     display: none;
+  }
+
+  .mobile-navigation-overlay {
+    align-items: stretch;
+    background: rgb(9 15 27 / 48%);
+    display: flex;
+    inset: 0;
+    justify-content: flex-end;
+    position: fixed;
+    z-index: 20;
+  }
+
+  .mobile-navigation {
+    background: var(--color-surface);
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    padding: 22px 24px 26px;
+    width: min(100%, 420px);
+  }
+
+  .mobile-navigation-top {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .mobile-navigation-close {
+    align-items: center;
+    background: none;
+    border: 0;
+    color: var(--color-ink);
+    cursor: pointer;
+    display: flex;
+    font-size: 30px;
+    height: 40px;
+    justify-content: center;
+    line-height: 1;
+    padding: 0 0 4px;
+    width: 40px;
+  }
+
+  .mobile-navigation > nav:not(.mobile-navigation-legal) {
+    display: grid;
+    gap: 2px;
+    margin-top: 54px;
+  }
+
+  .mobile-navigation > nav:not(.mobile-navigation-legal) button {
+    background: none;
+    border: 0;
+    color: var(--color-muted);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 21px;
+    font-weight: 600;
+    padding: 10px 0;
+    text-align: left;
+  }
+
+  .mobile-navigation > nav:not(.mobile-navigation-legal) .nav-active {
+    color: var(--color-ink);
+  }
+
+  .mobile-session {
+    border-top: 1px solid var(--color-line);
+    display: grid;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 24px;
+  }
+
+  .mobile-session span {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-session button {
+    background: none;
+    border: 0;
+    color: var(--color-danger);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    padding: 0;
+    text-align: left;
+  }
+
+  .mobile-navigation-login {
+    margin-top: 38px;
+    width: 100%;
+  }
+
+  .mobile-navigation-legal {
+    display: grid;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .mobile-navigation-legal a {
+    font-size: 13px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   .upload-workspace,

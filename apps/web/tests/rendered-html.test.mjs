@@ -93,7 +93,11 @@ test("removes the disposable starter preview", async () => {
   assert.match(css, /\.app-drop-zone/);
   assert.match(css, /\.document-table/);
   assert.match(css, /\.step-summary/);
-  assert.match(css, /\.brand-mark-wing/);
+  assert.match(css, /\.brand-logo/);
+  assert.match(css, /--font-sans:\s*"Titillium Web"/);
+  assert.match(page, /mobile-navigation/);
+  assert.match(page, /Open account menu/);
+  assert.match(page, /empty-documents-state/);
   assert.match(css, /\.aviation-notice/);
   assert.match(css, /--color-ink:\s*#101a3a/);
   assert.match(css, /--radius-control:\s*6px/);

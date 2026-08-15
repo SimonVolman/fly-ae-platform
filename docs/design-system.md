@@ -70,7 +70,7 @@ flowchart TD
 Основной характер задаёт узкий гротеск:
 
 ```css
-"Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif
+"Titillium Web", "Helvetica Neue", Arial, sans-serif
 ```
 
 | Стиль | Размер / интерлиньяж | Вес |
@@ -114,7 +114,7 @@ Pill-кнопки и чрезмерно скруглённые панели не
 - Нельзя подчёркивать, растягивать или отдельно перекрашивать буквы.
 - Свободное поле вокруг lockup не меньше высоты строчной `f`.
 
-Реализация: `.brand`, `.brand-mark`, `.brand-word`.
+Реализация: `.brand`, `.brand-logo`, `/brand.svg`.
 
 ### Buttons
 

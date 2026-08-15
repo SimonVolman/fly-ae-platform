@@ -151,6 +151,8 @@ export default function Home() {
   const [acceptedGuestLegal, setAcceptedGuestLegal] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const stepTwo = useRef<HTMLElement>(null);
   const stepThree = useRef<HTMLElement>(null);
@@ -242,6 +244,8 @@ export default function Home() {
       setSession(nextSession);
       window.sessionStorage.setItem("flyae:session", JSON.stringify(nextSession));
       setAuthOpen(false);
+      setMobileMenuOpen(false);
+      setAccountMenuOpen(false);
       setUploadState(selectedFile ? "ready" : "idle");
       await loadDocuments(nextSession);
     } catch (requestError) {
@@ -538,11 +542,26 @@ export default function Home() {
     setWorkflowStep(1);
   }
 
+  function showUploadView() {
+    setShowDocuments(false);
+    setMobileMenuOpen(false);
+    setAccountMenuOpen(false);
+  }
+
+  function showDocumentsView() {
+    setShowDocuments(true);
+    setMobileMenuOpen(false);
+    setAccountMenuOpen(false);
+    if (session) void loadDocuments(session);
+  }
+
   function logOut() {
     window.sessionStorage.removeItem("flyae:session");
     setSession(null);
     setDocuments([]);
     setShowDocuments(false);
+    setMobileMenuOpen(false);
+    setAccountMenuOpen(false);
     setUploadState("idle");
     setWorkflowStep(1);
     setActiveDocument(null);
@@ -555,62 +574,137 @@ export default function Home() {
   return (
     <main className="product-app">
       <header className="topbar product-topbar" aria-label="Primary">
-        <button className="brand-button" onClick={() => setShowDocuments(false)}>
+        <button className="brand-button" onClick={showUploadView}>
           <Brand />
         </button>
         <nav className="primary-nav" aria-label="Product">
           <button
             className={!showDocuments ? "nav-active" : ""}
-            onClick={() => setShowDocuments(false)}
+            onClick={showUploadView}
           >
             Upload
           </button>
           <button
             className={showDocuments ? "nav-active" : ""}
-            onClick={() => {
-              setShowDocuments(true);
-              if (session) void loadDocuments(session);
-            }}
+            onClick={showDocumentsView}
           >
             My Documents
           </button>
         </nav>
         <div className="header-actions">
           {session ? (
-            <button className="user-control" onClick={logOut} title="Log out">
-              <span className="avatar" aria-hidden="true">
+            <div className="user-control">
+              <button
+                className="avatar user-avatar"
+                type="button"
+                aria-label="Open account menu"
+                aria-expanded={accountMenuOpen}
+                onClick={() => setAccountMenuOpen((open) => !open)}
+              >
                 {session.user.email.slice(0, 2)}
-              </span>
-              <span>{session.user.email}</span>
-            </button>
+              </button>
+              <span className="desktop-user-email">{session.user.email}</span>
+              {accountMenuOpen && (
+                <div className="account-menu" role="menu">
+                  <span>{session.user.email}</span>
+                  <button type="button" role="menuitem" onClick={logOut}>
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <>
               <button className="text-button desktop-login" onClick={() => setAuthOpen(true)}>
                 Log in
               </button>
               <button
-                className="mobile-account"
+                className="mobile-login-button"
                 onClick={() => setAuthOpen(true)}
                 aria-label="Log in"
               >
-                U
+                Login
               </button>
             </>
           )}
           <button
             className="mobile-menu-button"
             onClick={() => {
-              const nextView = !showDocuments;
-              setShowDocuments(nextView);
-              if (nextView && session) void loadDocuments(session);
+              setAccountMenuOpen(false);
+              setMobileMenuOpen((open) => !open);
             }}
-            aria-label={showDocuments ? "Show upload" : "Show My Documents"}
-            aria-pressed={showDocuments}
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
           >
             <i aria-hidden="true" />
           </button>
         </div>
       </header>
+
+      {mobileMenuOpen && (
+        <div
+          className="mobile-navigation-overlay"
+          role="presentation"
+          onMouseDown={() => setMobileMenuOpen(false)}
+        >
+          <aside
+            className="mobile-navigation"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="mobile-navigation-top">
+              <Brand />
+              <button
+                type="button"
+                className="mobile-navigation-close"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close navigation menu"
+              >
+                ×
+              </button>
+            </div>
+            <nav aria-label="Mobile product navigation">
+              <button
+                type="button"
+                className={!showDocuments ? "nav-active" : ""}
+                onClick={showUploadView}
+              >
+                Upload
+              </button>
+              <button
+                type="button"
+                className={showDocuments ? "nav-active" : ""}
+                onClick={showDocumentsView}
+              >
+                My Documents
+              </button>
+            </nav>
+            {session ? (
+              <div className="mobile-session">
+                <span>{session.user.email}</span>
+                <button type="button" onClick={logOut}>Log out</button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="button button-primary mobile-navigation-login"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setAuthOpen(true);
+                }}
+              >
+                Login
+              </button>
+            )}
+            <nav className="mobile-navigation-legal" aria-label="Legal">
+              <Link href="/terms">Terms and Conditions</Link>
+              <Link href="/privacy">Privacy Policy</Link>
+            </nav>
+          </aside>
+        </div>
+      )}
 
       {showDocuments ? (
         <section className="documents-view" aria-labelledby="documents-title">
@@ -619,7 +713,7 @@ export default function Home() {
               <p className="eyebrow">Private workspace</p>
               <h1 id="documents-title">My Documents</h1>
             </div>
-            <button className="button button-primary" onClick={() => setShowDocuments(false)}>
+            <button className="button button-primary" onClick={showUploadView}>
               Upload document
             </button>
           </div>
@@ -665,12 +759,8 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="empty-app-state">
-              <div className="empty-folder-card">
-                <span className="folder-label">Aircraft</span>
-                <strong>No documents yet</strong>
-                <span>Upload your first PDF</span>
-              </div>
+            <div className="empty-app-state empty-documents-state">
+              <strong>No documents yet</strong>
             </div>
           )}
         </section>
@@ -812,7 +902,12 @@ export default function Home() {
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={dropFile}
                 >
-                  <span className="upload-icon" aria-hidden="true">↑</span>
+                  <span className="upload-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M7 3.5h7l3 3v14H7z" />
+                      <path d="M14 3.5v3h3M12 16v-6m-3 3 3-3 3 3" />
+                    </svg>
+                  </span>
                   <span>
                     <strong>Choose a PDF or drag &amp; drop it here</strong>
                     <small>

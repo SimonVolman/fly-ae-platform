@@ -146,19 +146,19 @@
         "size": "56px",
         "lineHeight": "56px",
         "weight": 800,
-        "family": "Arial Narrow, Roboto Condensed, Helvetica Neue, Arial, sans-serif"
+        "family": "Titillium Web, Helvetica Neue, Arial, sans-serif"
       },
       "heading1": {
         "size": "40px",
         "lineHeight": "44px",
         "weight": 800,
-        "family": "Arial Narrow, Roboto Condensed, Helvetica Neue, Arial, sans-serif"
+        "family": "Titillium Web, Helvetica Neue, Arial, sans-serif"
       },
       "heading2": {
         "size": "32px",
         "lineHeight": "36px",
         "weight": 800,
-        "family": "Arial Narrow, Roboto Condensed, Helvetica Neue, Arial, sans-serif"
+        "family": "Titillium Web, Helvetica Neue, Arial, sans-serif"
       },
       "body": {
         "size": "16px",
@@ -170,14 +170,14 @@
         "size": "12px",
         "lineHeight": "16px",
         "weight": 700,
-        "family": "Arial Narrow, Roboto Condensed, Helvetica Neue, Arial, sans-serif"
+        "family": "Titillium Web, Helvetica Neue, Arial, sans-serif"
       }
     }
   },
   "components": {
     "brand": {
-      "css": [".brand", ".brand-mark", ".brand-word"],
-      "canonicalMark": "fly-loop-variant-3",
+      "css": [".brand", ".brand-logo"],
+      "canonicalMark": "/brand.svg",
       "figmaVariants": ["Brand / Variant 3", "Brand / Variant 4", "Brand / Variant 5"],
       "appIcon": "fly-loop mark without wordmark",
       "rules": [
