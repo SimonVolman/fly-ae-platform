@@ -93,6 +93,8 @@ test("server-renders the Terms draft and Privacy placeholder", async () => {
   assert.match(termsHtml, /Terms and Conditions/);
   assert.match(termsHtml, /Draft — not approved for production/);
   assert.match(termsHtml, /An “approved” status does not certify/);
+  assert.match(termsHtml, /you—not the Operator—are responsible/);
+  assert.match(termsHtml, /every intended recipient may lawfully receive/);
   assert.match(termsHtml, /LEGAL ENTITY NAME/);
   assert.doesNotMatch(termsHtml, /Content pending/);
   assert.match(await privacy.text(), /Privacy Policy/);

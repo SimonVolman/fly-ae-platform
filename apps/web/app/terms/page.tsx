@@ -111,11 +111,16 @@ export default function TermsPage() {
 
         <section id="documents">
           <h2>4. Your documents and responsibilities</h2>
-          <p>You retain ownership of documents you upload. You confirm that:</p>
+          <p>
+            You retain ownership of documents you upload. Before uploading or
+            sharing any document, you must determine that you have all rights,
+            licences, consents and authorisations needed to reproduce, upload,
+            process and distribute it to each intended recipient. You confirm that:
+          </p>
           <ul>
             <li>
               you own the document or have all permissions needed to upload,
-              process, store and share it through the Service;
+              reproduce, process, store and distribute it through the Service;
             </li>
             <li>
               the document and your use of it comply with applicable law,
@@ -137,6 +142,17 @@ export default function TermsPage() {
             information unless it is necessary, you are authorised to do so, and
             you have assessed whether the Service is appropriate for that
             information.
+          </p>
+          <p>
+            The Operator provides technical tools and does not verify ownership,
+            confidentiality restrictions or distribution rights for user content.
+            Uploading, processing or assigning an “approved” status to a document
+            does not mean that the Operator has reviewed, cleared or accepted
+            responsibility for your right to use or distribute it. To the maximum
+            extent permitted by law, you—not the Operator—are responsible for the
+            documents you upload, your decision to share them, your choice of
+            recipients and any unauthorised distribution arising from your actions
+            or access credentials.
           </p>
         </section>
 
@@ -165,8 +181,11 @@ export default function TermsPage() {
           <p>
             Documents are intended to be stored privately until you create a share
             link. Anyone who obtains a working share link may be able to access the
-            associated document without signing in. You are responsible for
-            choosing recipients, transmitting links securely and revoking or
+            associated document without signing in. Creating or sending a share link
+            is your instruction to make the document available to its recipients;
+            it is not a distribution decision made by the Operator. You are
+            responsible for confirming that every intended recipient may lawfully
+            receive the document, transmitting links securely and revoking or
             deleting access when it is no longer needed.
           </p>
           <p>
@@ -183,6 +202,10 @@ export default function TermsPage() {
           <p>You must not:</p>
           <ul>
             <li>use the Service for an unlawful, fraudulent or deceptive purpose;</li>
+            <li>
+              upload, reproduce or distribute content without the rights,
+              permissions and authorisations required to do so;
+            </li>
             <li>
               access another person&apos;s account, session or document without
               permission;
@@ -303,8 +326,9 @@ export default function TermsPage() {
           <p>
             If you use the Service for a business or organisation, that organisation
             will be responsible for third-party claims arising from its unlawful
-            content, infringement of another person&apos;s rights or material breach of
-            these Terms, except to the extent the claim was caused by the Operator.
+            upload or distribution of content, infringement of another
+            person&apos;s rights or material breach of these Terms, except to the
+            extent the claim was caused by the Operator.
           </p>
         </section>
 
