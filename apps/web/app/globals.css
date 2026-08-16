@@ -2988,6 +2988,11 @@ footer a {
 }
 
 @media (min-width: 821px) {
+  .user-avatar {
+    background: var(--color-ink);
+    color: var(--color-surface);
+  }
+
   .desktop-avatar-initial {
     display: inline;
   }

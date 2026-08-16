@@ -167,6 +167,10 @@ test("removes the disposable starter preview", async () => {
   );
   assert.match(
     css,
+    /@media \(min-width: 821px\)[\s\S]*\.user-avatar\s*\{[^}]*background:\s*var\(--color-ink\)/,
+  );
+  assert.match(
+    css,
     /@media \(min-width: 821px\)[\s\S]*\.mobile-document-table\s*\{\s*display: none;/,
   );
   assert.match(readme, /Дизайн-система/);
