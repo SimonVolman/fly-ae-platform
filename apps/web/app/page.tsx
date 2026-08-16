@@ -83,6 +83,13 @@ type UploadState =
 
 type WorkflowStep = 1 | 2 | 3;
 
+type DocumentFolder = {
+  key: string;
+  category: Category;
+  msn: string;
+  documents: FlyDocument[];
+};
+
 async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -126,6 +133,29 @@ function statusLabel(status: DocumentStatus) {
   return labels[status];
 }
 
+function groupDocumentsIntoFolders(documents: FlyDocument[]) {
+  const folders = new Map<string, DocumentFolder>();
+
+  documents.forEach((document) => {
+    const key = `${document.category.id}:${document.msn}`;
+    const folder = folders.get(key);
+
+    if (folder) {
+      folder.documents.push(document);
+      return;
+    }
+
+    folders.set(key, {
+      key,
+      category: document.category,
+      msn: document.msn,
+      documents: [document],
+    });
+  });
+
+  return Array.from(folders.values());
+}
+
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -150,6 +180,7 @@ export default function Home() {
   const [showDocuments, setShowDocuments] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [openFolderKey, setOpenFolderKey] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const stepTwo = useRef<HTMLElement>(null);
   const stepThree = useRef<HTMLElement>(null);
@@ -578,6 +609,8 @@ export default function Home() {
 
   const selectedCategory = categories.find((category) => category.id === categoryId);
   const uploadBusy = ["preparing", "uploading", "processing"].includes(uploadState);
+  const documentFolders = groupDocumentsIntoFolders(documents);
+  const openFolder = documentFolders.find((folder) => folder.key === openFolderKey);
 
   return (
     <main className="product-app">
@@ -609,14 +642,27 @@ export default function Home() {
                 aria-expanded={accountMenuOpen}
                 onClick={() => setAccountMenuOpen((open) => !open)}
               >
-                {session.user.email.slice(0, 2)}
+                <span className="desktop-avatar-initial">
+                  {session.user.email.trim().charAt(0)}
+                </span>
+                <span className="mobile-avatar-initial">
+                  {session.user.email.slice(0, 2)}
+                </span>
               </button>
-              <span className="desktop-user-email">{session.user.email}</span>
               {accountMenuOpen && (
                 <div className="account-menu" role="menu">
-                  <span>{session.user.email}</span>
+                  <div className="account-menu-identity" role="none">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="8" r="3.5" />
+                      <path d="M5.5 20c.6-4 2.8-6 6.5-6s5.9 2 6.5 6" />
+                    </svg>
+                    <span>{session.user.email}</span>
+                  </div>
                   <button type="button" role="menuitem" onClick={logOut}>
-                    Log out
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" />
+                    </svg>
+                    <span>Log out</span>
                   </button>
                 </div>
               )}
@@ -735,7 +781,78 @@ export default function Home() {
               </button>
             </div>
           ) : documents.length ? (
-            <div className="document-table">
+            <>
+            <div className="documents-library desktop-documents-library">
+              <div className="document-folder-grid">
+                {documentFolders.map((folder) => {
+                  const isOpen = folder.key === openFolderKey;
+                  const documentCount = folder.documents.length;
+
+                  return (
+                    <button
+                      className={`folder-card document-folder-card ${isOpen ? "folder-open" : ""}`}
+                      type="button"
+                      key={folder.key}
+                      aria-expanded={isOpen}
+                      onClick={() => setOpenFolderKey(isOpen ? null : folder.key)}
+                    >
+                      <span className="folder-card-top">
+                        <span>{folder.category.name}</span>
+                        <strong aria-hidden="true">›</strong>
+                      </span>
+                      <strong className="folder-msn">{folder.msn}</strong>
+                      <span className="folder-document-count">
+                        {documentCount} {documentCount === 1 ? "document" : "documents"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {openFolder && (
+                <section
+                  className="folder-contents"
+                  aria-label={`${openFolder.category.name} MSN ${openFolder.msn}`}
+                >
+                  <div className="folder-contents-heading">
+                    <div>
+                      <p className="eyebrow">{openFolder.category.name}</p>
+                      <h2>MSN {openFolder.msn}</h2>
+                    </div>
+                    <button type="button" onClick={() => setOpenFolderKey(null)}>Close</button>
+                  </div>
+                  <div className="document-table">
+                    {openFolder.documents.map((document) => (
+                      <article className="document-item" key={document.id}>
+                        <span className="file-mark" aria-hidden="true" />
+                        <div className="document-name">
+                          <strong>{document.filename}</strong>
+                          <span>{formatBytes(document.sizeBytes)}</span>
+                        </div>
+                        <span className={`document-status status-${document.status.toLowerCase()}`}>
+                          <i aria-hidden="true" />
+                          {statusLabel(document.status)}
+                        </span>
+                        <div className="document-actions">
+                          {document.shareUrl && (
+                            <button onClick={() => void copyShareLink(document.shareUrl!)}>
+                              Copy link
+                            </button>
+                          )}
+                          <button
+                            className="danger-action"
+                            onClick={() => void deleteDocument(document.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+            <div className="document-table mobile-document-table">
               {documents.map((document) => (
                 <article className="document-item" key={document.id}>
                   <span className="file-mark" aria-hidden="true" />
@@ -766,6 +883,7 @@ export default function Home() {
                 </article>
               ))}
             </div>
+            </>
           ) : (
             <div className="empty-app-state empty-documents-state">
               <strong>No documents yet</strong>

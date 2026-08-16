@@ -145,10 +145,15 @@ test("removes the disposable starter preview", async () => {
   assert.match(css, /\.app-drop-zone/);
   assert.match(css, /\.document-table/);
   assert.match(css, /\.step-summary/);
+  assert.match(css, /\.wizard-flow\s*\{[^}]*max-width:\s*818px/s);
   assert.match(css, /\.brand-logo/);
   assert.match(css, /--font-sans:\s*"Titillium Web"/);
   assert.match(page, /mobile-navigation/);
   assert.match(page, /Open account menu/);
+  assert.match(page, /account-menu-identity/);
+  assert.match(page, /groupDocumentsIntoFolders/);
+  assert.match(page, /desktop-documents-library/);
+  assert.match(page, /mobile-document-table/);
   assert.match(page, /empty-documents-state/);
   assert.match(page, /auth-dialog-error/);
   assert.match(css, /\.auth-dialog-error/);
@@ -156,6 +161,14 @@ test("removes the disposable starter preview", async () => {
   assert.match(css, /--color-ink:\s*#101a3a/);
   assert.match(css, /--radius-control:\s*6px/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(
+    css,
+    /@media \(min-width: 821px\)[\s\S]*\.upload-panel > \.upload-button\s*\{\s*max-width: none;/,
+  );
+  assert.match(
+    css,
+    /@media \(min-width: 821px\)[\s\S]*\.mobile-document-table\s*\{\s*display: none;/,
+  );
   assert.match(readme, /Дизайн-система/);
   assert.match(readme, /docs\/design-system\.md/);
   assert.match(designDocument, /Figma → JSON manifest → CSS tokens/);
