@@ -1,4 +1,4 @@
-name: Deploy fly.ae maintenance on Lambda
+name: Deploy PROD maintenance (fly.ae) on Lambda
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
   deploy:
     name: Test, build and deploy
     runs-on: ubuntu-latest
-    environment: v0-prod
+    environment: prod
     env:
       AWS_ACCOUNT_ID: "808906610083"
       AWS_REGION: eu-central-1
@@ -44,7 +44,7 @@ jobs:
       AWS_DEPLOY_ROLE_ARN: arn:aws:iam::808906610083:role/fly-ae-domain-prod-github-deploy
       AWS_CLOUDFORMATION_ROLE_ARN: arn:aws:iam::808906610083:role/fly-ae-domain-prod-cloudformation
       RESOURCE_PREFIX: fly-ae-domain-prod
-      ENVIRONMENT_NAME: domain-prod
+      ENVIRONMENT_NAME: prod
       SECRET_PATH_PREFIX: fly-ae/domain-prod
       FRONTEND_DOMAIN: fly.ae
       HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: fly.ae V0 global bootstrap resources for GitHub deployment
+Description: fly.ae global bootstrap resources for DEV and PROD deployment
 
 Parameters:
   FrontendDomainName:
@@ -7,16 +7,16 @@ Parameters:
     Default: fly.ae
   HostedZoneId:
     Type: String
-  CreateLegacyCertificate:
+  CreateDevCertificate:
     Type: String
     Default: "false"
     AllowedValues:
       - "true"
       - "false"
-  LegacyFrontendDomainName:
+  DevFrontendDomainName:
     Type: String
-    Default: fly.turbulencesimtrading.com
-  LegacyHostedZoneId:
+    Default: dev.fly.ae
+  DevHostedZoneId:
     Type: String
     Default: ""
   CreateBudget:
@@ -31,7 +31,7 @@ Parameters:
     Type: String
   GitHubOidcSubject:
     Type: String
-    Default: repo:SimonVolman@3509507/fly-ae-platform@1319572123:environment:v0-prod
+    Default: repo:SimonVolman@3509507/fly-ae-platform@1319572123:environment:dev
   ApplicationRegion:
     Type: String
     Default: eu-central-1
@@ -44,7 +44,7 @@ Parameters:
     AllowedPattern: "[a-z0-9-]+"
   EnvironmentName:
     Type: String
-    Default: v0-prod
+    Default: dev
   SecretPathPrefix:
     Type: String
     Default: fly-ae/v0-prod
@@ -56,7 +56,7 @@ Parameters:
     Default: fly-ae-v0-prod-frontend-808906610083
 
 Conditions:
-  ShouldCreateLegacyCertificate: !Equals [!Ref CreateLegacyCertificate, "true"]
+  ShouldCreateDevCertificate: !Equals [!Ref CreateDevCertificate, "true"]
   ShouldCreateBudget: !Equals [!Ref CreateBudget, "true"]
 
 Resources:
@@ -74,15 +74,17 @@ Resources:
         - Key: Environment
           Value: !Ref EnvironmentName
 
+  # The logical ID is retained to update the existing secondary certificate in place.
   LegacyFrontendCertificate:
     Type: AWS::CertificateManager::Certificate
-    Condition: ShouldCreateLegacyCertificate
+    Condition: ShouldCreateDevCertificate
+    UpdateReplacePolicy: Retain
     Properties:
-      DomainName: !Ref LegacyFrontendDomainName
+      DomainName: !Ref DevFrontendDomainName
       ValidationMethod: DNS
       DomainValidationOptions:
-        - DomainName: !Ref LegacyFrontendDomainName
-          HostedZoneId: !Ref LegacyHostedZoneId
+        - DomainName: !Ref DevFrontendDomainName
+          HostedZoneId: !Ref DevHostedZoneId
       Tags:
         - Key: Application
           Value: fly.ae
@@ -267,8 +269,8 @@ Resources:
 Outputs:
   FrontendCertificateArn:
     Value: !Ref FrontendCertificate
-  LegacyFrontendCertificateArn:
-    Condition: ShouldCreateLegacyCertificate
+  DevFrontendCertificateArn:
+    Condition: ShouldCreateDevCertificate
     Value: !Ref LegacyFrontendCertificate
   GitHubDeployRoleArn:
     Value: !GetAtt GitHubDeployRole.Arn

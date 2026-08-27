@@ -1,10 +1,10 @@
-name: Deploy fly.turbulencesimtrading.com on Lambda
+name: Deploy DEV (dev.fly.ae) on Lambda
 
 on:
   workflow_dispatch:
 
 concurrency:
-  group: v0-prod
+  group: fly-ae-dev
   cancel-in-progress: false
 
 permissions:
@@ -15,7 +15,7 @@ jobs:
   deploy:
     name: Test, build and deploy
     runs-on: ubuntu-latest
-    environment: v0-prod
+    environment: dev
     env:
       AWS_ACCOUNT_ID: "808906610083"
       AWS_REGION: eu-central-1
@@ -25,8 +25,9 @@ jobs:
       AWS_ARTIFACT_BUCKET: fly-ae-sam-artifacts-808906610083-eu-central-1
       AWS_DEPLOY_ROLE_ARN: arn:aws:iam::808906610083:role/fly-ae-v0-prod-github-deploy
       AWS_CLOUDFORMATION_ROLE_ARN: arn:aws:iam::808906610083:role/fly-ae-v0-prod-cloudformation
-      FRONTEND_DOMAIN: fly.turbulencesimtrading.com
-      HOSTED_ZONE_ID: Z07421363JCB3HEDXSCDK
+      ENVIRONMENT_NAME: dev
+      FRONTEND_DOMAIN: dev.fly.ae
+      HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH
 
     steps:
       - name: Check out source
@@ -71,7 +72,7 @@ jobs:
           certificate_arn="$(aws cloudformation describe-stacks \
             --region "$AWS_GLOBAL_REGION" \
             --stack-name "$AWS_BOOTSTRAP_STACK_NAME" \
-            --query 'Stacks[0].Outputs[?OutputKey==`LegacyFrontendCertificateArn`].OutputValue' \
+            --query 'Stacks[0].Outputs[?OutputKey==`DevFrontendCertificateArn`].OutputValue' \
             --output text)"
           echo "certificate_arn=$certificate_arn" >> "$GITHUB_OUTPUT"
 
@@ -89,6 +90,7 @@ jobs:
             --role-arn "$AWS_CLOUDFORMATION_ROLE_ARN" \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
+              EnvironmentName="$ENVIRONMENT_NAME" \
               FrontendDomainName="$FRONTEND_DOMAIN" \
               HostedZoneId="$HOSTED_ZONE_ID" \
               FrontendCertificateArn="${{ steps.bootstrap.outputs.certificate_arn }}" \

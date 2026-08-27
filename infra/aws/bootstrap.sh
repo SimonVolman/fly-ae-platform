@@ -6,8 +6,9 @@ APPLICATION_REGION="eu-central-1"
 GLOBAL_REGION="us-east-1"
 HOSTED_ZONE_ID="Z10483352SBZ9U6ULG9OH"
 FRONTEND_DOMAIN="fly.ae"
-LEGACY_HOSTED_ZONE_ID="Z07421363JCB3HEDXSCDK"
-LEGACY_FRONTEND_DOMAIN="fly.turbulencesimtrading.com"
+DEV_HOSTED_ZONE_ID="Z10483352SBZ9U6ULG9OH"
+DEV_FRONTEND_DOMAIN="dev.fly.ae"
+GITHUB_OIDC_SUBJECT="repo:SimonVolman@3509507/fly-ae-platform@1319572123:environment:dev"
 BUDGET_EMAIL="simon.volman@gmail.com"
 ARTIFACT_BUCKET="fly-ae-sam-artifacts-${EXPECTED_ACCOUNT_ID}-${APPLICATION_REGION}"
 RAW_BASE_URL="https://raw.githubusercontent.com/SimonVolman/fly-ae-platform/main/infra/aws"
@@ -32,17 +33,21 @@ aws cloudformation deploy \
   --parameter-overrides \
     FrontendDomainName="${FRONTEND_DOMAIN}" \
     HostedZoneId="${HOSTED_ZONE_ID}" \
-    CreateLegacyCertificate="true" \
-    LegacyFrontendDomainName="${LEGACY_FRONTEND_DOMAIN}" \
-    LegacyHostedZoneId="${LEGACY_HOSTED_ZONE_ID}" \
+    CreateDevCertificate="true" \
+    DevFrontendDomainName="${DEV_FRONTEND_DOMAIN}" \
+    DevHostedZoneId="${DEV_HOSTED_ZONE_ID}" \
     BudgetEmail="${BUDGET_EMAIL}" \
-    GitHubOidcProviderArn="arn:aws:iam::${EXPECTED_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
+    GitHubOidcProviderArn="arn:aws:iam::${EXPECTED_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" \
+    GitHubOidcSubject="${GITHUB_OIDC_SUBJECT}" \
+    EnvironmentName="dev"
 
 aws cloudformation deploy \
   --region "${APPLICATION_REGION}" \
   --stack-name fly-ae-bootstrap-regional \
   --template-file "${bootstrap_dir}/bootstrap-regional.yml" \
-  --parameter-overrides ArtifactBucketName="${ARTIFACT_BUCKET}"
+  --parameter-overrides \
+    ArtifactBucketName="${ARTIFACT_BUCKET}" \
+    EnvironmentName="dev"
 
 aws cloudformation describe-stacks \
   --region "${GLOBAL_REGION}" \

@@ -358,8 +358,8 @@ container image.
 
 ## CI/CD
 
-Существующий deployment на `fly.turbulencesimtrading.com` и независимый
-deployment на `fly.ae` запускаются вручную. Для `fly.ae` отдельные workflow
+DEV deployment на `dev.fly.ae` и независимый PROD deployment на `fly.ae`
+запускаются вручную. Для PROD отдельные workflow
 публикуют maintenance-страницу и готовое приложение:
 
 1. запустить backend tests;

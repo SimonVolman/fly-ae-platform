@@ -1,4 +1,4 @@
-name: Deploy fly.ae application on Lambda
+name: Deploy PROD application (fly.ae) on Lambda
 
 on:
   workflow_dispatch:

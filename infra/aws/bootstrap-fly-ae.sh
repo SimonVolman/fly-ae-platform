@@ -7,7 +7,7 @@ GLOBAL_REGION="us-east-1"
 HOSTED_ZONE_ID="Z10483352SBZ9U6ULG9OH"
 FRONTEND_DOMAIN="fly.ae"
 RESOURCE_PREFIX="fly-ae-domain-prod"
-ENVIRONMENT_NAME="domain-prod"
+ENVIRONMENT_NAME="prod"
 SECRET_PATH_PREFIX="fly-ae/domain-prod"
 SECRET_DESCRIPTION_PREFIX="fly.ae domain production"
 APPLICATION_STACK_NAME="fly-ae-domain-prod"
@@ -16,6 +16,7 @@ REGIONAL_BOOTSTRAP_STACK_NAME="fly-ae-domain-bootstrap-regional"
 BUDGET_EMAIL="simon.volman@gmail.com"
 ARTIFACT_BUCKET="fly-ae-domain-sam-artifacts-${EXPECTED_ACCOUNT_ID}-${APPLICATION_REGION}"
 FRONTEND_BUCKET="${RESOURCE_PREFIX}-frontend-${EXPECTED_ACCOUNT_ID}"
+GITHUB_OIDC_SUBJECT="repo:SimonVolman@3509507/fly-ae-platform@1319572123:environment:prod"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 actual_account_id="$(aws sts get-caller-identity --query Account --output text)"
@@ -32,10 +33,11 @@ aws cloudformation deploy \
   --parameter-overrides \
     FrontendDomainName="${FRONTEND_DOMAIN}" \
     HostedZoneId="${HOSTED_ZONE_ID}" \
-    CreateLegacyCertificate="false" \
+    CreateDevCertificate="false" \
     CreateBudget="false" \
     BudgetEmail="${BUDGET_EMAIL}" \
     GitHubOidcProviderArn="arn:aws:iam::${EXPECTED_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" \
+    GitHubOidcSubject="${GITHUB_OIDC_SUBJECT}" \
     ApplicationStackName="${APPLICATION_STACK_NAME}" \
     ResourcePrefix="${RESOURCE_PREFIX}" \
     EnvironmentName="${ENVIRONMENT_NAME}" \
