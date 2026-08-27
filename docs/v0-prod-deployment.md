@@ -358,10 +358,9 @@ container image.
 
 ## CI/CD
 
-Существующий deployment на `fly.turbulencesimtrading.com` продолжает
-запускаться после push в `main` или вручную. Независимый deployment на `fly.ae`
-запускается только вручную; для него отдельные workflow публикуют
-maintenance-страницу и готовое приложение:
+Существующий deployment на `fly.turbulencesimtrading.com` и независимый
+deployment на `fly.ae` запускаются вручную. Для `fly.ae` отдельные workflow
+публикуют maintenance-страницу и готовое приложение:
 
 1. запустить backend tests;
 2. запустить frontend tests и lint;

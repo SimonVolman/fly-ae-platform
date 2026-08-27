@@ -4,7 +4,7 @@
 
 | Target | Domain | Stack | Trigger | Frontend |
 | --- | --- | --- | --- | --- |
-| `legacy-production` | `fly.turbulencesimtrading.com` | `fly-ae-v0-prod` | Push to `main` or manual `.github/workflows/deploy-v0-prod.yml` | Application |
+| `legacy-production` | `fly.turbulencesimtrading.com` | `fly-ae-v0-prod` | Manual `.github/workflows/deploy-v0-prod.yml` | Application |
 | `fly-ae-maintenance` | `fly.ae` | `fly-ae-domain-prod` | Manual `.github/workflows/deploy-fly-ae.yml` | Maintenance |
 | `fly-ae-application` | `fly.ae` | `fly-ae-domain-prod` | Manual `.github/workflows/deploy-fly-ae-app.yml` | Application |
 
@@ -16,11 +16,19 @@ distributions, S3 buckets, DynamoDB tables, Lambda functions, IAM roles and
 Secrets Manager paths. Deploying one target does not replace the DNS alias or
 resources of the other target.
 
+During the one-time split, the new `fly.ae` stack is first deployed with
+`enable_custom_domain=false`. This provisions and verifies its default
+CloudFront endpoint without competing for the `fly.ae` alias currently owned
+by the legacy stack. After the legacy stack is moved back to its old domain,
+the maintenance workflow is rerun with `enable_custom_domain=true` to complete
+the Route53 cutover.
+
 ## Legacy deployment
 
 The existing `.github/workflows/deploy-v0-prod.yml` configuration continues to
-deploy the application to `fly.turbulencesimtrading.com`. Its existing stack,
-resource names, hosted zone and bootstrap outputs remain unchanged.
+deploy the application to `fly.turbulencesimtrading.com`. It is manual-only so
+an infrastructure-preparation commit cannot move the live alias prematurely.
+Its existing stack, resource names and hosted zone remain unchanged.
 
 ## fly.ae maintenance release
 

@@ -4,8 +4,10 @@ set -euo pipefail
 EXPECTED_ACCOUNT_ID="808906610083"
 APPLICATION_REGION="eu-central-1"
 GLOBAL_REGION="us-east-1"
-HOSTED_ZONE_ID="Z07421363JCB3HEDXSCDK"
-FRONTEND_DOMAIN="fly.turbulencesimtrading.com"
+HOSTED_ZONE_ID="Z10483352SBZ9U6ULG9OH"
+FRONTEND_DOMAIN="fly.ae"
+LEGACY_HOSTED_ZONE_ID="Z07421363JCB3HEDXSCDK"
+LEGACY_FRONTEND_DOMAIN="fly.turbulencesimtrading.com"
 BUDGET_EMAIL="simon.volman@gmail.com"
 ARTIFACT_BUCKET="fly-ae-sam-artifacts-${EXPECTED_ACCOUNT_ID}-${APPLICATION_REGION}"
 RAW_BASE_URL="https://raw.githubusercontent.com/SimonVolman/fly-ae-platform/main/infra/aws"
@@ -30,6 +32,9 @@ aws cloudformation deploy \
   --parameter-overrides \
     FrontendDomainName="${FRONTEND_DOMAIN}" \
     HostedZoneId="${HOSTED_ZONE_ID}" \
+    CreateLegacyCertificate="true" \
+    LegacyFrontendDomainName="${LEGACY_FRONTEND_DOMAIN}" \
+    LegacyHostedZoneId="${LEGACY_HOSTED_ZONE_ID}" \
     BudgetEmail="${BUDGET_EMAIL}" \
     GitHubOidcProviderArn="arn:aws:iam::${EXPECTED_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
 

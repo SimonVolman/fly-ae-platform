@@ -32,6 +32,8 @@ aws cloudformation deploy \
   --parameter-overrides \
     FrontendDomainName="${FRONTEND_DOMAIN}" \
     HostedZoneId="${HOSTED_ZONE_ID}" \
+    CreateLegacyCertificate="false" \
+    CreateBudget="false" \
     BudgetEmail="${BUDGET_EMAIL}" \
     GitHubOidcProviderArn="arn:aws:iam::${EXPECTED_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" \
     ApplicationStackName="${APPLICATION_STACK_NAME}" \

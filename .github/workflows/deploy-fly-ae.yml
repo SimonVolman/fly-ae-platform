@@ -2,6 +2,12 @@ name: Deploy fly.ae maintenance on Lambda
 
 on:
   workflow_dispatch:
+    inputs:
+      enable_custom_domain:
+        description: Attach the fly.ae alias and Route53 records
+        required: true
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       release_mode:
@@ -9,6 +15,11 @@ on:
         required: false
         type: string
         default: maintenance
+      enable_custom_domain:
+        description: Attach the fly.ae alias and Route53 records
+        required: false
+        type: boolean
+        default: true
 
 concurrency:
   group: fly-ae-domain-prod
@@ -38,6 +49,7 @@ jobs:
       FRONTEND_DOMAIN: fly.ae
       HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH
       RELEASE_MODE: ${{ inputs.release_mode || 'maintenance' }}
+      ENABLE_CUSTOM_DOMAIN: ${{ inputs.enable_custom_domain && 'true' || 'false' }}
 
     steps:
       - name: Check out source
@@ -112,6 +124,7 @@ jobs:
             --parameter-overrides \
               ResourcePrefix="$RESOURCE_PREFIX" \
               EnvironmentName="$ENVIRONMENT_NAME" \
+              EnableCustomDomain="$ENABLE_CUSTOM_DOMAIN" \
               FrontendDomainName="$FRONTEND_DOMAIN" \
               HostedZoneId="$HOSTED_ZONE_ID" \
               FrontendCertificateArn="${{ steps.bootstrap.outputs.certificate_arn }}" \
@@ -136,9 +149,14 @@ jobs:
             --stack-name "$AWS_STACK_NAME" \
             --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue' \
             --output text)"
+          distribution_domain="$(aws cloudformation describe-stacks \
+            --stack-name "$AWS_STACK_NAME" \
+            --query 'Stacks[0].Outputs[?OutputKey==`DistributionDomainName`].OutputValue' \
+            --output text)"
           echo "api_url=$api_url" >> "$GITHUB_OUTPUT"
           echo "frontend_bucket=$frontend_bucket" >> "$GITHUB_OUTPUT"
           echo "distribution_id=$distribution_id" >> "$GITHUB_OUTPUT"
+          echo "distribution_domain=$distribution_domain" >> "$GITHUB_OUTPUT"
 
       - name: Build static frontend
         env:
@@ -158,10 +176,11 @@ jobs:
       - name: Smoke test
         env:
           API_URL: ${{ steps.application.outputs.api_url }}
+          FRONTEND_URL: ${{ inputs.enable_custom_domain && format('https://{0}', env.FRONTEND_DOMAIN) || format('https://{0}', steps.application.outputs.distribution_domain) }}
         run: |
           for attempt in {1..18}; do
             if curl --fail --silent --show-error "$API_URL/api/v1/categories" >/dev/null && \
-               curl --fail --silent --show-error "https://$FRONTEND_DOMAIN" >/dev/null; then
+               curl --fail --silent --show-error "$FRONTEND_URL" >/dev/null; then
               exit 0
             fi
             sleep 10

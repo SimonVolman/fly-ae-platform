@@ -10,6 +10,12 @@ Parameters:
   EnvironmentName:
     Type: String
     Default: v0-prod
+  EnableCustomDomain:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
   FrontendDomainName:
     Type: String
     Default: fly.turbulencesimtrading.com
@@ -26,6 +32,9 @@ Parameters:
   ShareEncryptionSecretParameter:
     Type: String
     Default: fly-ae/v0-prod/share-encryption-secret
+
+Conditions:
+  CustomDomainEnabled: !Equals [!Ref EnableCustomDomain, "true"]
 
 Globals:
   Function:
@@ -308,6 +317,7 @@ Resources:
 
   SesIdentity:
     Type: AWS::SES::EmailIdentity
+    Condition: CustomDomainEnabled
     Properties:
       EmailIdentity: !Ref FrontendDomainName
       DkimAttributes:
@@ -322,6 +332,7 @@ Resources:
 
   SesDkimRecord1:
     Type: AWS::Route53::RecordSet
+    Condition: CustomDomainEnabled
     Properties:
       HostedZoneId: !Ref HostedZoneId
       Name: !GetAtt SesIdentity.DkimDNSTokenName1
@@ -332,6 +343,7 @@ Resources:
 
   SesDkimRecord2:
     Type: AWS::Route53::RecordSet
+    Condition: CustomDomainEnabled
     Properties:
       HostedZoneId: !Ref HostedZoneId
       Name: !GetAtt SesIdentity.DkimDNSTokenName2
@@ -342,6 +354,7 @@ Resources:
 
   SesDkimRecord3:
     Type: AWS::Route53::RecordSet
+    Condition: CustomDomainEnabled
     Properties:
       HostedZoneId: !Ref HostedZoneId
       Name: !GetAtt SesIdentity.DkimDNSTokenName3
@@ -410,8 +423,10 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
-        Aliases:
-          - !Ref FrontendDomainName
+        Aliases: !If
+          - CustomDomainEnabled
+          - - !Ref FrontendDomainName
+          - !Ref AWS::NoValue
         Comment: fly.ae V0 production frontend
         DefaultCacheBehavior:
           AllowedMethods:
@@ -440,10 +455,12 @@ Resources:
             S3OriginConfig:
               OriginAccessIdentity: ""
         PriceClass: PriceClass_100
-        ViewerCertificate:
-          AcmCertificateArn: !Ref FrontendCertificateArn
-          MinimumProtocolVersion: TLSv1.2_2021
-          SslSupportMethod: sni-only
+        ViewerCertificate: !If
+          - CustomDomainEnabled
+          - AcmCertificateArn: !Ref FrontendCertificateArn
+            MinimumProtocolVersion: TLSv1.2_2021
+            SslSupportMethod: sni-only
+          - CloudFrontDefaultCertificate: true
       Tags:
         - Key: Application
           Value: fly.ae
@@ -469,6 +486,7 @@ Resources:
 
   FrontendAliasRecord:
     Type: AWS::Route53::RecordSet
+    Condition: CustomDomainEnabled
     Properties:
       HostedZoneId: !Ref HostedZoneId
       Name: !Ref FrontendDomainName
@@ -480,6 +498,7 @@ Resources:
 
   FrontendAliasIpv6Record:
     Type: AWS::Route53::RecordSet
+    Condition: CustomDomainEnabled
     Properties:
       HostedZoneId: !Ref HostedZoneId
       Name: !Ref FrontendDomainName
@@ -551,5 +570,7 @@ Outputs:
     Value: !Ref DocumentsBucket
   DistributionId:
     Value: !Ref FrontendDistribution
+  DistributionDomainName:
+    Value: !GetAtt FrontendDistribution.DomainName
   DynamoTableName:
     Value: !Ref FlyAeTable

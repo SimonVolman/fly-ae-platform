@@ -1,9 +1,6 @@
 name: Deploy fly.turbulencesimtrading.com on Lambda
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
@@ -74,7 +71,7 @@ jobs:
           certificate_arn="$(aws cloudformation describe-stacks \
             --region "$AWS_GLOBAL_REGION" \
             --stack-name "$AWS_BOOTSTRAP_STACK_NAME" \
-            --query 'Stacks[0].Outputs[?OutputKey==`FrontendCertificateArn`].OutputValue' \
+            --query 'Stacks[0].Outputs[?OutputKey==`LegacyFrontendCertificateArn`].OutputValue' \
             --output text)"
           echo "certificate_arn=$certificate_arn" >> "$GITHUB_OUTPUT"
 

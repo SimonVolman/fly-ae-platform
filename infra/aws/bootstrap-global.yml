@@ -4,9 +4,27 @@ Description: fly.ae V0 global bootstrap resources for GitHub deployment
 Parameters:
   FrontendDomainName:
     Type: String
-    Default: fly.turbulencesimtrading.com
+    Default: fly.ae
   HostedZoneId:
     Type: String
+  CreateLegacyCertificate:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+  LegacyFrontendDomainName:
+    Type: String
+    Default: fly.turbulencesimtrading.com
+  LegacyHostedZoneId:
+    Type: String
+    Default: ""
+  CreateBudget:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
   BudgetEmail:
     Type: String
   GitHubOidcProviderArn:
@@ -37,6 +55,10 @@ Parameters:
     Type: String
     Default: fly-ae-v0-prod-frontend-808906610083
 
+Conditions:
+  ShouldCreateLegacyCertificate: !Equals [!Ref CreateLegacyCertificate, "true"]
+  ShouldCreateBudget: !Equals [!Ref CreateBudget, "true"]
+
 Resources:
   FrontendCertificate:
     Type: AWS::CertificateManager::Certificate
@@ -46,6 +68,21 @@ Resources:
       DomainValidationOptions:
         - DomainName: !Ref FrontendDomainName
           HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: Application
+          Value: fly.ae
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  LegacyFrontendCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: ShouldCreateLegacyCertificate
+    Properties:
+      DomainName: !Ref LegacyFrontendDomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref LegacyFrontendDomainName
+          HostedZoneId: !Ref LegacyHostedZoneId
       Tags:
         - Key: Application
           Value: fly.ae
@@ -200,6 +237,7 @@ Resources:
 
   MonthlyBudget:
     Type: AWS::Budgets::Budget
+    Condition: ShouldCreateBudget
     Properties:
       Budget:
         BudgetName: !Sub ${ResourcePrefix}-monthly
@@ -229,6 +267,9 @@ Resources:
 Outputs:
   FrontendCertificateArn:
     Value: !Ref FrontendCertificate
+  LegacyFrontendCertificateArn:
+    Condition: ShouldCreateLegacyCertificate
+    Value: !Ref LegacyFrontendCertificate
   GitHubDeployRoleArn:
     Value: !GetAtt GitHubDeployRole.Arn
   CloudFormationExecutionRoleArn:
