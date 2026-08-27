@@ -14,12 +14,14 @@ import {
 } from "react";
 import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
+import { MaintenancePage } from "./components/MaintenancePage";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 const AUTHENTICATED_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const GUEST_MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
 
 type Category = {
   id: string;
@@ -156,7 +158,7 @@ function groupDocumentsIntoFolders(documents: FlyDocument[]) {
   return Array.from(folders.values());
 }
 
-export default function Home() {
+function HomeContent() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [msn, setMsn] = useState("");
@@ -1293,4 +1295,8 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+export default function Home() {
+  return MAINTENANCE_MODE ? <MaintenancePage /> : <HomeContent />;
 }

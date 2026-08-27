@@ -358,7 +358,10 @@ container image.
 
 ## CI/CD
 
-Deployment выполняется через GitHub Actions после push в `main` или вручную:
+Существующий deployment на `fly.turbulencesimtrading.com` продолжает
+запускаться после push в `main` или вручную. Независимый deployment на `fly.ae`
+запускается только вручную; для него отдельные workflow публикуют
+maintenance-страницу и готовое приложение:
 
 1. запустить backend tests;
 2. запустить frontend tests и lint;
@@ -369,6 +372,12 @@ Deployment выполняется через GitHub Actions после push в `
 7. загрузить frontend в S3;
 8. обновить CloudFront cache;
 9. выполнить smoke tests.
+
+`fly.ae` maintenance workflow является также rollback-путём. Application
+workflow требует явного подтверждения `deploy-fly.ae` и только при запуске
+собирает frontend с `NEXT_PUBLIC_MAINTENANCE_MODE=false`. Оба домена используют
+разные CloudFormation stacks и AWS-ресурсы, поэтому deployment одного не
+переключает и не удаляет другой.
 
 Используются только окружения `local` и `v0-prod`. Отдельное staging-окружение в
 V0 не создаётся.

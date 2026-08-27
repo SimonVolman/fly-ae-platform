@@ -3,6 +3,13 @@ Transform: AWS::Serverless-2016-10-31
 Description: fly.ae V0 production serverless application
 
 Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: fly-ae-v0-prod
+    AllowedPattern: "[a-z0-9-]+"
+  EnvironmentName:
+    Type: String
+    Default: v0-prod
   FrontendDomainName:
     Type: String
     Default: fly.turbulencesimtrading.com
@@ -30,7 +37,7 @@ Globals:
     Tracing: PassThrough
     Tags:
       Application: fly.ae
-      Environment: v0-prod
+      Environment: !Ref EnvironmentName
 
 Resources:
   FlyAeTable:
@@ -38,7 +45,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      TableName: fly-ae-v0-prod
+      TableName: !Ref ResourcePrefix
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: pk
@@ -74,14 +81,14 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   DocumentsBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Sub fly-ae-v0-prod-documents-${AWS::AccountId}
+      BucketName: !Sub ${ResourcePrefix}-documents-${AWS::AccountId}
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -115,14 +122,14 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   FrontendBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Sub fly-ae-v0-prod-frontend-${AWS::AccountId}
+      BucketName: !Sub ${ResourcePrefix}-frontend-${AWS::AccountId}
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -136,12 +143,12 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   BackendExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: fly-ae-v0-prod-backend
+      RoleName: !Sub ${ResourcePrefix}-backend
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -150,7 +157,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: fly-ae-v0-prod-backend
+        - PolicyName: !Sub ${ResourcePrefix}-backend
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -159,7 +166,7 @@ Resources:
                 Action:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/fly-ae-v0-prod-backend:*
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ResourcePrefix}-backend:*
               - Sid: DynamoPersistence
                 Effect: Allow
                 Action:
@@ -191,7 +198,7 @@ Resources:
     Type: AWS::Serverless::Function
     DependsOn: BackendLogGroup
     Properties:
-      FunctionName: fly-ae-v0-prod-backend
+      FunctionName: !Sub ${ResourcePrefix}-backend
       Handler: ae.fly.backend.lambda.StreamLambdaHandler::handleRequest
       CodeUri: ../../apps/backend/build/distributions/fly-ae-backend-lambda.zip
       Role: !GetAtt BackendExecutionRole.Arn
@@ -219,18 +226,18 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      LogGroupName: /aws/lambda/fly-ae-v0-prod-backend
+      LogGroupName: !Sub /aws/lambda/${ResourcePrefix}-backend
       RetentionInDays: 14
       Tags:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
-      Name: fly-ae-v0-prod
+      Name: !Ref ResourcePrefix
       ProtocolType: HTTP
       CorsConfiguration:
         AllowOrigins:
@@ -248,7 +255,7 @@ Resources:
         MaxAge: 3600
       Tags:
         Application: fly.ae
-        Environment: v0-prod
+        Environment: !Ref EnvironmentName
 
   HttpApiIntegration:
     Type: AWS::ApiGatewayV2::Integration
@@ -271,7 +278,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      LogGroupName: /aws/apigateway/fly-ae-v0-prod
+      LogGroupName: !Sub /aws/apigateway/${ResourcePrefix}
       RetentionInDays: 14
 
   HttpApiStage:
@@ -289,7 +296,7 @@ Resources:
           {"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","integrationError":"$context.integrationErrorMessage"}
       Tags:
         Application: fly.ae
-        Environment: v0-prod
+        Environment: !Ref EnvironmentName
 
   BackendInvokePermission:
     Type: AWS::Lambda::Permission
@@ -311,7 +318,7 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   SesDkimRecord1:
     Type: AWS::Route53::RecordSet
@@ -347,7 +354,7 @@ Resources:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
-        Name: fly-ae-v0-prod-frontend
+        Name: !Sub ${ResourcePrefix}-frontend
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4
@@ -355,7 +362,7 @@ Resources:
   FrontendRewriteFunction:
     Type: AWS::CloudFront::Function
     Properties:
-      Name: fly-ae-v0-prod-static-routes
+      Name: !Sub ${ResourcePrefix}-static-routes
       AutoPublish: true
       FunctionConfig:
         Comment: Resolve clean URLs and dynamic share tokens to static files
@@ -380,7 +387,7 @@ Resources:
     Type: AWS::CloudFront::ResponseHeadersPolicy
     Properties:
       ResponseHeadersPolicyConfig:
-        Name: fly-ae-v0-prod-security-headers
+        Name: !Sub ${ResourcePrefix}-security-headers
         SecurityHeadersConfig:
           ContentTypeOptions:
             Override: true
@@ -441,7 +448,7 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   FrontendBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -485,7 +492,7 @@ Resources:
   LambdaErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: fly-ae-v0-prod-lambda-errors
+      AlarmName: !Sub ${ResourcePrefix}-lambda-errors
       AlarmDescription: fly.ae backend Lambda errors
       Namespace: AWS/Lambda
       MetricName: Errors
@@ -502,7 +509,7 @@ Resources:
   LambdaThrottleAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: fly-ae-v0-prod-lambda-throttles
+      AlarmName: !Sub ${ResourcePrefix}-lambda-throttles
       AlarmDescription: fly.ae backend Lambda throttles
       Namespace: AWS/Lambda
       MetricName: Throttles
@@ -519,7 +526,7 @@ Resources:
   ApiServerErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: fly-ae-v0-prod-api-5xx
+      AlarmName: !Sub ${ResourcePrefix}-api-5xx
       AlarmDescription: fly.ae API Gateway 5xx responses
       Namespace: AWS/ApiGateway
       MetricName: 5xx

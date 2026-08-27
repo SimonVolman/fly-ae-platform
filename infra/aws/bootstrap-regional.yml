@@ -5,6 +5,15 @@ Parameters:
   ArtifactBucketName:
     Type: String
     Default: fly-ae-sam-artifacts-808906610083-eu-central-1
+  EnvironmentName:
+    Type: String
+    Default: v0-prod
+  SecretPathPrefix:
+    Type: String
+    Default: fly-ae/v0-prod
+  SecretDescriptionPrefix:
+    Type: String
+    Default: fly.ae V0 production
 
 Resources:
   SamArtifactsBucket:
@@ -34,15 +43,15 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   SessionSecret:
     Type: AWS::SecretsManager::Secret
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      Name: fly-ae/v0-prod/session-secret
-      Description: fly.ae V0 production session signing secret
+      Name: !Sub ${SecretPathPrefix}/session-secret
+      Description: !Sub ${SecretDescriptionPrefix} session signing secret
       GenerateSecretString:
         PasswordLength: 64
         ExcludePunctuation: true
@@ -50,15 +59,15 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   OtpPepper:
     Type: AWS::SecretsManager::Secret
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      Name: fly-ae/v0-prod/otp-pepper
-      Description: fly.ae V0 production OTP pepper
+      Name: !Sub ${SecretPathPrefix}/otp-pepper
+      Description: !Sub ${SecretDescriptionPrefix} OTP pepper
       GenerateSecretString:
         PasswordLength: 64
         ExcludePunctuation: true
@@ -66,15 +75,15 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   ShareEncryptionSecret:
     Type: AWS::SecretsManager::Secret
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      Name: fly-ae/v0-prod/share-encryption-secret
-      Description: fly.ae V0 production share encryption secret
+      Name: !Sub ${SecretPathPrefix}/share-encryption-secret
+      Description: !Sub ${SecretDescriptionPrefix} share encryption secret
       GenerateSecretString:
         PasswordLength: 64
         ExcludePunctuation: true
@@ -82,7 +91,7 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
 Outputs:
   ArtifactBucketName:

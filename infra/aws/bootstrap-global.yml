@@ -20,6 +20,16 @@ Parameters:
   ApplicationStackName:
     Type: String
     Default: fly-ae-v0-prod
+  ResourcePrefix:
+    Type: String
+    Default: fly-ae-v0-prod
+    AllowedPattern: "[a-z0-9-]+"
+  EnvironmentName:
+    Type: String
+    Default: v0-prod
+  SecretPathPrefix:
+    Type: String
+    Default: fly-ae/v0-prod
   ArtifactBucketName:
     Type: String
     Default: fly-ae-sam-artifacts-808906610083-eu-central-1
@@ -40,12 +50,12 @@ Resources:
         - Key: Application
           Value: fly.ae
         - Key: Environment
-          Value: v0-prod
+          Value: !Ref EnvironmentName
 
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: fly-ae-v0-prod-cloudformation
+      RoleName: !Sub ${ResourcePrefix}-cloudformation
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -54,7 +64,7 @@ Resources:
               Service: cloudformation.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: fly-ae-v0-prod-resources
+        - PolicyName: !Sub ${ResourcePrefix}-resources
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -72,6 +82,7 @@ Resources:
                   - route53:ChangeResourceRecordSets
                   - route53:GetChange
                   - route53:GetHostedZone
+                  - route53:ListResourceRecordSets
                   - s3:*
                   - ses:*
                 Resource: "*"
@@ -89,7 +100,7 @@ Resources:
                   - iam:TagRole
                   - iam:UntagRole
                   - iam:UpdateAssumeRolePolicy
-                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/fly-ae-v0-prod-*
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${ResourcePrefix}-*
               - Sid: ExpandServerlessTransform
                 Effect: Allow
                 Action: cloudformation:CreateChangeSet
@@ -97,12 +108,12 @@ Resources:
               - Sid: ReadApplicationSecrets
                 Effect: Allow
                 Action: secretsmanager:GetSecretValue
-                Resource: !Sub arn:${AWS::Partition}:secretsmanager:${ApplicationRegion}:${AWS::AccountId}:secret:fly-ae/v0-prod/*
+                Resource: !Sub arn:${AWS::Partition}:secretsmanager:${ApplicationRegion}:${AWS::AccountId}:secret:${SecretPathPrefix}/*
 
   GitHubDeployRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: fly-ae-v0-prod-github-deploy
+      RoleName: !Sub ${ResourcePrefix}-github-deploy
       MaxSessionDuration: 3600
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -116,7 +127,7 @@ Resources:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
                 token.actions.githubusercontent.com:sub: !Ref GitHubOidcSubject
       Policies:
-        - PolicyName: fly-ae-v0-prod-deploy
+        - PolicyName: !Sub ${ResourcePrefix}-deploy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -191,7 +202,7 @@ Resources:
     Type: AWS::Budgets::Budget
     Properties:
       Budget:
-        BudgetName: fly-ae-v0-prod-monthly
+        BudgetName: !Sub ${ResourcePrefix}-monthly
         BudgetLimit:
           Amount: 25
           Unit: USD

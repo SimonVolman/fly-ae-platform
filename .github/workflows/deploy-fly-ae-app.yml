@@ -1,0 +1,20 @@
+name: Deploy fly.ae application on Lambda
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type deploy-fly.ae to replace maintenance with the application
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: ${{ inputs.confirmation == 'deploy-fly.ae' }}
+    uses: ./.github/workflows/deploy-fly-ae.yml
+    with:
+      release_mode: application
