@@ -32,6 +32,7 @@ jobs:
       AWS_DEPLOY_ROLE_ARN: arn:aws:iam::808906610083:role/fly-ae-v0-prod-github-deploy
       AWS_CLOUDFORMATION_ROLE_ARN: arn:aws:iam::808906610083:role/fly-ae-v0-prod-cloudformation
       ENVIRONMENT_NAME: dev
+      SECRET_PATH_PREFIX: fly-ae/v0-prod
       FRONTEND_DOMAIN: dev.fly.ae
       HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH
       ENABLE_TELEGRAM_OTP: ${{ inputs.enable_telegram_otp && 'true' || 'false' }}
@@ -162,3 +163,23 @@ jobs:
         run: |
           curl --fail --silent --show-error "$API_URL/api/v1/auth/otp/options" \
             | grep --fixed-strings '"telegramEnabled":true' >/dev/null
+
+      - name: Register Telegram webhook
+        if: ${{ inputs.enable_telegram_otp }}
+        env:
+          API_URL: ${{ steps.application.outputs.api_url }}
+        run: |
+          bot_token="$(aws secretsmanager get-secret-value \
+            --secret-id "$SECRET_PATH_PREFIX/telegram-bot-token" \
+            --query SecretString \
+            --output text)"
+          webhook_secret="$(aws secretsmanager get-secret-value \
+            --secret-id "$SECRET_PATH_PREFIX/telegram-webhook-secret" \
+            --query SecretString \
+            --output text)"
+          curl --fail --silent --show-error \
+            --request POST "https://api.telegram.org/bot${bot_token}/setWebhook" \
+            --data-urlencode "url=$API_URL/api/v1/auth/telegram/webhook" \
+            --data-urlencode "secret_token=$webhook_secret" \
+            --data-urlencode 'allowed_updates=["message"]' \
+            | grep --fixed-strings '"ok":true' >/dev/null
