@@ -2,6 +2,12 @@ name: Deploy DEV (dev.fly.ae) on Lambda
 
 on:
   workflow_dispatch:
+    inputs:
+      enable_telegram_otp:
+        description: Enable Telegram OTP (requires Secrets Manager values)
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
   group: fly-ae-dev
@@ -28,6 +34,7 @@ jobs:
       ENVIRONMENT_NAME: dev
       FRONTEND_DOMAIN: dev.fly.ae
       HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH
+      ENABLE_TELEGRAM_OTP: ${{ inputs.enable_telegram_otp && 'true' || 'false' }}
 
     steps:
       - name: Check out source
@@ -94,6 +101,8 @@ jobs:
               FrontendDomainName="$FRONTEND_DOMAIN" \
               HostedZoneId="$HOSTED_ZONE_ID" \
               FrontendCertificateArn="${{ steps.bootstrap.outputs.certificate_arn }}" \
+              EnableTelegramOtp="$ENABLE_TELEGRAM_OTP" \
+              TelegramBotUsername="FlyAeOtpBot" \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
 
@@ -144,3 +153,11 @@ jobs:
           done
           echo "Smoke test did not become healthy in time." >&2
           exit 1
+
+      - name: Smoke test Telegram authentication
+        if: ${{ inputs.enable_telegram_otp }}
+        env:
+          API_URL: ${{ steps.application.outputs.api_url }}
+        run: |
+          curl --fail --silent --show-error "$API_URL/api/v1/auth/otp/options" \
+            | grep --fixed-strings '"telegramEnabled":true' >/dev/null

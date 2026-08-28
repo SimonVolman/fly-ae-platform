@@ -2,7 +2,8 @@
 
 Рабочая V0 сервиса загрузки и отправки авиационных PDF-документов. Реализованы
 два полных сценария: первая гостевая загрузка до 10 MiB без email и загрузка до
-100 MiB через email OTP. Оба проходят прямой multipart upload в приватный S3,
+100 MiB через OTP, доставляемый по email или через Telegram-бота. Оба проходят
+прямой multipart upload в приватный S3,
 проверку PDF, локальную асинхронную обработку, `APPROVED`, share-ссылку и
 удаление. Авторизованный путь также включает My Documents.
 
@@ -81,6 +82,52 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21
 | MinIO S3 | http://localhost:9000 |
 | MinIO Console | http://localhost:9001 |
 | PostgreSQL | localhost:55432 |
+
+## Telegram OTP
+
+Telegram является необязательным самостоятельным способом входа без email:
+
+```text
+Log in → Telegram → одноразовая t.me-ссылка → Start → OTP от бота
+→ ввести OTP в браузере → отдельная Telegram-учётная запись fly.ae
+```
+
+Браузер хранит случайный `requestId`, а одноразовая `t.me`-ссылка содержит другой
+случайный токен на 10 минут. Бот связывает запрос с Telegram user ID и отправляет
+шестизначный код только в private chat. Сессия создаётся лишь при совпадении
+`requestId` и кода; в БД сохраняются HMAC токена и кода. Webhook принимается
+только с настроенным `X-Telegram-Bot-Api-Secret-Token`.
+
+Email- и Telegram-идентичности в V0 являются отдельными аккаунтами. Их
+объединение в один профиль пока не реализовано.
+
+Для подключения:
+
+1. Создайте бота через `@BotFather` и получите token и username без `@`.
+2. Сгенерируйте webhook secret, например `openssl rand -hex 24`.
+3. Настройте переменные:
+
+   ```bash
+   FLY_TELEGRAM_ENABLED=true
+   FLY_TELEGRAM_BOT_TOKEN=123456789:replace-me
+   FLY_TELEGRAM_BOT_USERNAME=FlyAeOtpBot
+   FLY_TELEGRAM_WEBHOOK_SECRET=replace-with-random-url-safe-secret
+   ```
+
+4. После публикации backend на HTTPS зарегистрируйте webhook один раз:
+
+   ```bash
+   FLY_API_BASE_URL=https://replace-with-api-gateway-host
+   curl --fail --request POST \
+     "https://api.telegram.org/bot${FLY_TELEGRAM_BOT_TOKEN}/setWebhook" \
+     --data-urlencode "url=${FLY_API_BASE_URL}/api/v1/auth/telegram/webhook" \
+     --data-urlencode "secret_token=${FLY_TELEGRAM_WEBHOOK_SECRET}" \
+     --data-urlencode 'allowed_updates=["message"]'
+   ```
+
+Для локальной проверки понадобится HTTPS tunnel до backend `:8080`; в параметре
+`url` укажите публичный tunnel URL с путём `/api/v1/auth/telegram/webhook`.
+Telegram остаётся скрытым в UI, пока `FLY_TELEGRAM_ENABLED=false`.
 
 Конфигурация и перечень production secrets находятся в
 [`.env.example`](./.env.example). Local profile имеет безопасные для локальной
@@ -204,5 +251,5 @@ Figma → design-system.json → CSS tokens → components → screens
 - Terms содержит английский черновик от 15 августа 2026 года, который требует
   реквизитов оператора, UAE legal review и при необходимости арабской версии;
   Privacy остаётся placeholder до получения утверждённого текста;
-- нет OCR, DOCX, папок, admin UI, ручной модерации, уведомлений, browser-restart
+- нет OCR, DOCX, папок, admin UI, ручной модерации, общих уведомлений, browser-restart
   resume и staging-окружения.

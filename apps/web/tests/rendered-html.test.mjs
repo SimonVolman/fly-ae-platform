@@ -135,6 +135,11 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /@uppy\/aws-s3/);
   assert.match(page, /createMultipartUpload/);
   assert.match(page, /auth\/otp\/verify/);
+  assert.match(page, /auth\/otp\/options/);
+  assert.match(page, /auth\/telegram\/request/);
+  assert.match(page, /auth\/telegram\/verify/);
+  assert.match(page, /Continue with Telegram/);
+  assert.match(page, /Open Telegram bot/);
   assert.match(page, /guest\/sessions/);
   assert.match(page, /GUEST_MAX_FILE_SIZE = 10 \* 1024 \* 1024/);
   assert.match(page, /workflowStep === 2/);
@@ -157,6 +162,8 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /empty-documents-state/);
   assert.match(page, /auth-dialog-error/);
   assert.match(css, /\.auth-dialog-error/);
+  assert.match(css, /\.otp-delivery-options/);
+  assert.match(css, /\.telegram-open-button/);
   assert.match(css, /\.aviation-notice/);
   assert.match(css, /--color-ink:\s*#101a3a/);
   assert.match(css, /--radius-control:\s*6px/);

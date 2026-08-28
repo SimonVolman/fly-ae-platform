@@ -15,6 +15,11 @@ data class OtpRequest(
     val email: String,
 )
 
+data class OtpDeliveryOptions(
+    val emailEnabled: Boolean = true,
+    val telegramEnabled: Boolean,
+)
+
 data class OtpVerification(
     @field:Email
     @field:NotBlank
@@ -38,8 +43,16 @@ data class OtpVerification(
 
 data class SessionUser(
     val id: UUID,
-    val email: String,
+    val email: String?,
+    val telegramUsername: String?,
+    val displayName: String,
+    val authenticationMethod: AuthenticationMethod,
 )
+
+enum class AuthenticationMethod {
+    EMAIL,
+    TELEGRAM,
+}
 
 data class SessionResponse(
     val accessToken: String,

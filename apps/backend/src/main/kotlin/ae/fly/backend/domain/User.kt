@@ -13,8 +13,17 @@ class User(
     @Id
     var id: UUID = UUID.randomUUID(),
 
-    @Column(nullable = false, unique = true, length = 254)
-    var email: String = "",
+    @Column(unique = true, length = 254)
+    var email: String? = null,
+
+    @Column(name = "telegram_user_id", unique = true)
+    var telegramUserId: Long? = null,
+
+    @Column(name = "telegram_chat_id")
+    var telegramChatId: Long? = null,
+
+    @Column(name = "telegram_username", length = 64)
+    var telegramUsername: String? = null,
 
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),

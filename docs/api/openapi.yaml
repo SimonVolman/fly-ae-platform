@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: fly.ae API
   version: 0.2.0
-  description: REST API for guest or email-authenticated PDF upload, processing and secure sharing.
+  description: REST API for guest or OTP-authenticated PDF upload, processing and secure sharing.
 servers:
   - url: http://localhost:8080/api/v1
     description: Local backend
@@ -14,6 +14,18 @@ tags:
   - name: Multipart upload
   - name: Sharing
 paths:
+  /auth/otp/options:
+    get:
+      tags: [Authentication]
+      operationId: getOtpDeliveryOptions
+      security: []
+      responses:
+        "200":
+          description: Delivery channels enabled for OTP requests.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OtpDeliveryOptions"
   /auth/otp/request:
     post:
       tags: [Authentication]
@@ -30,6 +42,73 @@ paths:
           description: OTP accepted for delivery regardless of account existence.
         "400":
           $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /auth/telegram/request:
+    post:
+      tags: [Authentication]
+      operationId: requestTelegramLogin
+      description: Creates a short-lived browser request and Telegram deep link.
+      security: []
+      responses:
+        "200":
+          description: Telegram login request created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramLoginAccepted"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Telegram sign-in is not configured.
+  /auth/telegram/verify:
+    post:
+      tags: [Authentication]
+      operationId: verifyTelegramOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramOtpVerification"
+      responses:
+        "200":
+          description: Telegram OTP consumed and session created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /auth/telegram/webhook:
+    post:
+      tags: [Authentication]
+      operationId: receiveTelegramUpdate
+      security: []
+      parameters:
+        - name: X-Telegram-Bot-Api-Secret-Token
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 256
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramUpdate"
+      responses:
+        "200":
+          description: Telegram update accepted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/RateLimited"
   /auth/otp/verify:
@@ -321,6 +400,81 @@ components:
           type: string
           format: email
           maxLength: 254
+    TelegramLoginAccepted:
+      type: object
+      additionalProperties: false
+      required: [requestId, telegramStartUrl, expiresAt]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        telegramStartUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+    OtpDeliveryOptions:
+      type: object
+      additionalProperties: false
+      required: [emailEnabled, telegramEnabled]
+      properties:
+        emailEnabled:
+          type: boolean
+        telegramEnabled:
+          type: boolean
+    TelegramUpdate:
+      type: object
+      additionalProperties: true
+      properties:
+        message:
+          type: object
+          additionalProperties: true
+          properties:
+            text:
+              type: string
+            chat:
+              type: object
+              additionalProperties: true
+              required: [id, type]
+              properties:
+                id:
+                  type: integer
+                  format: int64
+                type:
+                  type: string
+            from:
+              type: object
+              additionalProperties: true
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  format: int64
+                username:
+                  type: string
+    TelegramOtpVerification:
+      type: object
+      additionalProperties: false
+      required:
+        [requestId, code, acceptedLegal, termsVersion, privacyVersion]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+        acceptedLegal:
+          const: true
+        termsVersion:
+          type: string
+          minLength: 1
+          maxLength: 32
+        privacyVersion:
+          type: string
+          minLength: 1
+          maxLength: 32
     OtpVerification:
       type: object
       additionalProperties: false
@@ -385,14 +539,22 @@ components:
           const: 10485760
     User:
       type: object
-      required: [id, email]
+      required:
+        [id, email, telegramUsername, displayName, authenticationMethod]
       properties:
         id:
           type: string
           format: uuid
         email:
-          type: string
+          type: [string, "null"]
           format: email
+        telegramUsername:
+          type: [string, "null"]
+        displayName:
+          type: string
+        authenticationMethod:
+          type: string
+          enum: [EMAIL, TELEGRAM]
     Category:
       type: object
       required: [id, code, name]

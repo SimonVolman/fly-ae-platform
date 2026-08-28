@@ -45,6 +45,23 @@ SDK DynamoDB adapter. See [`persistence.md`](./persistence.md).
 only a hash of the code. `POST /auth/otp/verify` consumes the code once, creates
 or loads the user and returns a short-lived bearer session.
 
+### 1a. Telegram OTP
+
+`GET /auth/otp/options` сообщает Web, включён ли Telegram. Telegram-вход начинается
+с первого экрана авторизации и не требует email. `POST /auth/telegram/request`
+создаёт короткоживущий browser `requestId` и отдельный случайный token, после
+чего возвращает `t.me/<bot>?start=<token>`.
+
+После нажатия пользователем Start Telegram вызывает
+`POST /auth/telegram/webhook`. Backend проверяет секретный webhook header,
+находит HMAC deep-link token, записывает Telegram user/chat ID и отправляет
+шестизначный OTP в private chat. В базе хранится только hash OTP.
+
+`POST /auth/telegram/verify` принимает browser `requestId`, OTP и legal consent,
+одноразово погашает запрос, создаёт или загружает пользователя по неизменяемому
+Telegram user ID и возвращает bearer session. Email- и Telegram-пользователи V0
+имеют разные профили; автоматического объединения аккаунтов нет.
+
 Alternatively, `POST /guest/sessions` records Terms/Privacy acceptance and
 returns a 12-hour capability token for one document. It does not create a User
 and cannot list My Documents.
@@ -54,7 +71,7 @@ and cannot list My Documents.
 A user or guest selects a seeded category and submits MSN, filename,
 `application/pdf` and byte size. The backend creates `Document(CREATED)` with
 exactly one owner and returns its identifier. Guest files are capped at 10 MiB;
-email-authenticated files at 100 MiB.
+authenticated files at 100 MiB.
 
 ### 3. Multipart upload
 

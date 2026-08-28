@@ -9,6 +9,7 @@ import ae.fly.backend.domain.OtpCode
 import ae.fly.backend.domain.ProcessingJob
 import ae.fly.backend.domain.ShareToken
 import ae.fly.backend.domain.TermsAcceptance
+import ae.fly.backend.domain.TelegramLoginRequest
 import ae.fly.backend.domain.User
 import ae.fly.backend.repository.CategoryRepository
 import ae.fly.backend.repository.DocumentRepository
@@ -17,6 +18,7 @@ import ae.fly.backend.repository.OtpCodeRepository
 import ae.fly.backend.repository.ProcessingJobRepository
 import ae.fly.backend.repository.ShareTokenRepository
 import ae.fly.backend.repository.TermsAcceptanceRepository
+import ae.fly.backend.repository.TelegramLoginRequestRepository
 import ae.fly.backend.repository.UserRepository
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Repository
@@ -47,12 +49,22 @@ class DynamoUserRepository(
         return findById(lookup.uuid("userId"))
     }
 
+    override fun findByTelegramUserId(telegramUserId: Long): User? {
+        val lookup = client.get(table, "TELEGRAM_USER#$telegramUserId", "USER") ?: return null
+        return findById(lookup.uuid("userId"))
+    }
+
     override fun save(user: User): User {
-        val normalizedEmail = user.email.trim().lowercase()
-        val lookupPk = "EMAIL#$normalizedEmail"
+        val normalizedEmail = user.email?.trim()?.lowercase()
+        val telegramUserId = user.telegramUserId
+        require((normalizedEmail == null) xor (telegramUserId == null)) {
+            "A user must have exactly one login identity"
+        }
+        val lookupPk = normalizedEmail?.let { "EMAIL#$it" }
+            ?: "TELEGRAM_USER#$telegramUserId"
         val existingLookup = client.get(table, lookupPk, "USER")
         if (existingLookup != null && existingLookup.uuid("userId") != user.id) {
-            error("A user already exists for this email")
+            error("A user already exists for this login identity")
         }
 
         val userItem = user.toDynamoItem(normalizedEmail)
@@ -64,7 +76,7 @@ class DynamoUserRepository(
         val lookupItem = mapOf(
             DYNAMO_PK to text(lookupPk),
             DYNAMO_SK to text("USER"),
-            "type" to text("USER_EMAIL"),
+            "type" to text(if (normalizedEmail != null) "USER_EMAIL" else "USER_TELEGRAM"),
             "userId" to text(user.id.toString()),
         )
         client.transactWriteItems(
@@ -88,19 +100,25 @@ class DynamoUserRepository(
         return user
     }
 
-    private fun User.toDynamoItem(normalizedEmail: String): DynamoItem = mapOf(
-        DYNAMO_PK to text("USER#$id"),
-        DYNAMO_SK to text(PROFILE),
-        "type" to text("USER"),
-        "id" to text(id.toString()),
-        "email" to text(normalizedEmail),
-        "createdAt" to text(createdAt.toString()),
-        "updatedAt" to text(updatedAt.toString()),
-    )
+    private fun User.toDynamoItem(normalizedEmail: String?): DynamoItem = buildMap {
+        put(DYNAMO_PK, text("USER#$id"))
+        put(DYNAMO_SK, text(PROFILE))
+        put("type", text("USER"))
+        put("id", text(id.toString()))
+        putOptional("email", normalizedEmail)
+        telegramUserId?.let { put("telegramUserId", number(it)) }
+        telegramChatId?.let { put("telegramChatId", number(it)) }
+        putOptional("telegramUsername", telegramUsername)
+        put("createdAt", text(createdAt.toString()))
+        put("updatedAt", text(updatedAt.toString()))
+    }
 
     private fun DynamoItem.toUser() = User(
         id = uuid("id"),
-        email = string("email"),
+        email = optionalString("email"),
+        telegramUserId = optionalLong("telegramUserId"),
+        telegramChatId = optionalLong("telegramChatId"),
+        telegramUsername = optionalString("telegramUsername"),
         createdAt = instant("createdAt"),
         updatedAt = instant("updatedAt"),
     )
@@ -386,6 +404,73 @@ class DynamoOtpCodeRepository(
         failedAttempts = int("failedAttempts"),
         createdAt = instant("createdAt"),
     )
+}
+
+@Repository
+@ConditionalOnProperty(name = [DYNAMO_PERSISTENCE_PROPERTY], havingValue = "dynamodb")
+class DynamoTelegramLoginRequestRepository(
+    private val client: DynamoDbClient,
+    properties: PersistenceProperties,
+) : TelegramLoginRequestRepository {
+    private val table = properties.dynamodb.tableName
+
+    override fun findById(id: UUID): TelegramLoginRequest? =
+        client.get(table, requestPk(id), "REQUEST")?.toTelegramLoginRequest()
+
+    override fun findByTokenHashAndConsumedAtIsNull(tokenHash: String): TelegramLoginRequest? {
+        val lookup = client.get(table, tokenPk(tokenHash), "REQUEST") ?: return null
+        return findById(lookup.uuid("requestId"))
+            ?.takeIf { it.consumedAt == null }
+    }
+
+    override fun save(request: TelegramLoginRequest): TelegramLoginRequest {
+        client.put(
+            table,
+            buildMap {
+                put(DYNAMO_PK, text(requestPk(request.id)))
+                put(DYNAMO_SK, text("REQUEST"))
+                put("type", text("TELEGRAM_LOGIN_REQUEST"))
+                put("id", text(request.id.toString()))
+                put("tokenHash", text(request.tokenHash))
+                putOptional("codeHash", request.codeHash)
+                request.telegramUserId?.let { put("telegramUserId", number(it)) }
+                request.telegramChatId?.let { put("telegramChatId", number(it)) }
+                putOptional("telegramUsername", request.telegramUsername)
+                put("expiresAt", text(request.expiresAt.toString()))
+                put(DYNAMO_TTL, number(request.expiresAt.epochSecond))
+                putOptional("consumedAt", request.consumedAt?.toString())
+                put("failedAttempts", number(request.failedAttempts))
+                put("createdAt", text(request.createdAt.toString()))
+            },
+        )
+        client.put(
+            table,
+            mapOf(
+                DYNAMO_PK to text(tokenPk(request.tokenHash)),
+                DYNAMO_SK to text("REQUEST"),
+                "type" to text("TELEGRAM_LOGIN_TOKEN_LOOKUP"),
+                "requestId" to text(request.id.toString()),
+                DYNAMO_TTL to number(request.expiresAt.epochSecond),
+            ),
+        )
+        return request
+    }
+
+    private fun DynamoItem.toTelegramLoginRequest() = TelegramLoginRequest(
+        id = uuid("id"),
+        tokenHash = string("tokenHash"),
+        codeHash = optionalString("codeHash"),
+        telegramUserId = optionalLong("telegramUserId"),
+        telegramChatId = optionalLong("telegramChatId"),
+        telegramUsername = optionalString("telegramUsername"),
+        expiresAt = instant("expiresAt"),
+        consumedAt = optionalInstant("consumedAt"),
+        failedAttempts = int("failedAttempts"),
+        createdAt = instant("createdAt"),
+    )
+
+    private fun requestPk(id: UUID) = "TELEGRAM_LOGIN#$id"
+    private fun tokenPk(tokenHash: String) = "TELEGRAM_LOGIN_TOKEN#$tokenHash"
 }
 
 @Repository

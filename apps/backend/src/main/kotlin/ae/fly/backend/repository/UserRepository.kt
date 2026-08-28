@@ -7,5 +7,6 @@ interface UserRepository {
     fun findById(id: UUID): User?
     fun existsById(id: UUID): Boolean
     fun findByEmail(email: String): User?
+    fun findByTelegramUserId(telegramUserId: Long): User?
     fun save(user: User): User
 }

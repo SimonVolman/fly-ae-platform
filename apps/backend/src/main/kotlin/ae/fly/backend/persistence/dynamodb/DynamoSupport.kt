@@ -31,6 +31,8 @@ internal fun DynamoItem.optionalInstant(name: String): Instant? = optionalString
 internal fun DynamoItem.long(name: String): Long = this[name]?.n()?.toLong()
     ?: error("DynamoDB item is missing '$name'")
 
+internal fun DynamoItem.optionalLong(name: String): Long? = this[name]?.n()?.toLong()
+
 internal fun DynamoItem.int(name: String): Int = this[name]?.n()?.toInt()
     ?: error("DynamoDB item is missing '$name'")
 

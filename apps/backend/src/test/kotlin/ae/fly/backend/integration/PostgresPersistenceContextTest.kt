@@ -35,7 +35,7 @@ class PostgresPersistenceContextTest {
         assertEquals(4, categories.findAllByActiveTrueOrderByDisplayOrderAsc().size)
 
         val user = users.save(User(email = "postgres-adapter@fly.ae"))
-        assertEquals(user.id, users.findByEmail(user.email)?.id)
+        assertEquals(user.id, users.findByEmail(requireNotNull(user.email))?.id)
     }
 
     companion object {

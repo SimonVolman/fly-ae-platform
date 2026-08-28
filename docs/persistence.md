@@ -48,6 +48,7 @@ The V0 table uses `pk` and `sk`, plus the `gsi1` index for documents by owner.
 |---|---|---|
 | User | `USER#{id}` | `PROFILE` |
 | Email lookup | `EMAIL#{email}` | `USER` |
+| Telegram-user lookup | `TELEGRAM_USER#{telegramUserId}` | `USER` |
 | Terms acceptance | `USER#{id}` | `TERMS#{type}#{version}` |
 | Guest session | `GUEST#{id}` | `SESSION` |
 | One-document guest lock | `GUEST#{id}` | `DOCUMENT_LOCK` |
@@ -55,17 +56,19 @@ The V0 table uses `pk` and `sk`, plus the `gsi1` index for documents by owner.
 | Category lookup | `CATEGORY_ID#{id}` | `PROFILE` |
 | Document | `DOCUMENT#{id}` | `METADATA` |
 | OTP | `OTP#{email}` | `CODE#{createdAt}#{id}` |
+| Telegram login request | `TELEGRAM_LOGIN#{requestId}` | `REQUEST` |
+| Telegram login-token lookup | `TELEGRAM_LOGIN_TOKEN#{tokenHash}` | `REQUEST` |
 | Share token | `SHARE_TOKEN#{hash}` | `TOKEN` |
 | Share-by-document lookup | `DOCUMENT#{id}` | `SHARE` |
 | Processing job | `DOCUMENT#{id}` | `JOB#{createdAt}#{id}` |
 
-Guest sessions and OTP items contain the `ttlEpochSeconds` attribute. The
+Guest sessions, OTP items and Telegram login requests contain the `ttlEpochSeconds` attribute. The
 application still checks `expiresAt` because DynamoDB TTL deletion is
 asynchronous.
 
 Conditional transactional writes preserve V0 invariants that PostgreSQL
-enforces with unique constraints: unique email, a single guest document and a
-single share token per document.
+enforces with unique constraints: unique email or Telegram user ID, a single
+guest document and a single share token per document.
 
 ## Infrastructure
 

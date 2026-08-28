@@ -8,6 +8,11 @@ on:
         required: true
         type: boolean
         default: true
+      enable_telegram_otp:
+        description: Enable Telegram OTP (requires Secrets Manager values)
+        required: true
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       release_mode:
@@ -20,6 +25,11 @@ on:
         required: false
         type: boolean
         default: true
+      enable_telegram_otp:
+        description: Enable Telegram OTP (requires Secrets Manager values)
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: fly-ae-domain-prod
@@ -50,6 +60,7 @@ jobs:
       HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH
       RELEASE_MODE: ${{ inputs.release_mode || 'maintenance' }}
       ENABLE_CUSTOM_DOMAIN: ${{ inputs.enable_custom_domain && 'true' || 'false' }}
+      ENABLE_TELEGRAM_OTP: ${{ inputs.enable_telegram_otp && 'true' || 'false' }}
 
     steps:
       - name: Check out source
@@ -131,6 +142,10 @@ jobs:
               SessionSecretParameter="$SECRET_PATH_PREFIX/session-secret" \
               OtpPepperParameter="$SECRET_PATH_PREFIX/otp-pepper" \
               ShareEncryptionSecretParameter="$SECRET_PATH_PREFIX/share-encryption-secret" \
+              EnableTelegramOtp="$ENABLE_TELEGRAM_OTP" \
+              TelegramBotUsername="FlyAeOtpBot" \
+              TelegramBotTokenParameter="$SECRET_PATH_PREFIX/telegram-bot-token" \
+              TelegramWebhookSecretParameter="$SECRET_PATH_PREFIX/telegram-webhook-secret" \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
 
@@ -187,3 +202,11 @@ jobs:
           done
           echo "Smoke test did not become healthy in time." >&2
           exit 1
+
+      - name: Smoke test Telegram authentication
+        if: ${{ inputs.enable_telegram_otp }}
+        env:
+          API_URL: ${{ steps.application.outputs.api_url }}
+        run: |
+          curl --fail --silent --show-error "$API_URL/api/v1/auth/otp/options" \
+            | grep --fixed-strings '"telegramEnabled":true' >/dev/null

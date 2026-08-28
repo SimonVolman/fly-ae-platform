@@ -2800,6 +2800,76 @@ footer a {
   margin-top: 24px;
 }
 
+.otp-delivery-options {
+  border: 0;
+  margin: 20px 0 0;
+  padding: 0;
+}
+
+.otp-delivery-options legend {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.otp-delivery-options > div {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.otp-delivery-options button {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  gap: 8px;
+  height: 44px;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.otp-delivery-options button:hover,
+.otp-delivery-options button.selected {
+  background: var(--color-info);
+  border-color: var(--color-ink);
+}
+
+.otp-delivery-options button:focus-visible {
+  box-shadow: 0 0 0 3px rgb(37 143 224 / 18%);
+  outline: none;
+}
+
+.telegram-code-instructions {
+  display: grid;
+  gap: 12px;
+}
+
+.telegram-open-button {
+  align-items: center;
+  background: #229ed9;
+  border-radius: var(--radius-control);
+  color: white;
+  display: inline-flex;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  text-decoration: none;
+}
+
+.telegram-open-button:hover {
+  background: #1689c1;
+}
+
 .otp-input {
   font-family: var(--font-sans);
   font-size: 22px;

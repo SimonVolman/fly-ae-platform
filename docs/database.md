@@ -18,7 +18,10 @@ erDiagram
 
     USER {
       uuid id PK
-      varchar email UK
+      varchar email UK "nullable"
+      bigint telegram_user_id UK "nullable"
+      bigint telegram_chat_id "nullable"
+      varchar telegram_username "nullable"
       timestamptz created_at
       timestamptz updated_at
     }
@@ -26,6 +29,18 @@ erDiagram
       uuid id PK
       varchar email
       varchar code_hash
+      timestamptz expires_at
+      timestamptz consumed_at
+      integer failed_attempts
+      timestamptz created_at
+    }
+    TELEGRAM_LOGIN_REQUEST {
+      uuid id PK
+      varchar token_hash UK
+      varchar code_hash
+      bigint telegram_user_id
+      bigint telegram_chat_id
+      varchar telegram_username
       timestamptz expires_at
       timestamptz consumed_at
       integer failed_attempts
@@ -93,7 +108,10 @@ erDiagram
 
 `documents_exactly_one_owner` requires either `user_id` or `guest_session_id`,
 never both. `documents_one_per_guest` limits each guest capability to one
-document.
+document. `users_exactly_one_login_identity` requires either email or Telegram
+user ID, never both. `telegram_login_requests` stores only HMAC values for the
+deep-link token and OTP; the browser holds the request UUID while the raw token
+exists only in a short-lived `t.me` URL.
 
 ## Document transitions
 

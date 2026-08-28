@@ -10,6 +10,7 @@ import ae.fly.backend.domain.GuestSession
 import ae.fly.backend.domain.OtpCode
 import ae.fly.backend.domain.ShareToken
 import ae.fly.backend.domain.TermsAcceptance
+import ae.fly.backend.domain.TelegramLoginRequest
 import ae.fly.backend.domain.User
 import ae.fly.backend.persistence.dynamodb.DynamoCategoryRepository
 import ae.fly.backend.persistence.dynamodb.DynamoDbConfig
@@ -18,6 +19,7 @@ import ae.fly.backend.persistence.dynamodb.DynamoGuestSessionRepository
 import ae.fly.backend.persistence.dynamodb.DynamoOtpCodeRepository
 import ae.fly.backend.persistence.dynamodb.DynamoShareTokenRepository
 import ae.fly.backend.persistence.dynamodb.DynamoTermsAcceptanceRepository
+import ae.fly.backend.persistence.dynamodb.DynamoTelegramLoginRequestRepository
 import ae.fly.backend.persistence.dynamodb.DynamoUserRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -74,6 +76,7 @@ class DynamoRepositoryIntegrationTest {
         val categories = DynamoCategoryRepository(client, properties)
         val documents = DynamoDocumentRepository(client, properties)
         val otpCodes = DynamoOtpCodeRepository(client, properties)
+        val telegramLoginRequests = DynamoTelegramLoginRequestRepository(client, properties)
         val terms = DynamoTermsAcceptanceRepository(client, properties)
         val shares = DynamoShareTokenRepository(client, documents, properties)
         val now = Instant.parse("2026-08-02T12:00:00Z")
@@ -81,6 +84,16 @@ class DynamoRepositoryIntegrationTest {
         val user = users.save(User(email = "pilot@fly.ae", createdAt = now, updatedAt = now))
         assertEquals(user.id, users.findByEmail("pilot@fly.ae")?.id)
         assertTrue(users.existsById(user.id))
+        val telegramUser = users.save(
+            User(
+                telegramUserId = 991,
+                telegramChatId = 42,
+                telegramUsername = "test_pilot",
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        assertEquals(telegramUser.id, users.findByTelegramUserId(991)?.id)
 
         val guest = guests.save(
             GuestSession(
@@ -143,16 +156,42 @@ class DynamoRepositoryIntegrationTest {
 
         val otp = otpCodes.save(
             OtpCode(
-                email = user.email,
+                email = requireNotNull(user.email),
                 codeHash = "a".repeat(64),
                 expiresAt = now.plusSeconds(600),
                 createdAt = now,
             ),
         )
-        assertEquals(otp.id, otpCodes.findFirstByEmailAndConsumedAtIsNullOrderByCreatedAtDesc(user.email)?.id)
+        assertEquals(
+            otp.id,
+            otpCodes.findFirstByEmailAndConsumedAtIsNullOrderByCreatedAtDesc(requireNotNull(user.email))?.id,
+        )
         otp.consumedAt = now.plusSeconds(1)
         otpCodes.save(otp)
-        assertNull(otpCodes.findFirstByEmailAndConsumedAtIsNullOrderByCreatedAtDesc(user.email))
+        assertNull(
+            otpCodes.findFirstByEmailAndConsumedAtIsNullOrderByCreatedAtDesc(requireNotNull(user.email)),
+        )
+
+        val telegramRequest = telegramLoginRequests.save(
+            TelegramLoginRequest(
+                tokenHash = "c".repeat(64),
+                codeHash = "d".repeat(64),
+                telegramUserId = telegramUser.telegramUserId,
+                telegramChatId = telegramUser.telegramChatId,
+                expiresAt = now.plusSeconds(600),
+                createdAt = now,
+            ),
+        )
+        assertEquals(
+            telegramRequest.id,
+            telegramLoginRequests.findByTokenHashAndConsumedAtIsNull(telegramRequest.tokenHash)?.id,
+        )
+        assertEquals(telegramRequest.id, telegramLoginRequests.findById(telegramRequest.id)?.id)
+        telegramRequest.consumedAt = now.plusSeconds(1)
+        telegramLoginRequests.save(telegramRequest)
+        assertNull(
+            telegramLoginRequests.findByTokenHashAndConsumedAtIsNull(telegramRequest.tokenHash),
+        )
 
         val acceptance = terms.save(
             TermsAcceptance(

@@ -28,7 +28,7 @@ class OtpService(
     private val hash = SecureHash(properties.otpPepper)
 
     @Transactional
-    fun request(rawEmail: String) {
+    fun requestEmail(rawEmail: String) {
         val email = normalizeEmail(rawEmail)
         val now = clock.instant()
         otpCodes.findAllByEmailAndConsumedAtIsNull(email).forEach {
@@ -73,7 +73,17 @@ class OtpService(
         recordLegalAcceptance(user, "PRIVACY", request.privacyVersion)
 
         val (token, expiresAt) = sessionTokens.issue(user.id)
-        return SessionResponse(token, expiresAt, SessionUser(user.id, user.email))
+        return SessionResponse(
+            token,
+            expiresAt,
+            SessionUser(
+                id = user.id,
+                email = user.email,
+                telegramUsername = null,
+                displayName = requireNotNull(user.email),
+                authenticationMethod = AuthenticationMethod.EMAIL,
+            ),
+        )
     }
 
     private fun recordLegalAcceptance(user: User, type: String, version: String) {

@@ -31,3 +31,27 @@ data class EmailProperties(
     val from: String = "no-reply@fly.ae",
     val region: String = "eu-central-1",
 )
+
+@ConfigurationProperties("fly.telegram")
+data class TelegramProperties(
+    val enabled: Boolean = false,
+    val botToken: String = "",
+    val botUsername: String = "",
+    val webhookSecret: String = "",
+    val apiBaseUrl: String = "https://api.telegram.org",
+) {
+    init {
+        if (enabled) {
+            require(botToken.isNotBlank()) { "fly.telegram.bot-token is required when Telegram is enabled" }
+            require(botUsername.matches(Regex("^[A-Za-z0-9_]{5,32}$"))) {
+                "fly.telegram.bot-username must be a valid Telegram username without @"
+            }
+            require(webhookSecret.matches(Regex("^[A-Za-z0-9_-]{16,256}$"))) {
+                "fly.telegram.webhook-secret must be 16-256 URL-safe characters"
+            }
+            require(apiBaseUrl.startsWith("https://")) {
+                "fly.telegram.api-base-url must use HTTPS"
+            }
+        }
+    }
+}

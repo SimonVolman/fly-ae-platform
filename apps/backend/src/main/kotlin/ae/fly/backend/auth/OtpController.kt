@@ -3,6 +3,7 @@ package ae.fly.backend.auth
 import ae.fly.backend.security.RateLimiter
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -14,8 +15,14 @@ import java.time.Duration
 @RequestMapping("/api/v1/auth/otp")
 class OtpController(
     private val otpService: OtpService,
+    private val telegramOtpService: TelegramOtpService,
     private val rateLimiter: RateLimiter,
 ) {
+    @GetMapping("/options")
+    fun deliveryOptions(): OtpDeliveryOptions = OtpDeliveryOptions(
+        telegramEnabled = telegramOtpService.isEnabled,
+    )
+
     @PostMapping("/request")
     fun requestOtp(
         @Valid @RequestBody request: OtpRequest,
@@ -24,7 +31,7 @@ class OtpController(
         val email = request.email.trim().lowercase()
         rateLimiter.check("otp-request:ip:${servletRequest.remoteAddr}", 20, Duration.ofHours(1))
         rateLimiter.check("otp-request:email:$email", 5, Duration.ofHours(1))
-        otpService.request(email)
+        otpService.requestEmail(email)
         return ResponseEntity.accepted().build()
     }
 

@@ -32,9 +32,26 @@ Parameters:
   ShareEncryptionSecretParameter:
     Type: String
     Default: fly-ae/v0-prod/share-encryption-secret
+  EnableTelegramOtp:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+  TelegramBotUsername:
+    Type: String
+    Default: FlyAeOtpBot
+    AllowedPattern: "[A-Za-z0-9_]{5,32}"
+  TelegramBotTokenParameter:
+    Type: String
+    Default: fly-ae/v0-prod/telegram-bot-token
+  TelegramWebhookSecretParameter:
+    Type: String
+    Default: fly-ae/v0-prod/telegram-webhook-secret
 
 Conditions:
   CustomDomainEnabled: !Equals [!Ref EnableCustomDomain, "true"]
+  TelegramOtpEnabled: !Equals [!Ref EnableTelegramOtp, "true"]
 
 Globals:
   Function:
@@ -226,6 +243,16 @@ Resources:
           FLY_ALLOWED_ORIGINS: !Sub https://${FrontendDomainName}
           FLY_EMAIL_FROM: !Sub no-reply@${FrontendDomainName}
           FLY_EMAIL_REGION: !Ref AWS::Region
+          FLY_TELEGRAM_ENABLED: !Ref EnableTelegramOtp
+          FLY_TELEGRAM_BOT_USERNAME: !Ref TelegramBotUsername
+          FLY_TELEGRAM_BOT_TOKEN: !If
+            - TelegramOtpEnabled
+            - !Sub "{{resolve:secretsmanager:${TelegramBotTokenParameter}:SecretString}}"
+            - ""
+          FLY_TELEGRAM_WEBHOOK_SECRET: !If
+            - TelegramOtpEnabled
+            - !Sub "{{resolve:secretsmanager:${TelegramWebhookSecretParameter}:SecretString}}"
+            - ""
           FLY_SESSION_SECRET: !Sub "{{resolve:secretsmanager:${SessionSecretParameter}:SecretString}}"
           FLY_OTP_PEPPER: !Sub "{{resolve:secretsmanager:${OtpPepperParameter}:SecretString}}"
           FLY_SHARE_ENCRYPTION_SECRET: !Sub "{{resolve:secretsmanager:${ShareEncryptionSecretParameter}:SecretString}}"

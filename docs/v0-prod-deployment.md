@@ -119,6 +119,7 @@ https://api.fly.ae
 /api/categories
 /api/auth/otp/request
 /api/auth/otp/verify
+/api/auth/telegram/webhook
 /api/guest/session
 /api/documents
 /api/uploads
@@ -226,6 +227,31 @@ Production-отправка OTP выполняется через Amazon SES. Д
 OTP является одноразовым, ограничен по времени, хранится только в безопасном
 виде и никогда не выводится в production-логах.
 
+## Telegram OTP
+
+Telegram Bot API подключается как необязательный самостоятельный способ входа
+без email. Browser request и Telegram private chat соединяются одноразовым
+deep-link token, после чего бот отправляет шестизначный OTP.
+Нужны созданный через `@BotFather` бот, HTTPS webhook и четыре переменные:
+
+```text
+FLY_TELEGRAM_ENABLED=true
+FLY_TELEGRAM_BOT_TOKEN=...
+FLY_TELEGRAM_BOT_USERNAME=FlyAeOtpBot
+FLY_TELEGRAM_WEBHOOK_SECRET=...
+```
+
+В SAM template канал включается параметром `EnableTelegramOtp=true`. Также
+передаются `TelegramBotUsername`, `TelegramBotTokenParameter` и
+`TelegramWebhookSecretParameter`; два последних значения — имена секретов в
+Secrets Manager, а не сами секреты.
+
+Webhook регистрируется на `${ApiBaseUrl}/api/v1/auth/telegram/webhook`, где
+`ApiBaseUrl` — output application stack, с тем же `secret_token`. Bot token и
+webhook secret хранятся в Secrets Manager и не выводятся в логи. API Gateway
+должен разрешать POST на этот путь и передавать заголовок
+`X-Telegram-Bot-Api-Secret-Token` без изменений.
+
 ## Share-ссылки
 
 Публичная ссылка имеет вид:
@@ -260,6 +286,7 @@ logs.
 
 - ключ подписи пользовательских сессий;
 - OTP pepper;
+- Telegram bot token и webhook secret, когда Telegram OTP включён;
 - guest-session signing key;
 - share-token pepper;
 - служебные настройки email.
@@ -289,6 +316,10 @@ FLY_GUEST_SECRET=...
 FLY_SHARE_TOKEN_PEPPER=...
 
 FLY_EMAIL_FROM=no-reply@fly.ae
+FLY_TELEGRAM_ENABLED=true
+FLY_TELEGRAM_BOT_TOKEN=...
+FLY_TELEGRAM_BOT_USERNAME=FlyAeOtpBot
+FLY_TELEGRAM_WEBHOOK_SECRET=...
 ```
 
 `AWS_ACCESS_KEY_ID` и `AWS_SECRET_ACCESS_KEY` в Lambda не задаются.

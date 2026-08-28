@@ -7,6 +7,7 @@ import ae.fly.backend.domain.OtpCode
 import ae.fly.backend.domain.ProcessingJob
 import ae.fly.backend.domain.ShareToken
 import ae.fly.backend.domain.TermsAcceptance
+import ae.fly.backend.domain.TelegramLoginRequest
 import ae.fly.backend.domain.User
 import ae.fly.backend.repository.CategoryRepository
 import ae.fly.backend.repository.DocumentRepository
@@ -15,6 +16,7 @@ import ae.fly.backend.repository.OtpCodeRepository
 import ae.fly.backend.repository.ProcessingJobRepository
 import ae.fly.backend.repository.ShareTokenRepository
 import ae.fly.backend.repository.TermsAcceptanceRepository
+import ae.fly.backend.repository.TelegramLoginRequestRepository
 import ae.fly.backend.repository.UserRepository
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.data.jpa.repository.EntityGraph
@@ -27,6 +29,7 @@ private const val POSTGRES_PROPERTY = "fly.persistence.type"
 
 interface JpaUserRepository : JpaRepository<User, UUID> {
     fun findByEmail(email: String): User?
+    fun findByTelegramUserId(telegramUserId: Long): User?
 }
 
 interface JpaGuestSessionRepository : JpaRepository<GuestSession, UUID> {
@@ -48,6 +51,10 @@ interface JpaDocumentRepository : JpaRepository<Document, UUID> {
 interface JpaOtpCodeRepository : JpaRepository<OtpCode, UUID> {
     fun findFirstByEmailAndConsumedAtIsNullOrderByCreatedAtDesc(email: String): OtpCode?
     fun findAllByEmailAndConsumedAtIsNull(email: String): List<OtpCode>
+}
+
+interface JpaTelegramLoginRequestRepository : JpaRepository<TelegramLoginRequest, UUID> {
+    fun findByTokenHashAndConsumedAtIsNull(tokenHash: String): TelegramLoginRequest?
 }
 
 interface JpaTermsAcceptanceRepository : JpaRepository<TermsAcceptance, UUID> {
@@ -74,6 +81,8 @@ class PostgresUserRepository(
     override fun findById(id: UUID): User? = delegate.findById(id).orElse(null)
     override fun existsById(id: UUID): Boolean = delegate.existsById(id)
     override fun findByEmail(email: String): User? = delegate.findByEmail(email)
+    override fun findByTelegramUserId(telegramUserId: Long): User? =
+        delegate.findByTelegramUserId(telegramUserId)
     override fun save(user: User): User = delegate.save(user)
 }
 
@@ -137,6 +146,19 @@ class PostgresOtpCodeRepository(
         delegate.findAllByEmailAndConsumedAtIsNull(email)
 
     override fun save(otpCode: OtpCode): OtpCode = delegate.save(otpCode)
+}
+
+@Repository
+@ConditionalOnProperty(name = [POSTGRES_PROPERTY], havingValue = "postgres", matchIfMissing = true)
+class PostgresTelegramLoginRequestRepository(
+    private val delegate: JpaTelegramLoginRequestRepository,
+) : TelegramLoginRequestRepository {
+    override fun findById(id: UUID): TelegramLoginRequest? = delegate.findById(id).orElse(null)
+
+    override fun findByTokenHashAndConsumedAtIsNull(tokenHash: String): TelegramLoginRequest? =
+        delegate.findByTokenHashAndConsumedAtIsNull(tokenHash)
+
+    override fun save(request: TelegramLoginRequest): TelegramLoginRequest = delegate.save(request)
 }
 
 @Repository

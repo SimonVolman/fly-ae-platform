@@ -56,8 +56,24 @@ type Session = {
   expiresAt: string;
   user: {
     id: string;
-    email: string;
+    email: string | null;
+    telegramUsername: string | null;
+    displayName: string;
+    authenticationMethod: "EMAIL" | "TELEGRAM";
   };
+};
+
+type AuthenticationMethod = "EMAIL" | "TELEGRAM";
+
+type OtpDeliveryOptions = {
+  emailEnabled: boolean;
+  telegramEnabled: boolean;
+};
+
+type TelegramLoginAccepted = {
+  requestId: string;
+  telegramStartUrl: string;
+  expiresAt: string;
 };
 
 type GuestSession = {
@@ -110,10 +126,11 @@ async function api<T>(
     const problem = (await response.json().catch(() => ({}))) as ApiProblem;
     throw apiRequestError(response, problem);
   }
-  if (response.status === 204 || response.status === 202) {
+  if (response.status === 204) {
     return undefined as T;
   }
-  return response.json() as Promise<T>;
+  const responseText = await response.text();
+  return (responseText ? JSON.parse(responseText) : undefined) as T;
 }
 
 function formatBytes(bytes: number) {
@@ -173,9 +190,14 @@ function HomeContent() {
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
-  const [authStep, setAuthStep] = useState<"email" | "code">("email");
+  const [authStep, setAuthStep] = useState<"method" | "code">("method");
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [authenticationMethod, setAuthenticationMethod] =
+    useState<AuthenticationMethod>("EMAIL");
+  const [telegramEnabled, setTelegramEnabled] = useState(false);
+  const [telegramRequestId, setTelegramRequestId] = useState("");
+  const [telegramStartUrl, setTelegramStartUrl] = useState("");
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [acceptedGuestLegal, setAcceptedGuestLegal] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
@@ -207,6 +229,10 @@ function HomeContent() {
         setCategoryId((current) => current || result[0]?.id || "");
       })
       .catch((requestError: Error) => setError(requestError.message));
+
+    void api<OtpDeliveryOptions>("/auth/otp/options")
+      .then((options) => setTelegramEnabled(options.telegramEnabled))
+      .catch(() => setTelegramEnabled(false));
 
     const sessionTimer = window.setTimeout(() => {
       const stored = window.sessionStorage.getItem("flyae:session");
@@ -243,10 +269,20 @@ function HomeContent() {
     setAuthBusy(true);
     setAuthError("");
     try {
-      await api<void>("/auth/otp/request", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
+      if (authenticationMethod === "TELEGRAM") {
+        const accepted = await api<TelegramLoginAccepted>(
+          "/auth/telegram/request",
+          { method: "POST" },
+        );
+        setTelegramRequestId(accepted.requestId);
+        setTelegramStartUrl(accepted.telegramStartUrl);
+      } else {
+        await api<void>("/auth/otp/request", {
+          method: "POST",
+          body: JSON.stringify({ email }),
+        });
+      }
+      setOtpCode("");
       setAuthStep("code");
     } catch (requestError) {
       setAuthError((requestError as Error).message);
@@ -261,10 +297,18 @@ function HomeContent() {
     setAuthBusy(true);
     setAuthError("");
     try {
-      const nextSession = await api<Session>("/auth/otp/verify", {
+      const verificationPath =
+        authenticationMethod === "TELEGRAM"
+          ? "/auth/telegram/verify"
+          : "/auth/otp/verify";
+      const verificationIdentity =
+        authenticationMethod === "TELEGRAM"
+          ? { requestId: telegramRequestId }
+          : { email };
+      const nextSession = await api<Session>(verificationPath, {
         method: "POST",
         body: JSON.stringify({
-          email,
+          ...verificationIdentity,
           code: otpCode,
           acceptedLegal,
           termsVersion: TERMS_VERSION,
@@ -586,8 +630,13 @@ function HomeContent() {
   }
 
   function openAuth() {
-    setAuthStep("email");
+    setAuthStep("method");
     setAuthError("");
+    setAuthenticationMethod("EMAIL");
+    setOtpCode("");
+    setTelegramRequestId("");
+    setTelegramStartUrl("");
+    setAcceptedLegal(false);
     setAuthOpen(true);
   }
 
@@ -613,6 +662,12 @@ function HomeContent() {
   const uploadBusy = ["preparing", "uploading", "processing"].includes(uploadState);
   const documentFolders = groupDocumentsIntoFolders(documents);
   const openFolder = documentFolders.find((folder) => folder.key === openFolderKey);
+  const userDisplayName =
+    session?.user.displayName ??
+    session?.user.email ??
+    session?.user.telegramUsername ??
+    "User";
+  const userInitials = userDisplayName.replace(/^@/, "");
 
   return (
     <main className="product-app">
@@ -645,10 +700,10 @@ function HomeContent() {
                 onClick={() => setAccountMenuOpen((open) => !open)}
               >
                 <span className="desktop-avatar-initial">
-                  {session.user.email.trim().charAt(0)}
+                  {userInitials.trim().charAt(0)}
                 </span>
                 <span className="mobile-avatar-initial">
-                  {session.user.email.slice(0, 2)}
+                  {userInitials.slice(0, 2)}
                 </span>
               </button>
               {accountMenuOpen && (
@@ -658,7 +713,7 @@ function HomeContent() {
                       <circle cx="12" cy="8" r="3.5" />
                       <path d="M5.5 20c.6-4 2.8-6 6.5-6s5.9 2 6.5 6" />
                     </svg>
-                    <span>{session.user.email}</span>
+                    <span>{userDisplayName}</span>
                   </div>
                   <button type="button" role="menuitem" onClick={logOut}>
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -739,7 +794,7 @@ function HomeContent() {
             </nav>
             {session ? (
               <div className="mobile-session">
-                <span>{session.user.email}</span>
+                <span>{userDisplayName}</span>
                 <button type="button" onClick={logOut}>Log out</button>
               </div>
             ) : (
@@ -777,7 +832,7 @@ function HomeContent() {
           {!session ? (
             <div className="empty-app-state">
               <h2>Log in to view your documents</h2>
-              <p>My Documents is available after email verification.</p>
+              <p>My Documents is available after you sign in.</p>
               <button className="button button-primary" onClick={openAuth}>
                 Log in
               </button>
@@ -1074,7 +1129,7 @@ function HomeContent() {
                   <div className="guest-upload-options">
                     <p>
                       Upload as a guest. This temporary access is limited to this
-                      document; My Documents requires email verification.
+                      document; My Documents requires sign-in.
                     </p>
                     <label className="legal-check">
                       <input
@@ -1210,33 +1265,74 @@ function HomeContent() {
             {authError && (
               <div className="app-error auth-dialog-error" role="alert">
                 <strong>
-                  {authStep === "email" ? "Unable to send the code" : "Unable to verify the code"}
+                  {authStep === "method" ? "Unable to start sign-in" : "Unable to verify the code"}
                 </strong>
                 <span>{authError}</span>
               </div>
             )}
 
-            {authStep === "email" ? (
+            {authStep === "method" ? (
               <form onSubmit={requestOtp}>
-                <h2 id="auth-title">Log in with email</h2>
+                <h2 id="auth-title">Log in</h2>
                 <p className="info-box">
                   Log in to keep a My Documents history and upload PDFs up to 100 MB.
-                  Guest upload up to 10 MB does not require email. In local
-                  development, the OTP appears in the backend console.
+                  Choose email or Telegram. Each method creates its own fly.ae account.
                 </p>
-                <label>
-                  Email
-                  <input
-                    autoFocus
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="name@company.com"
-                  />
-                </label>
-                <button className="primary-button" disabled={authBusy || !email.trim()}>
-                  {authBusy ? "Sending…" : "Get one-time code"}
+                {telegramEnabled && (
+                  <fieldset className="otp-delivery-options">
+                    <legend>Sign in with</legend>
+                    <div>
+                      <button
+                        type="button"
+                        className={authenticationMethod === "EMAIL" ? "selected" : ""}
+                        aria-pressed={authenticationMethod === "EMAIL"}
+                        onClick={() => setAuthenticationMethod("EMAIL")}
+                      >
+                        <span aria-hidden="true">✉</span>
+                        Email
+                      </button>
+                      <button
+                        type="button"
+                        className={authenticationMethod === "TELEGRAM" ? "selected" : ""}
+                        aria-pressed={authenticationMethod === "TELEGRAM"}
+                        onClick={() => setAuthenticationMethod("TELEGRAM")}
+                      >
+                        <span aria-hidden="true">↗</span>
+                        Telegram
+                      </button>
+                    </div>
+                  </fieldset>
+                )}
+                {authenticationMethod === "EMAIL" ? (
+                  <label>
+                    Email
+                    <input
+                      autoFocus
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@company.com"
+                    />
+                  </label>
+                ) : (
+                  <p className="code-copy">
+                    No email is required. Open our bot, press Start, and it will send
+                    you a six-digit code.
+                  </p>
+                )}
+                <button
+                  className="primary-button"
+                  disabled={
+                    authBusy ||
+                    (authenticationMethod === "EMAIL" && !email.trim())
+                  }
+                >
+                  {authBusy
+                    ? "Sending…"
+                    : authenticationMethod === "TELEGRAM"
+                      ? "Continue with Telegram"
+                      : "Get one-time code"}
                 </button>
               </form>
             ) : (
@@ -1246,15 +1342,32 @@ function HomeContent() {
                   className="back-link"
                   onClick={() => {
                     setAuthError("");
-                    setAuthStep("email");
+                    setOtpCode("");
+                    setAuthStep("method");
                   }}
                 >
-                  ← Change email
+                  ← Change sign-in method
                 </button>
                 <h2 id="auth-title">Enter your code</h2>
-                <p className="code-copy">
-                  Enter the six-digit code sent to <strong>{email}</strong>.
-                </p>
+                {authenticationMethod === "TELEGRAM" ? (
+                  <div className="telegram-code-instructions">
+                    <p className="code-copy">
+                      Open the bot, press Start, then enter the code it sends you.
+                    </p>
+                    <a
+                      className="telegram-open-button"
+                      href={telegramStartUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open Telegram bot
+                    </a>
+                  </div>
+                ) : (
+                  <p className="code-copy">
+                    Enter the six-digit code sent to <strong>{email}</strong>.
+                  </p>
+                )}
                 <label>
                   One-time code
                   <input

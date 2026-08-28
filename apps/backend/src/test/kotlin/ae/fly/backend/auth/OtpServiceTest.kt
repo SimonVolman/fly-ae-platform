@@ -72,7 +72,7 @@ class OtpServiceTest {
             ),
         ).thenReturn(false)
 
-        service.request(" PILOT@fly.ae ")
+        service.requestEmail(" PILOT@fly.ae ")
         val response = service.verify(
             OtpVerification(
                 email = "pilot@fly.ae",

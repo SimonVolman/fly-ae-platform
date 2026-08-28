@@ -23,7 +23,9 @@ S3 and Secrets Manager data; all user-facing deployment names use DEV.
 
 The manual `.github/workflows/deploy-dev.yml` workflow deploys the application
 to `dev.fly.ae`. It uses the `dev` GitHub environment and the `fly-ae-dev`
-concurrency group.
+concurrency group. Selecting `enable_telegram_otp` requires the
+`fly-ae/v0-prod/telegram-bot-token` and
+`fly-ae/v0-prod/telegram-webhook-secret` Secrets Manager values.
 
 Both `dev.fly.ae` and `fly.ae` are managed in Route 53 hosted zone
 `Z10483352SBZ9U6ULG9OH`.
@@ -57,6 +59,9 @@ on Lambda` and enter `deploy-fly.ae` in the confirmation field. It reuses the
 `fly-ae-domain-prod` stack and builds the frontend with
 `NEXT_PUBLIC_MAINTENANCE_MODE=false`. Until that workflow is explicitly run,
 the maintenance release remains active on `fly.ae`; DEV is not affected.
+Selecting `enable_telegram_otp` reads the production bot token and webhook
+secret from `fly-ae/domain-prod/telegram-bot-token` and
+`fly-ae/domain-prod/telegram-webhook-secret`.
 
 Both PROD workflows use the `fly-ae-domain-prod` concurrency group, so they
 cannot publish maintenance and application releases at the same time.

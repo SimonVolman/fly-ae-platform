@@ -62,6 +62,12 @@ fly:
   email:
     from: ${FLY_EMAIL_FROM:no-reply@fly.ae}
     region: ${FLY_EMAIL_REGION:eu-central-1}
+  telegram:
+    enabled: ${FLY_TELEGRAM_ENABLED:false}
+    bot-token: ${FLY_TELEGRAM_BOT_TOKEN:}
+    bot-username: ${FLY_TELEGRAM_BOT_USERNAME:}
+    webhook-secret: ${FLY_TELEGRAM_WEBHOOK_SECRET:}
+    api-base-url: ${FLY_TELEGRAM_API_BASE_URL:https://api.telegram.org}
   storage:
     endpoint: ${FLY_S3_ENDPOINT:}
     region: ${FLY_S3_REGION:us-east-1}
