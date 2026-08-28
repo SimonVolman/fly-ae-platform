@@ -101,6 +101,7 @@ jobs:
               FrontendDomainName="$FRONTEND_DOMAIN" \
               HostedZoneId="$HOSTED_ZONE_ID" \
               FrontendCertificateArn="${{ steps.bootstrap.outputs.certificate_arn }}" \
+              DeploymentRevision="$GITHUB_SHA" \
               EnableTelegramOtp="$ENABLE_TELEGRAM_OTP" \
               TelegramBotUsername="FlyAeOtpBot" \
             --no-confirm-changeset \
