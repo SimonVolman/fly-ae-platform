@@ -15,10 +15,9 @@ interface TelegramBotClient {
 
 @Component
 class HttpTelegramBotClient(
-    restClientBuilder: RestClient.Builder,
     private val properties: TelegramProperties,
 ) : TelegramBotClient {
-    private val restClient = restClientBuilder.build()
+    private val restClient = RestClient.builder().build()
 
     override fun sendOtp(chatId: Long, code: String, ttl: Duration) {
         val minutes = ttl.toMinutes().coerceAtLeast(1)
