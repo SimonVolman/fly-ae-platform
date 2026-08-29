@@ -536,7 +536,7 @@ components:
           format: date-time
         maxFileSizeBytes:
           type: integer
-          const: 10485760
+          const: 104857600
     User:
       type: object
       required:
@@ -588,7 +588,7 @@ components:
         sizeBytes:
           type: integer
           minimum: 1
-          maximum: 104857600
+          maximum: 262144000
     Document:
       type: object
       required:

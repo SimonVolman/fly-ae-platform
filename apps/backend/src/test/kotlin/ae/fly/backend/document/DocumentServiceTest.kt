@@ -58,28 +58,28 @@ class DocumentServiceTest {
     }
 
     @Test
-    fun `guest can create one document up to ten mebibytes`() {
+    fun `guest can create one document up to one hundred mebibytes`() {
         val response = service.create(
             AuthenticatedGuest(guestId),
-            request(sizeBytes = 10_485_760),
+            request(sizeBytes = 104_857_600),
         )
 
-        assertEquals(10_485_760, response.sizeBytes)
+        assertEquals(104_857_600, response.sizeBytes)
         assertTrue(response.filename.endsWith(".pdf"))
         assertNull(response.shareUrl)
     }
 
     @Test
-    fun `guest document above ten mebibytes returns payload too large`() {
+    fun `guest document above one hundred mebibytes returns payload too large`() {
         val error = assertThrows(ApiProblem::class.java) {
             service.create(
                 AuthenticatedGuest(guestId),
-                request(sizeBytes = 10_485_761),
+                request(sizeBytes = 104_857_601),
             )
         }
 
         assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, error.status)
-        assertEquals("This upload is limited to 10 MB.", error.message)
+        assertEquals("This upload is limited to 100 MB.", error.message)
     }
 
     private fun request(sizeBytes: Long) = CreateDocumentRequest(

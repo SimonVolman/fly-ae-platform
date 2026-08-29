@@ -63,7 +63,7 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /Document details/);
   assert.match(html, /Continue to PDF upload/);
   assert.match(html, /<h2>PDF upload<\/h2>/);
-  assert.match(html, /First upload up to 10 MB—no email required/);
+  assert.match(html, /First upload up to 100 MB—no email required/);
   assert.match(html, /Mission of fly\.ae/);
   assert.match(html, /My Documents/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
@@ -128,7 +128,8 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /Continue with Telegram/);
   assert.match(page, /Open Telegram bot/);
   assert.match(page, /guest\/sessions/);
-  assert.match(page, /GUEST_MAX_FILE_SIZE = 10 \* 1024 \* 1024/);
+  assert.match(page, /GUEST_MAX_FILE_SIZE = 100 \* 1024 \* 1024/);
+  assert.match(page, /AUTHENTICATED_MAX_FILE_SIZE = 250 \* 1024 \* 1024/);
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
   assert.match(page, /JUST_DOCUMENT/);

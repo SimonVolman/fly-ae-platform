@@ -44,7 +44,7 @@ data class CreateDocumentRequest(
     val mimeType: String,
 
     @field:Min(1)
-    @field:Max(104_857_600)
+    @field:Max(262_144_000)
     val sizeBytes: Long,
 )
 

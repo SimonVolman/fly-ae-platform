@@ -10,8 +10,8 @@ available.
 2. **One document per upload flow.** The frontend may show multiple historical
    documents, but each upload session represents exactly one PDF and one
    `Document` record.
-3. **PDF only, owner-specific limit.** Guest uploads are limited to 10 MiB;
-   email-authenticated uploads are limited to 100 MiB. The browser validates
+3. **PDF only, owner-specific limit.** Guest uploads are limited to 100 MiB;
+   authenticated uploads are limited to 250 MiB. The browser validates
    first; the backend repeats filename, MIME and size checks before signing and
    verifies the stored object after multipart completion.
 4. **Email OTP and scoped guest access.** A successful OTP verification returns
