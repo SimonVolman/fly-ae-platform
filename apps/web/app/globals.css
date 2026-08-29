@@ -739,7 +739,8 @@ footer a {
 }
 
 .dialog input,
-.field input {
+.field input,
+.field select {
   background: var(--color-surface);
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-control);
@@ -750,7 +751,8 @@ footer a {
 }
 
 .dialog input:focus,
-.field input:focus {
+.field input:focus,
+.field select:focus {
   border-color: var(--color-ink);
   box-shadow: 0 0 0 3px rgb(37 143 224 / 18%);
 }
@@ -1017,6 +1019,14 @@ footer a {
 
 .field input {
   font-size: 13px;
+  width: 100%;
+}
+
+.field select {
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
   width: 100%;
 }
 
@@ -1626,55 +1636,6 @@ footer a {
   font-size: 13px;
   line-height: 1.45;
   margin: 6px 0 0;
-}
-
-.category-grid {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: 1fr 1fr;
-}
-
-.category-option {
-  align-items: center;
-  background: var(--color-canvas);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-  color: var(--color-ink);
-  cursor: pointer;
-  display: flex;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  justify-content: space-between;
-  min-height: 48px;
-  padding: 0 14px;
-  text-align: left;
-}
-
-.category-option i {
-  align-items: center;
-  background: var(--color-success);
-  border-radius: 50%;
-  display: flex;
-  font-size: 10px;
-  font-style: normal;
-  height: 20px;
-  justify-content: center;
-  opacity: 0;
-  width: 20px;
-}
-
-.category-option:hover {
-  border-color: var(--color-line-strong);
-}
-
-.category-option.category-selected {
-  background: var(--color-info);
-  border-color: var(--color-sky-deep);
-}
-
-.category-option.category-selected i {
-  opacity: 1;
 }
 
 .general-document-note {
@@ -3178,16 +3139,6 @@ footer a {
 
   .step-summary strong {
     white-space: normal;
-  }
-
-  .category-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .category-option {
-    font-size: 12px;
-    min-height: 44px;
-    padding-inline: 11px;
   }
 
   .general-document-note {

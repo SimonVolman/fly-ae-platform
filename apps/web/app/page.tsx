@@ -1048,25 +1048,29 @@ function HomeContent() {
                   </div>
                 </div>
 
-                <div className="category-grid" role="radiogroup" aria-label="Category">
-                  {categories.map((category) => (
-                    <button
-                      className={`category-option ${
-                        categoryId === category.id ? "category-selected" : ""
-                      }`}
-                      key={category.id}
-                      role="radio"
-                      aria-checked={categoryId === category.id}
-                      onClick={() => {
-                        setCategoryId(category.id);
-                        if (isJustDocument(category)) setMsn("");
-                      }}
-                    >
-                      <span>{category.name}</span>
-                      <i aria-hidden="true">✓</i>
-                    </button>
-                  ))}
-                </div>
+                <label className="field category-field">
+                  <span>Category <i>*</i></span>
+                  <select
+                    aria-label="Category"
+                    value={categoryId}
+                    onChange={(event) => {
+                      const nextCategory = categories.find(
+                        (category) => category.id === event.target.value,
+                      );
+                      setCategoryId(event.target.value);
+                      if (isJustDocument(nextCategory)) setMsn("");
+                    }}
+                  >
+                    <option value="" disabled>
+                      {categories.length ? "Select category" : "Loading categories…"}
+                    </option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
                 {isJustDocument(selectedCategory) ? (
                   <div className="general-document-note">

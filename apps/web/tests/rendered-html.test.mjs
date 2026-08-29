@@ -61,6 +61,7 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /fly\.ae/);
   assert.match(html, /Upload an aviation document/);
   assert.match(html, /Document details/);
+  assert.match(html, /<select[^>]*aria-label="Category"/);
   assert.match(html, /Continue to PDF upload/);
   assert.match(html, /<h2>PDF upload<\/h2>/);
   assert.match(html, /First upload up to 100 MB—no email required/);
@@ -134,6 +135,7 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /workflowStep === 3/);
   assert.match(page, /JUST_DOCUMENT/);
   assert.match(page, /No MSN required/);
+  assert.doesNotMatch(page, /role="radiogroup"/);
   assert.match(page, /Anything unrelated will be/);
   assert.match(page, /sessionStorage/);
   assert.match(page, /APPROVED/);
