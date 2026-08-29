@@ -30,6 +30,36 @@ type Category = {
   name: string;
 };
 
+type IdentifierField = {
+  label: string;
+  placeholder: string;
+  helper: string;
+};
+
+const IDENTIFIER_FIELDS: Record<string, IdentifierField> = {
+  AIRCRAFT: {
+    label: "MSN",
+    placeholder: "34567",
+    helper: "Examples: 34567, 10000, 208B-1234, RB-00123, ACFT/4567",
+  },
+  APU: {
+    label: "S/N",
+    placeholder: "P-123456",
+    helper: "Examples: P-123456, APU12345, GTCP-00127, APS3200-4589, A12345",
+  },
+  ENGINE: {
+    label: "ESN",
+    placeholder: "876543",
+    helper: "Examples: 876543, CAE123456, PCE-RB1234, GE-908765, ENG/45678",
+  },
+  LANDING_GEAR: {
+    label: "S/N",
+    placeholder: "N12345",
+    helper:
+      "Types: NLG | LH_MLG | RH_MLG | SHIPSET. Examples: NLG — N12345; LH MLG — L-45678; RH MLG — R-45679; NLG — 2Y-2386; Complete Shipset — MSN 34567",
+  },
+};
+
 type DocumentStatus =
   | "CREATED"
   | "UPLOADING"
@@ -157,6 +187,10 @@ function isJustDocument(category?: Category) {
   return category?.code === "JUST_DOCUMENT";
 }
 
+function identifierField(category?: Category) {
+  return IDENTIFIER_FIELDS[category?.code ?? ""] ?? IDENTIFIER_FIELDS.AIRCRAFT;
+}
+
 function groupDocumentsIntoFolders(documents: FlyDocument[]) {
   const folders = new Map<string, DocumentFolder>();
 
@@ -261,7 +295,9 @@ function HomeContent() {
   function continueToUpload() {
     setError("");
     if (!categoryId || (!isJustDocument(selectedCategory) && !msn.trim())) {
-      setError("Select a document category and enter the MSN.");
+      setError(
+        `Select a document category and enter the ${identifierField(selectedCategory).label}.`,
+      );
       return;
     }
     setUploadState(selectedFile ? "ready" : "idle");
@@ -891,7 +927,7 @@ function HomeContent() {
                   aria-label={
                     isJustDocument(openFolder.category)
                       ? openFolder.category.name
-                      : `${openFolder.category.name} MSN ${openFolder.msn}`
+                      : `${openFolder.category.name} ${identifierField(openFolder.category).label} ${openFolder.msn}`
                   }
                 >
                   <div className="folder-contents-heading">
@@ -900,7 +936,7 @@ function HomeContent() {
                       <h2>
                         {isJustDocument(openFolder.category)
                           ? "General documents"
-                          : `MSN ${openFolder.msn}`}
+                          : `${identifierField(openFolder.category).label} ${openFolder.msn}`}
                       </h2>
                     </div>
                     <button type="button" onClick={() => setOpenFolderKey(null)}>Close</button>
@@ -944,7 +980,8 @@ function HomeContent() {
                     <strong>{document.filename}</strong>
                     <span>
                       {document.category.name}
-                      {!isJustDocument(document.category) && ` · MSN ${document.msn}`} ·{" "}
+                      {!isJustDocument(document.category) &&
+                        ` · ${identifierField(document.category).label} ${document.msn}`} ·{" "}
                       {formatBytes(document.sizeBytes)}
                     </span>
                   </div>
@@ -1024,7 +1061,8 @@ function HomeContent() {
                   <small>Step 01 complete</small>
                   <strong>
                     {selectedCategory?.name ?? "Document"}
-                    {!isJustDocument(selectedCategory) && ` · MSN ${msn}`}
+                    {!isJustDocument(selectedCategory) &&
+                      ` · ${identifierField(selectedCategory).label} ${msn}`}
                   </strong>
                 </div>
               </article>
@@ -1042,8 +1080,8 @@ function HomeContent() {
                     <h2>Document details</h2>
                     <p>
                       {isJustDocument(selectedCategory)
-                        ? "Upload a general aviation-related document without an MSN."
-                        : "Select the category and enter the manufacturer serial number."}
+                        ? "Upload a general aviation-related document without an identifier."
+                        : `Select the category and enter the ${identifierField(selectedCategory).label}.`}
                     </p>
                   </div>
                 </div>
@@ -1074,7 +1112,7 @@ function HomeContent() {
 
                 {isJustDocument(selectedCategory) ? (
                   <div className="general-document-note">
-                    <strong>No MSN required</strong>
+                    <strong>No identifier required</strong>
                     <p>
                       You can upload a purchase order, invoice, or general data,
                       but it must be aviation-related. Anything unrelated will be
@@ -1083,13 +1121,16 @@ function HomeContent() {
                   </div>
                 ) : (
                   <label className="field msn-field">
-                    <span>MSN <i>*</i></span>
+                    <span>{identifierField(selectedCategory).label} <i>*</i></span>
                     <input
                       value={msn}
                       onChange={(event) => setMsn(event.target.value)}
-                      placeholder="ENTER MANUFACTURER SERIAL NUMBER"
+                      placeholder={identifierField(selectedCategory).placeholder}
                       maxLength={64}
                     />
+                    <small className="identifier-examples">
+                      {identifierField(selectedCategory).helper}
+                    </small>
                   </label>
                 )}
 

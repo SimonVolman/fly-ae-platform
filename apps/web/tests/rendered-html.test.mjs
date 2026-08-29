@@ -134,7 +134,14 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
   assert.match(page, /JUST_DOCUMENT/);
-  assert.match(page, /No MSN required/);
+  assert.match(page, /No identifier required/);
+  assert.match(page, /label: "MSN"/);
+  assert.match(page, /label: "S\/N"/);
+  assert.match(page, /label: "ESN"/);
+  assert.match(page, /208B-1234/);
+  assert.match(page, /GTCP-00127/);
+  assert.match(page, /PCE-RB1234/);
+  assert.match(page, /NLG \| LH_MLG \| RH_MLG \| SHIPSET/);
   assert.doesNotMatch(page, /role="radiogroup"/);
   assert.match(page, /Anything unrelated will be/);
   assert.match(page, /sessionStorage/);
