@@ -139,6 +139,9 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /APPROVED/);
   assert.match(layout, /title:\s*"fly\.ae/);
   assert.match(layout, /favicon-v2\.svg/);
+  assert.match(layout, /G-3BR81SG070/);
+  assert.match(layout, /googletagmanager\.com\/gtag\/js/);
+  assert.match(layout, /gtag\('config'/);
   assert.match(css, /\.app-drop-zone/);
   assert.match(css, /\.document-table/);
   assert.match(css, /\.step-summary/);
