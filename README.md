@@ -216,7 +216,6 @@ docker compose -f infra/docker-compose.yml down
 - [Допущения V0](./docs/assumptions.md)
 - [Дизайн-схема и правила](./docs/design-system.md)
 - [Машиночитаемые design tokens](./docs/design-system.json)
-- живой style guide: `/style-guide`
 
 Дизайн-система основана на
 [fly.ae Figma UI Kit](https://www.figma.com/design/p8QjkewBdCS8qv1J21OoxW/fly.ae?node-id=160-1088&t=78eXDSBlGsjRRSB5-1).

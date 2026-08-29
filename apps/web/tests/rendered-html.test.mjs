@@ -62,24 +62,11 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /Upload an aviation document/);
   assert.match(html, /Document details/);
   assert.match(html, /Continue to PDF upload/);
-  assert.doesNotMatch(html, /<h2>PDF upload<\/h2>/);
-  assert.match(html, /No email is needed for a first upload up to 10 MB/);
+  assert.match(html, /<h2>PDF upload<\/h2>/);
+  assert.match(html, /First upload up to 10 MB—no email required/);
+  assert.match(html, /Mission of fly\.ae/);
   assert.match(html, /My Documents/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
-});
-
-test("server-renders the fly.ae style guide", async () => {
-  const response = await render("/style-guide");
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-
-  const html = await response.text();
-  assert.match(html, /<title>fly\.ae — Style guide<\/title>/i);
-  assert.match(html, /Clear by design/);
-  assert.match(html, /Brand and colour/);
-  assert.match(html, /Controls and states/);
-  assert.match(html, /Product building blocks/);
-  assert.doesNotMatch(html, /Figma UI Kit|node 160:1088/);
 });
 
 test("server-renders the Terms draft and Privacy placeholder", async () => {
@@ -144,14 +131,22 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /GUEST_MAX_FILE_SIZE = 10 \* 1024 \* 1024/);
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
+  assert.match(page, /JUST_DOCUMENT/);
+  assert.match(page, /No MSN required/);
+  assert.match(page, /Anything unrelated will be/);
   assert.match(page, /sessionStorage/);
   assert.match(page, /APPROVED/);
   assert.match(layout, /title:\s*"fly\.ae/);
+  assert.match(layout, /favicon-v2\.svg/);
   assert.match(css, /\.app-drop-zone/);
   assert.match(css, /\.document-table/);
   assert.match(css, /\.step-summary/);
   assert.match(css, /\.wizard-flow\s*\{[^}]*max-width:\s*818px/s);
   assert.match(css, /\.brand-logo/);
+  assert.match(css, /\.mission-section/);
+  assert.match(css, /@media \(min-width: 1100px\)/);
+  assert.match(css, /\.describe-panel\s*\{[^}]*grid-column:\s*1/s);
+  assert.match(css, /\.upload-panel\.step-panel-pending/);
   assert.match(css, /--font-sans:\s*"Titillium Web"/);
   assert.match(page, /mobile-navigation/);
   assert.match(page, /Open account menu/);
@@ -185,7 +180,6 @@ test("removes the disposable starter preview", async () => {
   assert.match(designDocument, /Figma → JSON manifest → CSS tokens/);
   assert.equal(designSystem.name, "fly.ae Design System");
   assert.equal(designSystem.tokens.color.ink.css, "--color-ink");
-  assert.equal(designSystem.implementation.livingGuide, "/style-guide");
   assert.match(infrastructureTemplate, /ExposeHeaders:\s*\n\s*- Retry-After/);
   assert.match(securityConfig, /exposedHeaders = listOf\([^)]*"Retry-After"/s);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);

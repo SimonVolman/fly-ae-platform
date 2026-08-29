@@ -36,8 +36,8 @@ available.
     UAE legal review and any required Arabic version remain outstanding. The
     Privacy route remains a placeholder. Acceptance storage is implemented for
     both documents.
-11. **Existing UI work is preserved.** The fly.ae design system and
-    `/style-guide` move into `apps/web` and remain the source for all V0 screens.
+11. **Existing UI work is preserved.** The fly.ae design system moves into
+    `apps/web` and remains the source for all V0 screens.
 12. **OpenAI Sites remains a frontend preview target.** The authoritative V0
     local runtime is Docker Compose because the Kotlin API, PostgreSQL and S3
     emulator cannot run inside the current static frontend deployment.

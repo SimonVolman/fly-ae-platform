@@ -253,8 +253,6 @@
   },
   "implementation": {
     "tokenSource": "apps/web/app/globals.css",
-    "livingGuide": "/style-guide",
-    "livingGuideSource": "apps/web/app/style-guide/page.tsx",
     "productSource": "apps/web/app/page.tsx",
     "documentation": "docs/design-system.md",
     "tests": "apps/web/tests/rendered-html.test.mjs"
@@ -266,6 +264,6 @@
       "CSS custom properties in app/globals.css",
       "Component and screen implementations"
     ],
-    "changeRule": "Update the manifest, CSS tokens, living style guide and affected tests in the same change."
+    "changeRule": "Update the manifest, CSS tokens and affected tests in the same change."
   }
 }

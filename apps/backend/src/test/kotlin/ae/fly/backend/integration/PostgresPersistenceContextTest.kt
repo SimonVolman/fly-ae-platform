@@ -32,7 +32,7 @@ class PostgresPersistenceContextTest {
     @Test
     fun `local persistence starts with PostgreSQL adapters`() {
         assertEquals(PersistenceType.POSTGRES, persistence.type)
-        assertEquals(4, categories.findAllByActiveTrueOrderByDisplayOrderAsc().size)
+        assertEquals(5, categories.findAllByActiveTrueOrderByDisplayOrderAsc().size)
 
         val user = users.save(User(email = "postgres-adapter@fly.ae"))
         assertEquals(user.id, users.findByEmail(requireNotNull(user.email))?.id)

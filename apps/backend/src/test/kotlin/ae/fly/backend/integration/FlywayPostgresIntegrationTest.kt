@@ -17,7 +17,7 @@ class FlywayPostgresIntegrationTest {
             .load()
             .migrate()
 
-        assertEquals("4", result.targetSchemaVersion)
+        assertEquals("5", result.targetSchemaVersion)
 
         DriverManager.getConnection(
             postgres.jdbcUrl,
@@ -38,7 +38,7 @@ class FlywayPostgresIntegrationTest {
 
                 statement.executeQuery("select count(*) from categories").use { rows ->
                     rows.next()
-                    assertEquals(4, rows.getInt(1))
+                    assertEquals(5, rows.getInt(1))
                 }
             }
         }

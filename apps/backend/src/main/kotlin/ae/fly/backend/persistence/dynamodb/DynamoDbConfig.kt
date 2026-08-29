@@ -152,6 +152,12 @@ class DynamoDbConfig {
                 name = "Landing Gear",
                 displayOrder = 40,
             ),
+            Category(
+                id = UUID.fromString("420c86a3-3ec4-4ea2-96f7-53f8a42ef679"),
+                code = "JUST_DOCUMENT",
+                name = "Just Document",
+                displayOrder = 50,
+            ),
         ).forEach(categories::save)
     }
 }

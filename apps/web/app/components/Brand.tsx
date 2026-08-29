@@ -9,9 +9,9 @@ export function Brand({ className = "brand-small" }: BrandProps) {
     <span className={`brand ${className}`}>
       <Image
         className="brand-logo"
-        src="/brand.svg"
-        width="121"
-        height="32"
+        src="/brand-v2.svg"
+        width="418"
+        height="144"
         alt="fly.ae"
         unoptimized
       />

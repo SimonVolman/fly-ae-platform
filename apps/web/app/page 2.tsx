@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import Link from "next/link";
 
 type FlyFile = {
   id: string;
@@ -368,7 +367,6 @@ export default function Home() {
         </span>
         <p>Securely moving aircraft documentation.</p>
         <nav aria-label="Legal">
-          <Link href="/style-guide">Style guide</Link>
           <a href="#privacy">Privacy</a>
           <a href="#terms">Terms</a>
         </nav>

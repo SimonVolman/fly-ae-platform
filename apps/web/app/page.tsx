@@ -21,6 +21,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 const AUTHENTICATED_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const GUEST_MAX_FILE_SIZE = 10 * 1024 * 1024;
+const GENERAL_DOCUMENT_MSN = "GENERAL";
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
 
 type Category = {
@@ -152,6 +153,10 @@ function statusLabel(status: DocumentStatus) {
   return labels[status];
 }
 
+function isJustDocument(category?: Category) {
+  return category?.code === "JUST_DOCUMENT";
+}
+
 function groupDocumentsIntoFolders(documents: FlyDocument[]) {
   const folders = new Map<string, DocumentFolder>();
 
@@ -255,13 +260,15 @@ function HomeContent() {
 
   function continueToUpload() {
     setError("");
-    if (!categoryId || !msn.trim()) {
+    if (!categoryId || (!isJustDocument(selectedCategory) && !msn.trim())) {
       setError("Select a document category and enter the MSN.");
       return;
     }
     setUploadState(selectedFile ? "ready" : "idle");
     setWorkflowStep(2);
-    window.setTimeout(() => stepTwo.current?.scrollIntoView({ block: "nearest" }), 0);
+    if (!window.matchMedia("(min-width: 1100px)").matches) {
+      window.setTimeout(() => stepTwo.current?.scrollIntoView({ block: "nearest" }), 0);
+    }
   }
 
   async function requestOtp(event: FormEvent) {
@@ -389,7 +396,9 @@ function HomeContent() {
       if (document.status === "APPROVED") {
         setUploadState("approved");
         setWorkflowStep(3);
-        window.setTimeout(() => stepThree.current?.scrollIntoView({ block: "nearest" }), 0);
+        if (!window.matchMedia("(min-width: 1100px)").matches) {
+          window.setTimeout(() => stepThree.current?.scrollIntoView({ block: "nearest" }), 0);
+        }
         if (currentSession) await loadDocuments(currentSession);
         return;
       }
@@ -405,7 +414,11 @@ function HomeContent() {
   }
 
   async function startUpload() {
-    if (!selectedFile || !categoryId || !msn.trim()) return;
+    if (
+      !selectedFile ||
+      !categoryId ||
+      (!isJustDocument(selectedCategory) && !msn.trim())
+    ) return;
     if (!session && !acceptedGuestLegal) {
       setError("Accept the Terms and Privacy Policy to upload without email.");
       return;
@@ -425,6 +438,7 @@ function HomeContent() {
     setError("");
     setUploadProgress(0);
     setUploadState("preparing");
+    setWorkflowStep(2);
 
     let document: FlyDocument | null = null;
     let uppy: Uppy<UploadMeta, UploadBody> | null = null;
@@ -449,7 +463,7 @@ function HomeContent() {
           method: "POST",
           body: JSON.stringify({
             categoryId,
-            msn: msn.trim(),
+            msn: isJustDocument(selectedCategory) ? GENERAL_DOCUMENT_MSN : msn.trim(),
             filename: selectedFile.name,
             mimeType: selectedFile.type,
             sizeBytes: selectedFile.size,
@@ -659,6 +673,9 @@ function HomeContent() {
   }
 
   const selectedCategory = categories.find((category) => category.id === categoryId);
+  const documentDetailsReady = Boolean(
+    categoryId && (isJustDocument(selectedCategory) || msn.trim()),
+  );
   const uploadBusy = ["preparing", "uploading", "processing"].includes(uploadState);
   const documentFolders = groupDocumentsIntoFolders(documents);
   const openFolder = documentFolders.find((folder) => folder.key === openFolderKey);
@@ -857,7 +874,9 @@ function HomeContent() {
                         <span>{folder.category.name}</span>
                         <strong aria-hidden="true">›</strong>
                       </span>
-                      <strong className="folder-msn">{folder.msn}</strong>
+                      <strong className="folder-msn">
+                        {isJustDocument(folder.category) ? "General documents" : folder.msn}
+                      </strong>
                       <span className="folder-document-count">
                         {documentCount} {documentCount === 1 ? "document" : "documents"}
                       </span>
@@ -869,12 +888,20 @@ function HomeContent() {
               {openFolder && (
                 <section
                   className="folder-contents"
-                  aria-label={`${openFolder.category.name} MSN ${openFolder.msn}`}
+                  aria-label={
+                    isJustDocument(openFolder.category)
+                      ? openFolder.category.name
+                      : `${openFolder.category.name} MSN ${openFolder.msn}`
+                  }
                 >
                   <div className="folder-contents-heading">
                     <div>
                       <p className="eyebrow">{openFolder.category.name}</p>
-                      <h2>MSN {openFolder.msn}</h2>
+                      <h2>
+                        {isJustDocument(openFolder.category)
+                          ? "General documents"
+                          : `MSN ${openFolder.msn}`}
+                      </h2>
                     </div>
                     <button type="button" onClick={() => setOpenFolderKey(null)}>Close</button>
                   </div>
@@ -916,7 +943,8 @@ function HomeContent() {
                   <div className="document-name">
                     <strong>{document.filename}</strong>
                     <span>
-                      {document.category.name} · MSN {document.msn} ·{" "}
+                      {document.category.name}
+                      {!isJustDocument(document.category) && ` · MSN ${document.msn}`} ·{" "}
                       {formatBytes(document.sizeBytes)}
                     </span>
                   </div>
@@ -953,9 +981,8 @@ function HomeContent() {
             <p className="eyebrow">Secure document transfer</p>
             <h1 id="upload-title">Upload an aviation document</h1>
             <p>
-              Add one text PDF up to 100 MB. The file goes directly to private
-              storage and is checked before a share link is created. No email is
-              needed for a first upload up to 10 MB.
+              Upload a text PDF up to 100 MB. First upload up to 10 MB—no email
+              required.
             </p>
           </div>
 
@@ -990,26 +1017,34 @@ function HomeContent() {
           </ol>
 
           <div className="upload-layout wizard-flow">
-            {workflowStep > 1 && (
+            {workflowStep > 2 && (
               <article className="step-summary" aria-label="Document details completed">
                 <span className="step-summary-number" aria-hidden="true">✓</span>
                 <div>
                   <small>Step 01 complete</small>
-                  <strong>{selectedCategory?.name ?? "Document"} · MSN {msn}</strong>
+                  <strong>
+                    {selectedCategory?.name ?? "Document"}
+                    {!isJustDocument(selectedCategory) && ` · MSN ${msn}`}
+                  </strong>
                 </div>
-                {workflowStep === 2 && !uploadBusy && (
-                  <button type="button" onClick={() => setWorkflowStep(1)}>Edit</button>
-                )}
               </article>
             )}
 
-            {workflowStep === 1 && (
-              <section className="workflow-card wizard-panel">
+            {workflowStep < 3 && (
+              <section
+                className={`workflow-card wizard-panel describe-panel ${
+                  workflowStep === 2 ? "step-panel-complete" : ""
+                }`}
+              >
                 <div className="card-heading">
                   <span>01</span>
                   <div>
                     <h2>Document details</h2>
-                    <p>Select the category and enter the manufacturer serial number.</p>
+                    <p>
+                      {isJustDocument(selectedCategory)
+                        ? "Upload a general aviation-related document without an MSN."
+                        : "Select the category and enter the manufacturer serial number."}
+                    </p>
                   </div>
                 </div>
 
@@ -1022,7 +1057,10 @@ function HomeContent() {
                       key={category.id}
                       role="radio"
                       aria-checked={categoryId === category.id}
-                      onClick={() => setCategoryId(category.id)}
+                      onClick={() => {
+                        setCategoryId(category.id);
+                        if (isJustDocument(category)) setMsn("");
+                      }}
                     >
                       <span>{category.name}</span>
                       <i aria-hidden="true">✓</i>
@@ -1030,15 +1068,26 @@ function HomeContent() {
                   ))}
                 </div>
 
-                <label className="field msn-field">
-                  <span>MSN <i>*</i></span>
-                  <input
-                    value={msn}
-                    onChange={(event) => setMsn(event.target.value)}
-                    placeholder="ENTER MANUFACTURER SERIAL NUMBER"
-                    maxLength={64}
-                  />
-                </label>
+                {isJustDocument(selectedCategory) ? (
+                  <div className="general-document-note">
+                    <strong>No MSN required</strong>
+                    <p>
+                      You can upload a purchase order, invoice, or general data,
+                      but it must be aviation-related. Anything unrelated will be
+                      deleted.
+                    </p>
+                  </div>
+                ) : (
+                  <label className="field msn-field">
+                    <span>MSN <i>*</i></span>
+                    <input
+                      value={msn}
+                      onChange={(event) => setMsn(event.target.value)}
+                      placeholder="ENTER MANUFACTURER SERIAL NUMBER"
+                      maxLength={64}
+                    />
+                  </label>
+                )}
 
                 <button className="button button-primary continue-button" onClick={continueToUpload}>
                   Continue to PDF upload
@@ -1057,8 +1106,13 @@ function HomeContent() {
               </article>
             )}
 
-            {workflowStep === 2 && (
-              <section className="workflow-card wizard-panel upload-panel" ref={stepTwo}>
+            {workflowStep < 3 && (
+              <section
+                className={`workflow-card wizard-panel upload-panel ${
+                  workflowStep === 1 ? "step-panel-pending" : ""
+                }`}
+                ref={stepTwo}
+              >
                 <div className="card-heading">
                   <span>02</span>
                   <div>
@@ -1184,10 +1238,14 @@ function HomeContent() {
                 {selectedFile && !uploadBusy && (
                   <button
                     className="button button-primary upload-button"
-                    disabled={!session && !acceptedGuestLegal}
+                    disabled={
+                      !documentDetailsReady || (!session && !acceptedGuestLegal)
+                    }
                     onClick={() => void startUpload()}
                   >
-                    Upload securely
+                    {documentDetailsReady
+                      ? "Upload securely"
+                      : "Complete document details to upload"}
                   </button>
                 )}
               </section>
@@ -1236,11 +1294,23 @@ function HomeContent() {
         </section>
       )}
 
+      <section className="mission-section" aria-labelledby="mission-title">
+        <div>
+          <p className="eyebrow">Purpose-built for aviation</p>
+          <h2 id="mission-title">Mission of fly.ae</h2>
+        </div>
+        <p>
+          There is no product on the market today that gives aviation experts a
+          dedicated way to share proprietary data. If you are tired of dropping
+          files into generic boxes or transferring them through third parties,
+          fly.ae gives you a secure, aviation-focused place to share them.
+        </p>
+      </section>
+
       <footer className="product-footer">
         <Brand />
         <p>Secure aviation document transfer.</p>
         <nav aria-label="Project">
-          <Link href="/style-guide">Style guide</Link>
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>
         </nav>

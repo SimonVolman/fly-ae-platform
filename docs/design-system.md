@@ -6,8 +6,6 @@
 
 Источник: [Figma UI Kit — узел 160:1088](https://www.figma.com/design/p8QjkewBdCS8qv1J21OoxW/fly.ae?node-id=160-1088&t=78eXDSBlGsjRRSB5-1)
 
-Живая демонстрация: [`/style-guide`](../apps/web/app/style-guide/page.tsx)
-
 Этот документ фиксирует визуальный язык fly.ae и правила его применения. Машиночитаемая версия находится в [`design-system.json`](./design-system.json), а фактические CSS-токены — в [`apps/web/app/globals.css`](../apps/web/app/globals.css).
 
 ## Дизайн-схема
@@ -17,7 +15,7 @@ flowchart TD
     A["Принципы<br/>Precise · Secure · Efficient"] --> B["Foundation<br/>цвет · типографика · сетка · радиусы"]
     B --> C["Components<br/>brand · buttons · fields · messages · cards · dialogs"]
     C --> D["Patterns<br/>navigation · upload · authentication · history"]
-    D --> E["Screens<br/>landing · upload dialog · sharing · style guide"]
+    D --> E["Screens<br/>landing · upload dialog · sharing"]
     F["Figma UI Kit<br/>node 160:1088"] --> A
     G["design-system.json"] --> B
     B --> H["CSS tokens<br/>app/globals.css"]
@@ -192,7 +190,6 @@ flowchart LR
 |---|---|
 | Машиночитаемая схема | [`docs/design-system.json`](./design-system.json) |
 | CSS-токены и компоненты | [`apps/web/app/globals.css`](../apps/web/app/globals.css) |
-| Живой style guide | [`apps/web/app/style-guide/page.tsx`](../apps/web/app/style-guide/page.tsx) |
 | Product screenflow | [`apps/web/app/page.tsx`](../apps/web/app/page.tsx) |
 | Проверка рендера | [`apps/web/tests/rendered-html.test.mjs`](../apps/web/tests/rendered-html.test.mjs) |
 
@@ -203,7 +200,6 @@ flowchart LR
 1. утверждённый Figma UI Kit;
 2. `docs/design-system.json`;
 3. CSS custom properties и component classes;
-4. `/style-guide`;
-5. затронутые экраны и тесты.
+4. затронутые экраны и тесты.
 
 Порядок источников истины: **Figma → JSON manifest → CSS tokens → components → screens**.

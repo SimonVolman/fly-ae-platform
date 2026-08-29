@@ -44,7 +44,7 @@ class V0ProdDynamoContextTest {
     fun `v0 prod starts without PostgreSQL and seeds DynamoDB categories`() {
         assertEquals(PersistenceType.DYNAMODB, persistence.type)
         assertEquals(
-            listOf("AIRCRAFT", "APU", "ENGINE", "LANDING_GEAR"),
+            listOf("AIRCRAFT", "APU", "ENGINE", "LANDING_GEAR", "JUST_DOCUMENT"),
             categories.findAllByActiveTrueOrderByDisplayOrderAsc().map { it.code },
         )
 

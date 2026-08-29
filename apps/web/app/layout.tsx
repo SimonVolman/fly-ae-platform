@@ -6,9 +6,9 @@ export const metadata: Metadata = {
   description:
     "Upload aviation PDF documents to private storage and share approved files through protected links.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: "/favicon-v2.svg",
+    shortcut: "/favicon-v2.svg",
+    apple: "/favicon-v2.svg",
   },
   openGraph: {
     title: "fly.ae",
