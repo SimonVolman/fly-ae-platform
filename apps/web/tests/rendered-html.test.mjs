@@ -173,8 +173,12 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /Open account menu/);
   assert.match(page, /account-menu-identity/);
   assert.match(page, /groupDocumentsIntoFolders/);
+  assert.match(page, /groupFoldersIntoCategories/);
   assert.match(page, /desktop-documents-library/);
-  assert.match(page, /mobile-document-table/);
+  assert.match(page, /document-folder-grid/);
+  assert.match(page, /folder-selection-toolbar/);
+  assert.match(page, /folder-context-menu/);
+  assert.match(page, /deleteFolderDocuments/);
   assert.match(page, /empty-documents-state/);
   assert.match(page, /auth-dialog-error/);
   assert.match(css, /\.auth-dialog-error/);
@@ -192,10 +196,8 @@ test("removes the disposable starter preview", async () => {
     css,
     /@media \(min-width: 821px\)[\s\S]*\.user-avatar\s*\{[^}]*background:\s*var\(--color-ink\)/,
   );
-  assert.match(
-    css,
-    /@media \(min-width: 821px\)[\s\S]*\.mobile-document-table\s*\{\s*display: none;/,
-  );
+  assert.match(css, /\.folder-art::before/);
+  assert.match(css, /\.document-folder-grid/);
   assert.match(readme, /Дизайн-система/);
   assert.match(readme, /docs\/design-system\.md/);
   assert.match(designDocument, /Figma → JSON manifest → CSS tokens/);

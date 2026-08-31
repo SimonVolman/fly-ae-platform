@@ -216,6 +216,22 @@ type DocumentFolder = {
   documents: FlyDocument[];
 };
 
+type CategoryFolder = {
+  key: string;
+  category: Category;
+  folders: DocumentFolder[];
+  documents: FlyDocument[];
+};
+
+type FolderViewItem = {
+  key: string;
+  label: string;
+  description: string;
+  documents: FlyDocument[];
+  categoryId: string;
+  folderKey: string | null;
+};
+
 async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -291,6 +307,37 @@ function groupDocumentsIntoFolders(documents: FlyDocument[]) {
   return Array.from(folders.values());
 }
 
+function groupFoldersIntoCategories(folders: DocumentFolder[]) {
+  const categories = new Map<string, CategoryFolder>();
+
+  folders.forEach((folder) => {
+    const categoryFolder = categories.get(folder.category.id);
+
+    if (categoryFolder) {
+      categoryFolder.folders.push(folder);
+      categoryFolder.documents.push(...folder.documents);
+      return;
+    }
+
+    categories.set(folder.category.id, {
+      key: `category:${folder.category.id}`,
+      category: folder.category,
+      folders: [folder],
+      documents: [...folder.documents],
+    });
+  });
+
+  return Array.from(categories.values()).sort((left, right) => {
+    const leftIndex = CATEGORY_CARD_CATALOG.findIndex(
+      (category) => category.code === left.category.code,
+    );
+    const rightIndex = CATEGORY_CARD_CATALOG.findIndex(
+      (category) => category.code === right.category.code,
+    );
+    return leftIndex - rightIndex;
+  });
+}
+
 function HomeContent() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -319,10 +366,15 @@ function HomeContent() {
   const [showDocuments, setShowDocuments] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
   const [openFolderKey, setOpenFolderKey] = useState<string | null>(null);
+  const [folderMenuKey, setFolderMenuKey] = useState<string | null>(null);
+  const [selectedFolderKey, setSelectedFolderKey] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const stepTwo = useRef<HTMLElement>(null);
   const stepThree = useRef<HTMLElement>(null);
+  const folderLongPressTimer = useRef<number | null>(null);
+  const folderLongPressActivated = useRef(false);
 
   const loadDocuments = useCallback(async (currentSession: Session) => {
     try {
@@ -821,6 +873,123 @@ function HomeContent() {
     }
   }
 
+  async function copyFolderLinks(folderDocuments: FlyDocument[]) {
+    const links = folderDocuments.flatMap((document) =>
+      document.shareUrl ? [document.shareUrl] : [],
+    );
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
+    if (!links.length) {
+      setError("This folder does not have any approved share links yet.");
+      return;
+    }
+    await copyShareLink(links.join("\n"));
+  }
+
+  async function downloadFolderDocuments(folderDocuments: FlyDocument[]) {
+    const links = folderDocuments.flatMap((document) =>
+      document.shareUrl ? [document.shareUrl] : [],
+    );
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
+    if (!links.length) {
+      setError("This folder does not have any approved documents to download yet.");
+      return;
+    }
+
+    setError("");
+    try {
+      const downloads = await Promise.all(
+        links.map(async (link) => {
+          const token = new URL(link, window.location.origin).pathname
+            .split("/")
+            .filter(Boolean)
+            .at(-1);
+          if (!token) throw new Error("The document share link is invalid.");
+          return api<{ downloadUrl: string }>(
+            `/shares/${encodeURIComponent(decodeURIComponent(token))}`,
+          );
+        }),
+      );
+
+      downloads.forEach(({ downloadUrl }) => {
+        const downloadLink = document.createElement("a");
+        downloadLink.href = downloadUrl;
+        downloadLink.target = "_blank";
+        downloadLink.rel = "noopener noreferrer";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+      });
+    } catch (requestError) {
+      setError((requestError as Error).message);
+    }
+  }
+
+  async function deleteFolderDocuments(folderDocuments: FlyDocument[]) {
+    if (
+      !session ||
+      !window.confirm(
+        `Delete all ${folderDocuments.length} ${folderDocuments.length === 1 ? "document" : "documents"} in this folder?`,
+      )
+    ) {
+      return;
+    }
+
+    setError("");
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
+    try {
+      await Promise.all(
+        folderDocuments.map((document) =>
+          api<void>(
+            `/documents/${document.id}`,
+            { method: "DELETE" },
+            session.accessToken,
+          ),
+        ),
+      );
+      setOpenFolderKey(null);
+      await loadDocuments(session);
+    } catch (requestError) {
+      setError((requestError as Error).message);
+    }
+  }
+
+  function startFolderLongPress(folderKey: string) {
+    if (!window.matchMedia("(max-width: 820px)").matches) return;
+    if (folderLongPressTimer.current !== null) {
+      window.clearTimeout(folderLongPressTimer.current);
+    }
+    folderLongPressActivated.current = false;
+    folderLongPressTimer.current = window.setTimeout(() => {
+      folderLongPressActivated.current = true;
+      setSelectedFolderKey(folderKey);
+      setFolderMenuKey(null);
+    }, 550);
+  }
+
+  function cancelFolderLongPress() {
+    if (folderLongPressTimer.current !== null) {
+      window.clearTimeout(folderLongPressTimer.current);
+      folderLongPressTimer.current = null;
+    }
+  }
+
+  function openFolderItem(item: FolderViewItem) {
+    if (folderLongPressActivated.current) {
+      folderLongPressActivated.current = false;
+      return;
+    }
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
+    if (item.folderKey) {
+      setOpenFolderKey(item.folderKey);
+      return;
+    }
+    setOpenCategoryId(item.categoryId);
+  }
+
   function resetUploadFlow() {
     setMsn("");
     setSelectedFiles([]);
@@ -836,12 +1005,16 @@ function HomeContent() {
     setShowDocuments(false);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
   }
 
   function showDocumentsView() {
     setShowDocuments(true);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
     if (session) void loadDocuments(session);
   }
 
@@ -868,6 +1041,10 @@ function HomeContent() {
     setShowDocuments(false);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
+    setOpenCategoryId(null);
+    setOpenFolderKey(null);
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
     setUploadState(selectedFiles.length ? "ready" : "idle");
     setWorkflowStep(1);
     setActiveUploads([]);
@@ -883,7 +1060,31 @@ function HomeContent() {
     (upload) => upload.document.status === "APPROVED" && upload.document.shareUrl,
   );
   const documentFolders = groupDocumentsIntoFolders(documents);
+  const categoryFolders = groupFoldersIntoCategories(documentFolders);
+  const openCategory = categoryFolders.find(
+    (folder) => folder.category.id === openCategoryId,
+  );
   const openFolder = documentFolders.find((folder) => folder.key === openFolderKey);
+  const visibleFolderItems: FolderViewItem[] = openCategory
+    ? openCategory.folders.map((folder) => ({
+        key: `document:${folder.key}`,
+        label: isJustDocument(folder.category) ? "General documents" : folder.msn,
+        description: `${folder.documents.length} ${folder.documents.length === 1 ? "document" : "documents"}`,
+        documents: folder.documents,
+        categoryId: folder.category.id,
+        folderKey: folder.key,
+      }))
+    : categoryFolders.map((folder) => ({
+        key: folder.key,
+        label: folder.category.name,
+        description: `${folder.documents.length} ${folder.documents.length === 1 ? "document" : "documents"}`,
+        documents: folder.documents,
+        categoryId: folder.category.id,
+        folderKey: null,
+      }));
+  const selectedFolder = visibleFolderItems.find(
+    (folder) => folder.key === selectedFolderKey,
+  );
   const userDisplayName =
     session?.user.displayName ??
     session?.user.email ??
@@ -1043,8 +1244,40 @@ function HomeContent() {
         <section className="documents-view" aria-labelledby="documents-title">
           <div className="app-section-heading">
             <div>
-              <p className="eyebrow">Private workspace</p>
-              <h1 id="documents-title">My Documents</h1>
+              <p className="eyebrow">
+                {openFolder
+                  ? openFolder.category.name
+                  : openCategory
+                    ? "My Documents"
+                    : "Private workspace"}
+              </p>
+              <div className="documents-title-row">
+                {(openCategory || openFolder) && (
+                  <button
+                    className="folder-back-button"
+                    type="button"
+                    aria-label="Go back"
+                    onClick={() => {
+                      setFolderMenuKey(null);
+                      setSelectedFolderKey(null);
+                      if (openFolder) {
+                        setOpenFolderKey(null);
+                      } else {
+                        setOpenCategoryId(null);
+                      }
+                    }}
+                  >
+                    ←
+                  </button>
+                )}
+                <h1 id="documents-title">
+                  {openFolder
+                    ? isJustDocument(openFolder.category)
+                      ? "General documents"
+                      : openFolder.msn
+                    : openCategory?.category.name ?? "My Documents"}
+                </h1>
+              </div>
             </div>
             <button className="button button-primary" onClick={showUploadView}>
               Upload document
@@ -1060,37 +1293,11 @@ function HomeContent() {
               </button>
             </div>
           ) : documents.length ? (
-            <>
-            <div className="documents-library desktop-documents-library">
-              <div className="document-folder-grid">
-                {documentFolders.map((folder) => {
-                  const isOpen = folder.key === openFolderKey;
-                  const documentCount = folder.documents.length;
-
-                  return (
-                    <button
-                      className={`folder-card document-folder-card ${isOpen ? "folder-open" : ""}`}
-                      type="button"
-                      key={folder.key}
-                      aria-expanded={isOpen}
-                      onClick={() => setOpenFolderKey(isOpen ? null : folder.key)}
-                    >
-                      <span className="folder-card-top">
-                        <span>{folder.category.name}</span>
-                        <strong aria-hidden="true">›</strong>
-                      </span>
-                      <strong className="folder-msn">
-                        {isJustDocument(folder.category) ? "General documents" : folder.msn}
-                      </strong>
-                      <span className="folder-document-count">
-                        {documentCount} {documentCount === 1 ? "document" : "documents"}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {openFolder && (
+            <div
+              className="documents-library desktop-documents-library"
+              onClick={() => setFolderMenuKey(null)}
+            >
+              {openFolder ? (
                 <section
                   className="folder-contents"
                   aria-label={
@@ -1108,7 +1315,6 @@ function HomeContent() {
                           : `${identifierField(openFolder.category).label} ${openFolder.msn}`}
                       </h2>
                     </div>
-                    <button type="button" onClick={() => setOpenFolderKey(null)}>Close</button>
                   </div>
                   <div className="document-table">
                     {openFolder.documents.map((document) => (
@@ -1139,42 +1345,79 @@ function HomeContent() {
                     ))}
                   </div>
                 </section>
+              ) : (
+                <>
+                  {selectedFolder && (
+                    <div className="folder-selection-toolbar" role="toolbar" aria-label={`${selectedFolder.label} actions`}>
+                      <strong>{selectedFolder.label}</strong>
+                      <div>
+                        <button type="button" aria-label="Copy folder links" onClick={() => void copyFolderLinks(selectedFolder.documents)}>↗</button>
+                        <button type="button" aria-label="Download folder" onClick={() => void downloadFolderDocuments(selectedFolder.documents)}>↓</button>
+                        <button type="button" aria-label="Delete all folder documents" onClick={() => void deleteFolderDocuments(selectedFolder.documents)}>⌫</button>
+                        <button type="button" aria-label="Close folder actions" onClick={() => setSelectedFolderKey(null)}>×</button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="document-folder-grid">
+                    {visibleFolderItems.map((folder) => {
+                      const isSelected = folder.key === selectedFolderKey;
+                      const menuOpen = folder.key === folderMenuKey;
+
+                      return (
+                        <article
+                          className={`document-folder-tile ${isSelected || menuOpen ? "folder-selected" : ""}`}
+                          key={folder.key}
+                          onContextMenu={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setFolderMenuKey(folder.key);
+                            setSelectedFolderKey(null);
+                          }}
+                        >
+                          <button
+                            className="document-folder-button"
+                            type="button"
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen}
+                            onPointerDown={() => startFolderLongPress(folder.key)}
+                            onPointerUp={cancelFolderLongPress}
+                            onPointerCancel={cancelFolderLongPress}
+                            onPointerLeave={cancelFolderLongPress}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openFolderItem(folder);
+                            }}
+                          >
+                            <span className="folder-art" aria-hidden="true" />
+                            <strong className="folder-tile-label">{folder.label}</strong>
+                            <span className="folder-tile-meta">{folder.description}</span>
+                          </button>
+                          <button
+                            className="folder-more-button"
+                            type="button"
+                            aria-label={`Show actions for ${folder.label}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedFolderKey(folder.key);
+                              setFolderMenuKey(null);
+                            }}
+                          >
+                            ⋮
+                          </button>
+                          {menuOpen && (
+                            <div className="folder-context-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+                              <button type="button" role="menuitem" onClick={() => void copyFolderLinks(folder.documents)}>↗ <span>Copy link</span></button>
+                              <button type="button" role="menuitem" onClick={() => void downloadFolderDocuments(folder.documents)}>↓ <span>Download</span></button>
+                              <button className="danger-action" type="button" role="menuitem" onClick={() => void deleteFolderDocuments(folder.documents)}>⌫ <span>Delete all</span></button>
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
-            <div className="document-table mobile-document-table">
-              {documents.map((document) => (
-                <article className="document-item" key={document.id}>
-                  <span className="file-mark" aria-hidden="true" />
-                  <div className="document-name">
-                    <strong>{document.filename}</strong>
-                    <span>
-                      {document.category.name}
-                      {!isJustDocument(document.category) &&
-                        ` · ${identifierField(document.category).label} ${document.msn}`} ·{" "}
-                      {formatBytes(document.sizeBytes)}
-                    </span>
-                  </div>
-                  <span className={`document-status status-${document.status.toLowerCase()}`}>
-                    <i aria-hidden="true" />
-                    {statusLabel(document.status)}
-                  </span>
-                  <div className="document-actions">
-                    {document.shareUrl && (
-                      <button onClick={() => void copyShareLink(document.shareUrl!)}>
-                        Copy link
-                      </button>
-                    )}
-                    <button
-                      className="danger-action"
-                      onClick={() => void deleteDocument(document.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-            </>
           ) : (
             <div className="empty-app-state empty-documents-state">
               <strong>No documents yet</strong>
