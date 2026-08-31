@@ -3014,6 +3014,40 @@ footer a {
 }
 
 @media (max-width: 560px) {
+  .product-topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: 58px;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+  }
+
+  .product-topbar .brand-button {
+    align-items: center;
+    display: inline-flex;
+    justify-self: start;
+    min-width: 104px;
+  }
+
+  .product-topbar .brand-logo {
+    display: block;
+    height: 32px;
+    width: 100px;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .mobile-login-button {
+    height: 36px;
+    width: 72px;
+  }
+
+  .mobile-menu-button {
+    height: 36px;
+    width: 36px;
+  }
+
   .brand-logo {
     height: 36px;
     width: 113px;
@@ -3024,10 +3058,11 @@ footer a {
   }
 
   .upload-workspace {
-    padding: 22px 14px 56px;
+    min-height: calc(100svh - 58px);
+    padding: 12px 12px 40px;
   }
 
-  .workspace-intro .eyebrow {
+  .workspace-intro {
     display: none;
   }
 
@@ -3076,45 +3111,121 @@ footer a {
   }
 
   .progress-steps {
-    gap: 12px;
-    margin: 20px 0 16px;
+    display: none;
   }
 
-  .progress-steps li {
-    font-size: 11px;
+  .wizard-flow {
+    gap: 10px;
+    margin: 0;
+    max-width: none;
   }
 
-  .progress-steps span {
+  .upload-panel.step-panel-pending,
+  .describe-panel.step-panel-complete {
     display: block;
-    margin: 0 0 4px;
   }
 
   .workflow-card {
-    padding: 18px 14px;
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .describe-panel {
+    background: transparent;
+    border: 0;
+    padding: 0;
   }
 
   .card-heading {
-    gap: 12px;
-    margin-bottom: 18px;
-    padding-bottom: 14px;
+    display: block;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
+  .card-heading > span {
+    display: none;
   }
 
   .card-heading h2 {
-    font-size: 21px;
+    font-size: 18px;
+  }
+
+  .describe-panel .card-heading p {
+    display: none;
+  }
+
+  .field {
+    font-size: 12px;
+    gap: 5px;
+  }
+
+  .field input,
+  .field select {
+    height: 40px;
+  }
+
+  .msn-field {
+    margin-top: 10px;
+  }
+
+  .identifier-examples {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .continue-button {
+    display: none;
+  }
+
+  .upload-panel {
+    border-style: solid;
+    padding: 12px;
   }
 
   .upload-panel .card-heading {
     margin-bottom: 0;
+    padding-bottom: 8px;
+  }
+
+  .upload-panel .card-heading p {
+    font-size: 11px;
+    line-height: 1.3;
+    margin-top: 3px;
   }
 
   .upload-panel .app-drop-zone {
-    min-height: 190px;
-    padding-inline: 4px;
+    background: var(--color-canvas);
+    border: 1px dashed var(--color-line-strong);
+    gap: 10px;
+    min-height: 128px;
+    padding: 14px 8px;
+  }
+
+  .upload-panel .upload-icon {
+    border-radius: 7px;
+    height: 40px;
+    width: 40px;
+  }
+
+  .upload-panel .upload-icon svg {
+    height: 22px;
+    width: 22px;
+  }
+
+  .app-drop-zone strong {
+    font-size: 14px;
+  }
+
+  .app-drop-zone small {
+    font-size: 11px;
   }
 
   .aviation-notice {
-    font-size: 13px;
-    padding: 16px;
+    font-size: 11px;
+    line-height: 1.35;
+    margin: 8px 0 0;
+    max-width: none;
+    padding: 9px 10px;
   }
 
   .selected-upload-row {
@@ -3150,12 +3261,12 @@ footer a {
   }
 
   .general-document-note {
-    margin-top: 18px;
-    padding: 13px 14px;
+    margin-top: 10px;
+    padding: 11px 12px;
   }
 
   .app-drop-zone {
-    min-height: 220px;
+    min-height: 128px;
   }
 
   .app-section-heading {
