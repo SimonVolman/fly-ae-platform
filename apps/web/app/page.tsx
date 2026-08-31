@@ -91,6 +91,16 @@ const SUPPORTED_UPLOAD_TYPES: Record<string, readonly string[]> = {
   "video/webm": ["webm"],
   "video/x-msvideo": ["avi"],
   "video/mpeg": ["mpeg", "mpg"],
+  "application/zip": ["zip"],
+  "application/x-zip-compressed": ["zip"],
+  "application/x-7z-compressed": ["7z"],
+  "application/vnd.rar": ["rar"],
+  "application/x-rar-compressed": ["rar"],
+  "application/x-tar": ["tar"],
+  "application/gzip": ["gz", "tgz"],
+  "application/x-gzip": ["gz", "tgz"],
+  "application/x-bzip2": ["bz2", "tbz2"],
+  "application/x-xz": ["xz", "txz"],
 };
 
 const SUPPORTED_UPLOAD_ACCEPT = Object.entries(SUPPORTED_UPLOAD_TYPES)
@@ -113,7 +123,7 @@ function supportedUploadMimeType(file: File): string | null {
     return declaredMimeType;
   }
 
-  if (declaredMimeType) return null;
+  if (declaredMimeType && declaredMimeType !== "application/octet-stream") return null;
 
   return (
     Object.entries(SUPPORTED_UPLOAD_TYPES).find(([, extensions]) =>
@@ -439,7 +449,7 @@ function HomeContent() {
     if (!file) return;
     if (!supportedUploadMimeType(file)) {
       setError(
-        "Choose a PDF, image, or video: PDF, JPG, PNG, GIF, WebP, HEIC, MP4, MOV, M4V, WebM, AVI, or MPEG.",
+        "Choose a supported PDF, image, video, or archive: ZIP, 7Z, RAR, TAR, GZ, BZ2, and XZ are accepted.",
       );
       return;
     }
@@ -537,7 +547,7 @@ function HomeContent() {
     const currentSession = session;
     const uploadMimeType = supportedUploadMimeType(selectedFile);
     if (!uploadMimeType) {
-      setError("Choose a supported PDF, image, or video file.");
+      setError("Choose a supported PDF, image, video, or archive file.");
       return;
     }
     setError("");
@@ -1140,8 +1150,8 @@ function HomeContent() {
               <p className="eyebrow">Secure document transfer</p>
               <h1 id="upload-title">Upload an aviation file</h1>
               <p>
-                Upload a PDF, image, or video up to 3 GB. First upload up to 100 MB—no email
-                required.
+                Upload a PDF, image, video, or archive up to 3 GB. First upload up to 100 MB—no
+                email required.
               </p>
             </div>
 
@@ -1285,8 +1295,8 @@ function HomeContent() {
                   <div>
                     <h2>File upload</h2>
                     <p>
-                      PDF, image, or video · maximum {session ? "3 GB" : "100 MB as guest"} · one
-                      file per upload.
+                      PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · maximum{" "}
+                      {session ? "3 GB" : "100 MB as guest"} · one file per upload.
                     </p>
                   </div>
                 </div>
@@ -1323,7 +1333,7 @@ function HomeContent() {
 
                   <div className="aviation-notice">
                     Please upload only materials related to aviation components.
-                    Every document is subject to verification.
+                    Every file is subject to verification.
                   </div>
                 </div>
 

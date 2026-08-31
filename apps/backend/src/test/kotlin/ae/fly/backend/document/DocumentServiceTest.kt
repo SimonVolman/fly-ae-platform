@@ -70,7 +70,7 @@ class DocumentServiceTest {
     }
 
     @Test
-    fun `guest can create image and video uploads`() {
+    fun `guest can create image video and archive uploads`() {
         val image = service.create(
             AuthenticatedGuest(guestId),
             request(
@@ -87,9 +87,18 @@ class DocumentServiceTest {
                 mimeType = "video/mp4",
             ),
         )
+        val archive = service.create(
+            AuthenticatedGuest(guestId),
+            request(
+                sizeBytes = 20_000_000,
+                filename = "maintenance-records.zip",
+                mimeType = "application/zip",
+            ),
+        )
 
         assertEquals("image/jpeg", image.mimeType)
         assertEquals("video/mp4", video.mimeType)
+        assertEquals("application/zip", archive.mimeType)
     }
 
     @Test

@@ -36,13 +36,13 @@ data class CreateDocumentRequest(
     @field:Size(min = 5, max = 255)
     @field:Pattern(
         regexp = SUPPORTED_UPLOAD_FILENAME_PATTERN,
-        message = "must use a supported document, image or video extension",
+        message = "must use a supported document, image, video or archive extension",
     )
     val filename: String,
 
     @field:Pattern(
         regexp = SUPPORTED_UPLOAD_MIME_PATTERN,
-        message = "must be a supported document, image or video type",
+        message = "must be a supported document, image, video or archive type",
     )
     val mimeType: String,
 

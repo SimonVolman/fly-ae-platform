@@ -64,7 +64,7 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /<select[^>]*aria-label="Category"/);
   assert.match(html, /Continue to file upload/);
   assert.match(html, /<h2>File upload<\/h2>/);
-  assert.match(html, /PDF, image, or video/);
+  assert.match(html, /PDF, image, video, or archive/);
   assert.match(html, /First upload up to 100 MB—no email required/);
   assert.match(html, /Mission of fly\.ae/);
   assert.match(html, /My Documents/);

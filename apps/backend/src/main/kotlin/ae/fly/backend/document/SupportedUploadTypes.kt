@@ -1,10 +1,10 @@
 package ae.fly.backend.document
 
 const val SUPPORTED_UPLOAD_FILENAME_PATTERN =
-    "(?i)^.+\\.(pdf|jpe?g|png|gif|webp|heic|heif|mp4|m4v|mov|webm|avi|mpeg|mpg)$"
+    "(?i)^.+\\.(pdf|jpe?g|png|gif|webp|heic|heif|mp4|m4v|mov|webm|avi|mpeg|mpg|zip|7z|rar|tar|gz|tgz|bz2|tbz2|xz|txz)$"
 
 const val SUPPORTED_UPLOAD_MIME_PATTERN =
-    "^(application/pdf|image/jpeg|image/png|image/gif|image/webp|image/heic|image/heif|video/mp4|video/x-m4v|video/quicktime|video/webm|video/x-msvideo|video/mpeg)$"
+    "^(application/pdf|image/jpeg|image/png|image/gif|image/webp|image/heic|image/heif|video/mp4|video/x-m4v|video/quicktime|video/webm|video/x-msvideo|video/mpeg|application/zip|application/x-zip-compressed|application/x-7z-compressed|application/vnd.rar|application/x-rar-compressed|application/x-tar|application/gzip|application/x-gzip|application/x-bzip2|application/x-xz)$"
 
 private val extensionsByMimeType = mapOf(
     "application/pdf" to setOf("pdf"),
@@ -20,6 +20,16 @@ private val extensionsByMimeType = mapOf(
     "video/webm" to setOf("webm"),
     "video/x-msvideo" to setOf("avi"),
     "video/mpeg" to setOf("mpeg", "mpg"),
+    "application/zip" to setOf("zip"),
+    "application/x-zip-compressed" to setOf("zip"),
+    "application/x-7z-compressed" to setOf("7z"),
+    "application/vnd.rar" to setOf("rar"),
+    "application/x-rar-compressed" to setOf("rar"),
+    "application/x-tar" to setOf("tar"),
+    "application/gzip" to setOf("gz", "tgz"),
+    "application/x-gzip" to setOf("gz", "tgz"),
+    "application/x-bzip2" to setOf("bz2", "tbz2"),
+    "application/x-xz" to setOf("xz", "txz"),
 )
 
 fun isSupportedUpload(filename: String, mimeType: String): Boolean {
@@ -47,6 +57,19 @@ fun hasValidUploadSignature(mimeType: String, prefix: ByteArray): Boolean =
         "video/mpeg" ->
             prefix.startsWithBytes(0x00, 0x00, 0x01, 0xBA) ||
                 prefix.startsWithBytes(0x00, 0x00, 0x01, 0xB3)
+        "application/zip", "application/x-zip-compressed" ->
+            prefix.startsWithBytes(0x50, 0x4B, 0x03, 0x04) ||
+                prefix.startsWithBytes(0x50, 0x4B, 0x05, 0x06) ||
+                prefix.startsWithBytes(0x50, 0x4B, 0x07, 0x08)
+        "application/x-7z-compressed" ->
+            prefix.startsWithBytes(0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C)
+        "application/vnd.rar", "application/x-rar-compressed" ->
+            prefix.startsWithBytes(0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00) ||
+                prefix.startsWithBytes(0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00)
+        "application/x-tar" -> prefix.ascii(257, 5) == "ustar"
+        "application/gzip", "application/x-gzip" -> prefix.startsWithBytes(0x1F, 0x8B)
+        "application/x-bzip2" -> prefix.ascii(0, 3) == "BZh"
+        "application/x-xz" -> prefix.startsWithBytes(0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00)
         else -> false
     }
 

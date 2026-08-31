@@ -83,7 +83,7 @@ class UploadService(
         )
 
         val metadata = storage.metadata(document.objectKey)
-        val fileHeader = storage.readPrefix(document.objectKey, 16)
+        val fileHeader = storage.readPrefix(document.objectKey, 512)
         val storedMimeType = metadata.contentType?.substringBefore(';')?.lowercase()
         val validFile = metadata.contentLength == document.sizeBytes &&
             storedMimeType == document.mimeType.lowercase() &&

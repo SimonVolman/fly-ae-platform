@@ -79,7 +79,7 @@ export default function TermsPage() {
           <h2>2. The Service</h2>
           <p>
             fly.ae provides a workflow for uploading aviation-related documents,
-            images and videos to private storage, processing them, viewing their
+            images, videos and archives to private storage, processing them, viewing their
             status, managing files available to an authenticated user, and creating
             links through which approved files may be shared.
           </p>
