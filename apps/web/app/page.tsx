@@ -1655,8 +1655,15 @@ function HomeContent() {
                     onChange={(event) => setAcceptedLegal(event.target.checked)}
                   />
                   <span>
-                    I accept the <Link href="/terms">Terms</Link> and{" "}
-                    <Link href="/privacy">Privacy Policy</Link>.
+                    I accept the{" "}
+                    <Link href="/terms" target="_blank" rel="noopener noreferrer">
+                      Terms
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+                      Privacy Policy
+                    </Link>
+                    .
                   </span>
                 </label>
                 <button

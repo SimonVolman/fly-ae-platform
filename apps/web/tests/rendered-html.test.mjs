@@ -129,6 +129,10 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /auth\/telegram\/verify/);
   assert.match(page, /Continue with Telegram/);
   assert.match(page, /Open Telegram bot/);
+  assert.match(
+    page,
+    /I accept the\{" "\}\s*<Link href="\/terms" target="_blank" rel="noopener noreferrer">[\s\S]*?<Link href="\/privacy" target="_blank" rel="noopener noreferrer">/,
+  );
   assert.match(page, /guest\/sessions/);
   assert.match(page, /GUEST_MAX_FILE_SIZE = 100 \* 1024 \* 1024/);
   assert.match(page, /AUTHENTICATED_MAX_FILE_SIZE = 3 \* 1024 \* 1024 \* 1024/);
