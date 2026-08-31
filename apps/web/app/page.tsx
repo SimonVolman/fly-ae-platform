@@ -1469,12 +1469,26 @@ function HomeContent() {
           <p className="eyebrow">Purpose-built for aviation</p>
           <h2 id="mission-title">Mission of fly.ae</h2>
         </div>
-        <p>
-          There is no product on the market today that gives aviation experts a
-          dedicated way to share proprietary data. If you are tired of dropping
-          files into generic boxes or transferring them through third parties,
-          fly.ae gives you a secure, aviation-focused place to share them.
-        </p>
+        <div className="mission-copy">
+          <p>
+            There is no product on the market today built specifically for aviation
+            experts to securely store and share proprietary data. If you’re tired of
+            dropping your files into boxes or relying on yet another way to transfer
+            them, fly.ae gives your aviation data a place of its own.
+          </p>
+          <p>
+            For now, fly.ae is free to use. You can store your files for up to one year
+            with virtually unlimited space. We know that VBSI data can take up a lot of
+            it, so you’ve come to the right place—and you won’t be disappointed.
+          </p>
+          <p>
+            One warning: anything unrelated to flying machines—including personal
+            files, entertainment videos, or pornographic content—will be deleted, and
+            the associated account may be blocked. fly.ae is exclusively for aviation
+            data. For everything else, please find another box—or another way to
+            transfer it. Don’t overstay your welcome.
+          </p>
+        </div>
       </section>
 
       <footer className="product-footer">

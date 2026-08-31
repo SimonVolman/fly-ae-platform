@@ -2211,12 +2211,17 @@ footer a {
   margin: 0;
 }
 
-.mission-section > p {
+.mission-copy {
+  display: grid;
+  gap: 18px;
+  max-width: 720px;
+}
+
+.mission-copy p {
   color: var(--color-muted);
   font-size: clamp(16px, 1.5vw, 20px);
   line-height: 1.55;
   margin: 0;
-  max-width: 720px;
 }
 
 .product-footer {
@@ -3345,7 +3350,7 @@ footer a {
     font-size: 32px;
   }
 
-  .mission-section > p {
+  .mission-copy p {
     font-size: 14px;
   }
 
