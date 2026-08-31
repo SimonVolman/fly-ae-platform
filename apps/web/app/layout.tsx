@@ -7,7 +7,7 @@ const GOOGLE_ANALYTICS_ID = "G-3BR81SG070";
 export const metadata: Metadata = {
   title: "fly.ae — Secure aircraft documentation",
   description:
-    "Upload aviation PDF documents to private storage and share approved files through protected links.",
+    "Upload aviation documents, images and videos to private storage and share approved files through protected links.",
   icons: {
     icon: "/favicon-v2.svg",
     shortcut: "/favicon-v2.svg",
@@ -15,13 +15,13 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "fly.ae",
-    description: "Securely upload and share approved aviation PDF documents.",
+    description: "Securely upload and share approved aviation documents, images and videos.",
     type: "website",
   },
   twitter: {
     card: "summary",
     title: "fly.ae",
-    description: "Securely upload and share approved aviation PDF documents.",
+    description: "Securely upload and share approved aviation documents, images and videos.",
   },
 };
 

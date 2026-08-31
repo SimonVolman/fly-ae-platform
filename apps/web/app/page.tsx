@@ -77,6 +77,51 @@ const CATEGORY_CARD_CATALOG = [
   { code: "JUST_DOCUMENT", name: "Just Document" },
 ] as const;
 
+const SUPPORTED_UPLOAD_TYPES: Record<string, readonly string[]> = {
+  "application/pdf": ["pdf"],
+  "image/jpeg": ["jpg", "jpeg"],
+  "image/png": ["png"],
+  "image/gif": ["gif"],
+  "image/webp": ["webp"],
+  "image/heic": ["heic"],
+  "image/heif": ["heif"],
+  "video/mp4": ["mp4", "m4v"],
+  "video/x-m4v": ["m4v"],
+  "video/quicktime": ["mov"],
+  "video/webm": ["webm"],
+  "video/x-msvideo": ["avi"],
+  "video/mpeg": ["mpeg", "mpg"],
+};
+
+const SUPPORTED_UPLOAD_ACCEPT = Object.entries(SUPPORTED_UPLOAD_TYPES)
+  .flatMap(([mimeType, extensions]) => [
+    mimeType,
+    ...extensions.map((extension) => `.${extension}`),
+  ])
+  .join(",");
+
+const UPPY_ALLOWED_FILE_TYPES = SUPPORTED_UPLOAD_ACCEPT.split(",");
+
+function supportedUploadMimeType(file: File): string | null {
+  const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
+  const declaredMimeType = file.type.toLowerCase();
+
+  if (
+    declaredMimeType &&
+    SUPPORTED_UPLOAD_TYPES[declaredMimeType]?.includes(extension)
+  ) {
+    return declaredMimeType;
+  }
+
+  if (declaredMimeType) return null;
+
+  return (
+    Object.entries(SUPPORTED_UPLOAD_TYPES).find(([, extensions]) =>
+      extensions.includes(extension),
+    )?.[0] ?? null
+  );
+}
+
 type DocumentStatus =
   | "CREATED"
   | "UPLOADING"
@@ -389,11 +434,13 @@ function HomeContent() {
     }
   }
 
-  function selectPdfFile(file?: File) {
+  function selectUploadFile(file?: File) {
     setError("");
     if (!file) return;
-    if (file.type !== "application/pdf" || !file.name.toLowerCase().endsWith(".pdf")) {
-      setError("Choose a text PDF document.");
+    if (!supportedUploadMimeType(file)) {
+      setError(
+        "Choose a PDF, image, or video: PDF, JPG, PNG, GIF, WebP, HEIC, MP4, MOV, M4V, WebM, AVI, or MPEG.",
+      );
       return;
     }
     const maxFileSize = session
@@ -402,7 +449,7 @@ function HomeContent() {
     if (file.size > maxFileSize) {
       setError(
         session
-          ? "The PDF must be no larger than 3 GB."
+          ? "The file must be no larger than 3 GB."
           : "Guest uploads are limited to 100 MB. Log in to upload up to 3 GB.",
       );
       return;
@@ -416,12 +463,12 @@ function HomeContent() {
   function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    selectPdfFile(file);
+    selectUploadFile(file);
   }
 
   function dropFile(event: DragEvent<HTMLButtonElement>) {
     event.preventDefault();
-    selectPdfFile(event.dataTransfer.files?.[0]);
+    selectUploadFile(event.dataTransfer.files?.[0]);
   }
 
   function removeSelectedFile() {
@@ -482,12 +529,17 @@ function HomeContent() {
     if (selectedFile.size > maxFileSize) {
       setError(
         session
-          ? "The PDF must be no larger than 3 GB."
+          ? "The file must be no larger than 3 GB."
           : "Guest uploads are limited to 100 MB. Log in to upload up to 3 GB.",
       );
       return;
     }
     const currentSession = session;
+    const uploadMimeType = supportedUploadMimeType(selectedFile);
+    if (!uploadMimeType) {
+      setError("Choose a supported PDF, image, or video file.");
+      return;
+    }
     setError("");
     setUploadProgress(0);
     setUploadState("preparing");
@@ -518,7 +570,7 @@ function HomeContent() {
             categoryId,
             msn: isJustDocument(selectedCategory) ? GENERAL_DOCUMENT_MSN : msn.trim(),
             filename: selectedFile.name,
-            mimeType: selectedFile.type,
+            mimeType: uploadMimeType,
             sizeBytes: selectedFile.size,
           }),
         },
@@ -531,7 +583,7 @@ function HomeContent() {
         autoProceed: false,
         allowMultipleUploadBatches: false,
         restrictions: {
-          allowedFileTypes: ["application/pdf", ".pdf"],
+          allowedFileTypes: UPPY_ALLOWED_FILE_TYPES,
           maxFileSize,
           maxNumberOfFiles: 1,
         },
@@ -598,7 +650,7 @@ function HomeContent() {
       });
       uppy.addFile({
         name: selectedFile.name,
-        type: selectedFile.type,
+        type: uploadMimeType,
         data: selectedFile,
         meta: { documentId: document.id },
       });
@@ -619,7 +671,7 @@ function HomeContent() {
   }
 
   async function deleteDocument(documentId: string) {
-    if (!session || !window.confirm("Delete this document and its uploaded PDF?")) {
+    if (!session || !window.confirm("Delete this item and its uploaded file?")) {
       return;
     }
     setError("");
@@ -641,7 +693,7 @@ function HomeContent() {
     if (
       !accessToken ||
       !activeDocument ||
-      !window.confirm("Delete this document and its uploaded PDF?")
+      !window.confirm("Delete this item and its uploaded file?")
     ) {
       return;
     }
@@ -1086,9 +1138,9 @@ function HomeContent() {
           <div className="workspace-main">
             <div className="workspace-intro">
               <p className="eyebrow">Secure document transfer</p>
-              <h1 id="upload-title">Upload an aviation document</h1>
+              <h1 id="upload-title">Upload an aviation file</h1>
               <p>
-                Upload a text PDF up to 3 GB. First upload up to 100 MB—no email
+                Upload a PDF, image, or video up to 3 GB. First upload up to 100 MB—no email
                 required.
               </p>
             </div>
@@ -1205,13 +1257,13 @@ function HomeContent() {
                 )}
 
                 <button className="button button-primary continue-button" onClick={continueToUpload}>
-                  Continue to PDF upload
+                  Continue to file upload
                 </button>
               </section>
             )}
 
             {workflowStep > 2 && selectedFile && (
-              <article className="step-summary" aria-label="PDF upload completed">
+              <article className="step-summary" aria-label="File upload completed">
                 <span className="step-summary-number" aria-hidden="true">✓</span>
                 <div>
                   <small>Step 02 complete</small>
@@ -1231,10 +1283,10 @@ function HomeContent() {
                 <div className="card-heading">
                   <span>02</span>
                   <div>
-                    <h2>PDF upload</h2>
+                    <h2>File upload</h2>
                     <p>
-                      PDF only · maximum {session ? "3 GB" : "100 MB as guest"} · one
-                      document per upload.
+                      PDF, image, or video · maximum {session ? "3 GB" : "100 MB as guest"} · one
+                      file per upload.
                     </p>
                   </div>
                 </div>
@@ -1243,7 +1295,7 @@ function HomeContent() {
                   ref={fileInput}
                   className="visually-hidden"
                   type="file"
-                  accept="application/pdf,.pdf"
+                  accept={SUPPORTED_UPLOAD_ACCEPT}
                   onChange={chooseFile}
                 />
 
@@ -1262,7 +1314,7 @@ function HomeContent() {
                       </svg>
                     </span>
                     <span>
-                      <strong>Choose a PDF or drag &amp; drop it here</strong>
+                      <strong>Choose a file or drag &amp; drop it here</strong>
                       <small>
                         {session ? "Maximum 3 GB file size" : "Maximum 100 MB file size"}
                       </small>
@@ -1335,8 +1387,8 @@ function HomeContent() {
                       </strong>
                       <span>
                         {uploadState === "processing"
-                          ? "The local classifier is processing the PDF."
-                          : "The PDF is sent directly to private object storage."}
+                          ? "The uploaded file is being processed."
+                          : "The file is sent directly to private object storage."}
                       </span>
                     </div>
                     <div className="progress-track">
@@ -1378,7 +1430,7 @@ function HomeContent() {
                 <div>
                   <p className="eyebrow">Step 03 · Approved</p>
                   <h2>Your secure link is ready</h2>
-                  <p>The recipient can use this link to access the approved PDF.</p>
+                  <p>The recipient can use this link to access the approved file.</p>
                 </div>
                 <div className="share-result-actions">
                   <code>{activeDocument.shareUrl}</code>
@@ -1427,7 +1479,7 @@ function HomeContent() {
 
       <footer className="product-footer">
         <Brand />
-        <p>Secure aviation document transfer.</p>
+        <p>Secure aviation file transfer.</p>
         <nav aria-label="Project">
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>
@@ -1463,7 +1515,7 @@ function HomeContent() {
               <form onSubmit={requestOtp}>
                 <h2 id="auth-title">Log in</h2>
                 <p className="info-box">
-                  Log in to keep a My Documents history and upload PDFs up to 3 GB.
+                  Log in to keep a My Documents history and upload files up to 3 GB.
                   Choose email or Telegram. Each method creates its own fly.ae account.
                 </p>
                 {telegramEnabled && (

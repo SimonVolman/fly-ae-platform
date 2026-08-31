@@ -70,6 +70,45 @@ class DocumentServiceTest {
     }
 
     @Test
+    fun `guest can create image and video uploads`() {
+        val image = service.create(
+            AuthenticatedGuest(guestId),
+            request(
+                sizeBytes = 5_000_000,
+                filename = "landing-gear.jpg",
+                mimeType = "image/jpeg",
+            ),
+        )
+        val video = service.create(
+            AuthenticatedGuest(guestId),
+            request(
+                sizeBytes = 80_000_000,
+                filename = "inspection.mp4",
+                mimeType = "video/mp4",
+            ),
+        )
+
+        assertEquals("image/jpeg", image.mimeType)
+        assertEquals("video/mp4", video.mimeType)
+    }
+
+    @Test
+    fun `filename extension must match the declared media type`() {
+        val error = assertThrows(ApiProblem::class.java) {
+            service.create(
+                AuthenticatedGuest(guestId),
+                request(
+                    sizeBytes = 5_000_000,
+                    filename = "inspection.jpg",
+                    mimeType = "video/mp4",
+                ),
+            )
+        }
+
+        assertEquals(HttpStatus.BAD_REQUEST, error.status)
+    }
+
+    @Test
     fun `guest document above one hundred mebibytes returns payload too large`() {
         val error = assertThrows(ApiProblem::class.java) {
             service.create(
@@ -82,11 +121,15 @@ class DocumentServiceTest {
         assertEquals("This upload is limited to 100 MB.", error.message)
     }
 
-    private fun request(sizeBytes: Long) = CreateDocumentRequest(
+    private fun request(
+        sizeBytes: Long,
+        filename: String = "first-upload.pdf",
+        mimeType: String = "application/pdf",
+    ) = CreateDocumentRequest(
         categoryId = categoryId,
         msn = "34567",
-        filename = "first-upload.pdf",
-        mimeType = "application/pdf",
+        filename = filename,
+        mimeType = mimeType,
         sizeBytes = sizeBytes,
     )
 }

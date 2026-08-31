@@ -57,7 +57,7 @@ export function ShareDocumentClient() {
           <div className="success-mark" aria-hidden="true">
             ✓
           </div>
-          <p className="eyebrow">Approved aviation document</p>
+          <p className="eyebrow">Approved aviation file</p>
           <h1>{document.filename}</h1>
           <dl>
             <div>
@@ -74,7 +74,7 @@ export function ShareDocumentClient() {
             </div>
           </dl>
           <a className="button button-primary" href={document.downloadUrl}>
-            Download PDF
+            Download file
           </a>
           <p className="message message-info">
             The download URL is short-lived. Open this page again to obtain a fresh

@@ -6,6 +6,7 @@ import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.FlyPrincipal
 import ae.fly.backend.config.StorageProperties
 import ae.fly.backend.document.DocumentResponse
+import ae.fly.backend.document.hasValidUploadSignature
 import ae.fly.backend.domain.Document
 import ae.fly.backend.domain.DocumentStatus
 import ae.fly.backend.ports.CompletedPart
@@ -15,7 +16,6 @@ import ae.fly.backend.repository.DocumentRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.nio.charset.StandardCharsets
 import java.time.Clock
 import java.util.UUID
 
@@ -83,17 +83,18 @@ class UploadService(
         )
 
         val metadata = storage.metadata(document.objectKey)
-        val pdfHeader = storage.readPrefix(document.objectKey, 5)
-        val validPdf = metadata.contentLength == document.sizeBytes &&
-            metadata.contentType?.substringBefore(';') == "application/pdf" &&
-            String(pdfHeader, StandardCharsets.US_ASCII) == "%PDF-"
+        val fileHeader = storage.readPrefix(document.objectKey, 16)
+        val storedMimeType = metadata.contentType?.substringBefore(';')?.lowercase()
+        val validFile = metadata.contentLength == document.sizeBytes &&
+            storedMimeType == document.mimeType.lowercase() &&
+            hasValidUploadSignature(document.mimeType, fileHeader)
 
         document.multipartUploadId = null
         document.updatedAt = clock.instant()
-        if (!validPdf) {
+        if (!validFile) {
             storage.delete(document.objectKey)
             document.status = DocumentStatus.FAILED
-            document.failureReason = "INVALID_PDF"
+            document.failureReason = "INVALID_FILE"
             documents.save(document)
             return DocumentResponse.from(document)
         }

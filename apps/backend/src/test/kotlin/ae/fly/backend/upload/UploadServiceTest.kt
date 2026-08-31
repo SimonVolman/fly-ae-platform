@@ -81,7 +81,45 @@ class UploadServiceTest {
     }
 
     @Test
-    fun `rejects and removes a stored object that is not a PDF`() {
+    fun `moves a verified image from created to pending and enqueues it`() {
+        document.originalFilename = "landing-gear.jpg"
+        document.mimeType = "image/jpeg"
+        val session = service.start(owner, documentId)
+        storage.metadata = StoredObjectMetadata("image/jpeg", 42)
+        storage.prefix = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+
+        val result = service.complete(
+            owner,
+            documentId,
+            session.uploadId,
+            CompleteMultipartRequest(listOf(CompletedPartRequest(1, "\"etag\""))),
+        )
+
+        assertEquals(DocumentStatus.PENDING, result.status)
+        assertEquals(documentId, queue.documentId)
+    }
+
+    @Test
+    fun `moves a verified video from created to pending and enqueues it`() {
+        document.originalFilename = "inspection.mp4"
+        document.mimeType = "video/mp4"
+        val session = service.start(owner, documentId)
+        storage.metadata = StoredObjectMetadata("video/mp4", 42)
+        storage.prefix = byteArrayOf(0, 0, 0, 24) + "ftypisom".toByteArray()
+
+        val result = service.complete(
+            owner,
+            documentId,
+            session.uploadId,
+            CompleteMultipartRequest(listOf(CompletedPartRequest(1, "\"etag\""))),
+        )
+
+        assertEquals(DocumentStatus.PENDING, result.status)
+        assertEquals(documentId, queue.documentId)
+    }
+
+    @Test
+    fun `rejects and removes a stored object with an invalid signature`() {
         val session = service.start(owner, documentId)
         storage.metadata = StoredObjectMetadata("application/pdf", 42)
         storage.prefix = "HELLO".toByteArray()
@@ -94,7 +132,7 @@ class UploadServiceTest {
         )
 
         assertEquals(DocumentStatus.FAILED, result.status)
-        assertEquals("INVALID_PDF", document.failureReason)
+        assertEquals("INVALID_FILE", document.failureReason)
         assertTrue(storage.deleted)
         assertEquals(null, queue.documentId)
     }

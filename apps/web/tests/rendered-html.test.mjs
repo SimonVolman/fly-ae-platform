@@ -59,11 +59,12 @@ test("server-renders the fly.ae upload application", async () => {
   const html = await response.text();
   assert.match(html, /<title>fly\.ae — Secure aircraft documentation<\/title>/i);
   assert.match(html, /fly\.ae/);
-  assert.match(html, /Upload an aviation document/);
+  assert.match(html, /Upload an aviation file/);
   assert.match(html, /Document details/);
   assert.match(html, /<select[^>]*aria-label="Category"/);
-  assert.match(html, /Continue to PDF upload/);
-  assert.match(html, /<h2>PDF upload<\/h2>/);
+  assert.match(html, /Continue to file upload/);
+  assert.match(html, /<h2>File upload<\/h2>/);
+  assert.match(html, /PDF, image, or video/);
   assert.match(html, /First upload up to 100 MB—no email required/);
   assert.match(html, /Mission of fly\.ae/);
   assert.match(html, /My Documents/);

@@ -34,12 +34,15 @@ data class CreateDocumentRequest(
 
     @field:NotBlank
     @field:Size(min = 5, max = 255)
-    @field:Pattern(regexp = "(?i)^.+\\.pdf$", message = "must end in .pdf")
+    @field:Pattern(
+        regexp = SUPPORTED_UPLOAD_FILENAME_PATTERN,
+        message = "must use a supported document, image or video extension",
+    )
     val filename: String,
 
     @field:Pattern(
-        regexp = "^application/pdf$",
-        message = "must be application/pdf",
+        regexp = SUPPORTED_UPLOAD_MIME_PATTERN,
+        message = "must be a supported document, image or video type",
     )
     val mimeType: String,
 

@@ -34,6 +34,12 @@ class DocumentService(
 ) {
     @Transactional
     fun create(owner: FlyPrincipal, request: CreateDocumentRequest): DocumentResponse {
+        if (!isSupportedUpload(request.filename, request.mimeType)) {
+            throw ApiProblem(
+                HttpStatus.BAD_REQUEST,
+                "The filename extension does not match a supported file type.",
+            )
+        }
         val user = (owner as? AuthenticatedUser)?.let {
             users.findById(it.id)
                 ?: throw ApiProblem(
