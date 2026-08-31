@@ -71,7 +71,7 @@ and cannot list My Documents.
 A user or guest selects a seeded category and submits MSN, filename,
 `application/pdf` and byte size. The backend creates `Document(CREATED)` with
 exactly one owner and returns its identifier. Guest files are capped at 100 MiB;
-authenticated files at 250 MiB.
+authenticated files at 3 GiB.
 
 ### 3. Multipart upload
 

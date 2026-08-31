@@ -2,7 +2,7 @@
 
 Рабочая V0 сервиса загрузки и отправки авиационных PDF-документов. Реализованы
 два полных сценария: первая гостевая загрузка до 100 MiB без email и загрузка до
-250 MiB через OTP, доставляемый по email или через Telegram-бота. Оба проходят
+3 GiB через OTP, доставляемый по email или через Telegram-бота. Оба проходят
 прямой multipart upload в приватный S3,
 проверку PDF, локальную асинхронную обработку, `APPROVED`, share-ссылку и
 удаление. Авторизованный путь также включает My Documents.
@@ -231,7 +231,7 @@ Figma → design-system.json → CSS tokens → components → screens
 - upload URL действует один час, download URL — 15 минут;
 - backend проверяет владельца, MIME, заявленный и фактический размер и `%PDF-`;
 - guest capability живёт 12 часов, привязан к одному документу и не открывает
-  My Documents; guest PDF ограничен 100 MiB, а после входа — 250 MiB;
+  My Documents; guest PDF ограничен 100 MiB, а после входа — 3 GiB;
 - OTP одноразовый, живёт 10 минут и имеет лимит попыток;
 - OTP, upload и share endpoints имеют rate limiting;
 - share token создаётся через `SecureRandom`, в БД хранится HMAC lookup hash и

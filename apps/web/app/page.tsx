@@ -19,7 +19,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-const AUTHENTICATED_MAX_FILE_SIZE = 250 * 1024 * 1024;
+const AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
 const GUEST_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const GENERAL_DOCUMENT_MSN = "GENERAL";
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
@@ -385,8 +385,8 @@ function HomeContent() {
     if (file.size > maxFileSize) {
       setError(
         session
-          ? "The PDF must be no larger than 250 MB."
-          : "Guest uploads are limited to 100 MB. Log in to upload up to 250 MB.",
+          ? "The PDF must be no larger than 3 GB."
+          : "Guest uploads are limited to 100 MB. Log in to upload up to 3 GB.",
       );
       return;
     }
@@ -465,8 +465,8 @@ function HomeContent() {
     if (selectedFile.size > maxFileSize) {
       setError(
         session
-          ? "The PDF must be no larger than 250 MB."
-          : "Guest uploads are limited to 100 MB. Log in to upload up to 250 MB.",
+          ? "The PDF must be no larger than 3 GB."
+          : "Guest uploads are limited to 100 MB. Log in to upload up to 3 GB.",
       );
       return;
     }
@@ -1018,7 +1018,7 @@ function HomeContent() {
             <p className="eyebrow">Secure document transfer</p>
             <h1 id="upload-title">Upload an aviation document</h1>
             <p>
-              Upload a text PDF up to 250 MB. First upload up to 100 MB—no email
+              Upload a text PDF up to 3 GB. First upload up to 100 MB—no email
               required.
             </p>
           </div>
@@ -1163,7 +1163,7 @@ function HomeContent() {
                   <div>
                     <h2>PDF upload</h2>
                     <p>
-                      PDF only · maximum {session ? "250 MB" : "100 MB as guest"} · one
+                      PDF only · maximum {session ? "3 GB" : "100 MB as guest"} · one
                       document per upload.
                     </p>
                   </div>
@@ -1193,7 +1193,7 @@ function HomeContent() {
                   <span>
                     <strong>Choose a PDF or drag &amp; drop it here</strong>
                     <small>
-                      {session ? "Maximum 250 MB file size" : "Maximum 100 MB file size"}
+                      {session ? "Maximum 3 GB file size" : "Maximum 100 MB file size"}
                     </small>
                   </span>
                 </button>
@@ -1248,7 +1248,7 @@ function HomeContent() {
                         openAuth();
                       }}
                     >
-                      Log in to upload up to 250 MB and use My Documents
+                      Log in to upload up to 3 GB and use My Documents
                     </button>
                   </div>
                 )}
@@ -1390,7 +1390,7 @@ function HomeContent() {
               <form onSubmit={requestOtp}>
                 <h2 id="auth-title">Log in</h2>
                 <p className="info-box">
-                  Log in to keep a My Documents history and upload PDFs up to 250 MB.
+                  Log in to keep a My Documents history and upload PDFs up to 3 GB.
                   Choose email or Telegram. Each method creates its own fly.ae account.
                 </p>
                 {telegramEnabled && (

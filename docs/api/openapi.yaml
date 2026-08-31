@@ -588,7 +588,7 @@ components:
         sizeBytes:
           type: integer
           minimum: 1
-          maximum: 262144000
+          maximum: 3221225472
     Document:
       type: object
       required:

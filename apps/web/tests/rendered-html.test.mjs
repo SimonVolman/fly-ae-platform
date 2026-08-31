@@ -130,7 +130,7 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /Open Telegram bot/);
   assert.match(page, /guest\/sessions/);
   assert.match(page, /GUEST_MAX_FILE_SIZE = 100 \* 1024 \* 1024/);
-  assert.match(page, /AUTHENTICATED_MAX_FILE_SIZE = 250 \* 1024 \* 1024/);
+  assert.match(page, /AUTHENTICATED_MAX_FILE_SIZE = 3 \* 1024 \* 1024 \* 1024/);
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
   assert.match(page, /JUST_DOCUMENT/);

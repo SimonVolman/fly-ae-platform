@@ -54,7 +54,7 @@ fly:
     otp-ttl: 10m
     otp-max-attempts: 5
   documents:
-    authenticated-max-file-size-bytes: ${FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES:262144000}
+    authenticated-max-file-size-bytes: ${FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES:3221225472}
     guest-max-file-size-bytes: ${FLY_GUEST_MAX_FILE_SIZE_BYTES:104857600}
   web:
     allowed-origins: ${FLY_ALLOWED_ORIGINS:http://localhost:3000}
