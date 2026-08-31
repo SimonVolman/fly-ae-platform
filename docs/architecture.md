@@ -63,15 +63,15 @@ Telegram user ID и возвращает bearer session. Email- и Telegram-по
 имеют разные профили; автоматического объединения аккаунтов нет.
 
 Alternatively, `POST /guest/sessions` records Terms/Privacy acceptance and
-returns a 12-hour capability token for one document. It does not create a User
-and cannot list My Documents.
+returns a 12-hour capability token for one upload batch. It does not create a
+User and cannot list My Documents.
 
 ### 2. Document metadata
 
-A user or guest selects a seeded category and submits MSN, filename,
-`application/pdf` and byte size. The backend creates `Document(CREATED)` with
-exactly one owner and returns its identifier. Guest files are capped at 100 MiB;
-authenticated files at 3 GiB.
+A user or guest selects a seeded category and submits MSN, filename, supported
+MIME type and byte size for each selected file. The backend creates one
+`Document(CREATED)` per file with exactly one owner and returns its identifier.
+Guest files are capped at 100 MiB each; authenticated files at 3 GiB each.
 
 ### 3. Multipart upload
 

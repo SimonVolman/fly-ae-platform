@@ -101,7 +101,7 @@ export default function TermsPage() {
             us if you suspect unauthorised use.
           </p>
           <p>
-            Guest access is temporary and may be limited to a single document.
+            Guest access is temporary, and the displayed size limit applies to each file.
             Email verification may provide access to additional features such as
             My Documents. You are responsible for activity performed using access
             credentials issued to you, except to the extent caused by our failure

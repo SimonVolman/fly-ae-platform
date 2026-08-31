@@ -138,7 +138,7 @@ paths:
       tags: [Guest sessions]
       operationId: createGuestSession
       security: []
-      description: Creates a short-lived bearer capability for one guest document.
+      description: Creates a short-lived bearer capability for one guest upload batch.
       requestBody:
         required: true
         content:

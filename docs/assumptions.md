@@ -7,24 +7,24 @@ available.
 1. **Java 21** is the backend runtime. Spring Boot 4.1 and Gradle 8.14+ require a
    modern JDK; the repository ships a Gradle Wrapper so a machine-wide Gradle
    installation is not required.
-2. **One document per upload flow.** The frontend may show multiple historical
-   documents, but each upload session represents exactly one PDF and one
-   `Document` record.
-3. **PDF only, owner-specific limit.** Guest uploads are limited to 100 MiB;
+2. **Multiple files per upload flow.** Each selected file receives its own
+   `Document` record and protected share link after verification.
+3. **Supported aviation files, owner-specific limit.** Documents, images,
+   videos and common archives are accepted. Guest files are limited to 100 MiB;
    authenticated uploads are limited to 3 GiB. The browser validates
    first; the backend repeats filename, MIME and size checks before signing and
    verifies the stored object after multipart completion.
 4. **Email OTP and scoped guest access.** A successful OTP verification returns
    a short-lived user bearer token. A guest may instead receive a short-lived
-   `gst_` bearer capability after accepting Terms and Privacy. It owns exactly
-   one document and cannot list My Documents. Passwords do not exist.
+   `gst_` bearer capability after accepting Terms and Privacy. It may own the
+   files in one upload batch but cannot list My Documents. Passwords do not exist.
 5. **Development OTP delivery is local.** The development sender writes the OTP
    to the backend console. Production profiles never log OTP values.
 6. **Processing is asynchronous behind an interface.** Local V0 uses an
    in-process queue and deterministic classifier. The production adapter
    boundary is compatible with a future SQS worker without requiring SQS in the
    happy path.
-7. **V0 classification approves valid text PDFs deterministically.** The domain
+7. **V0 classification approves structurally valid supported files deterministically.** The domain
    retains `REJECTED` and `FAILED` states for the future PDFBox/LLM worker.
 8. **MinIO is the local S3 implementation.** It uses a private bucket and the
    same AWS SDK interfaces as production S3.

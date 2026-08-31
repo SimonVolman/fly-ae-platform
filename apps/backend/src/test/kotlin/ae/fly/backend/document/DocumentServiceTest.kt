@@ -51,22 +51,29 @@ class DocumentServiceTest {
 
     init {
         `when`(guests.findById(guestId)).thenReturn(guestSession)
-        `when`(documents.existsByGuestSessionId(guestId)).thenReturn(false)
         `when`(categories.findByIdAndActiveTrue(categoryId)).thenReturn(category)
         `when`(documents.save(any(Document::class.java) ?: Document()))
             .thenAnswer { it.arguments[0] }
     }
 
     @Test
-    fun `guest can create one document up to one hundred mebibytes`() {
-        val response = service.create(
+    fun `guest can create multiple documents up to one hundred mebibytes each`() {
+        val first = service.create(
             AuthenticatedGuest(guestId),
             request(sizeBytes = 104_857_600),
         )
+        val second = service.create(
+            AuthenticatedGuest(guestId),
+            request(
+                sizeBytes = 42_000_000,
+                filename = "second-upload.pdf",
+            ),
+        )
 
-        assertEquals(104_857_600, response.sizeBytes)
-        assertTrue(response.filename.endsWith(".pdf"))
-        assertNull(response.shareUrl)
+        assertEquals(104_857_600, first.sizeBytes)
+        assertEquals(42_000_000, second.sizeBytes)
+        assertTrue(first.filename.endsWith(".pdf"))
+        assertNull(first.shareUrl)
     }
 
     @Test

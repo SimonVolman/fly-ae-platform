@@ -193,6 +193,11 @@ type UploadBody = {
   location?: string;
 };
 
+type ActiveUpload = {
+  document: FlyDocument;
+  accessToken: string;
+};
+
 type UploadState =
   | "idle"
   | "ready"
@@ -292,12 +297,11 @@ function HomeContent() {
   const [msn, setMsn] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [documents, setDocuments] = useState<FlyDocument[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [workflowStep, setWorkflowStep] = useState<WorkflowStep>(1);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [activeDocument, setActiveDocument] = useState<FlyDocument | null>(null);
-  const [activeDocumentAccessToken, setActiveDocumentAccessToken] = useState("");
+  const [activeUploads, setActiveUploads] = useState<ActiveUpload[]>([]);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
@@ -372,7 +376,7 @@ function HomeContent() {
       );
       return;
     }
-    setUploadState(selectedFile ? "ready" : "idle");
+    setUploadState(selectedFiles.length ? "ready" : "idle");
     setWorkflowStep(2);
     if (!window.matchMedia("(min-width: 1100px)").matches) {
       window.setTimeout(() => stepTwo.current?.scrollIntoView({ block: "nearest" }), 0);
@@ -435,7 +439,7 @@ function HomeContent() {
       setAuthOpen(false);
       setMobileMenuOpen(false);
       setAccountMenuOpen(false);
-      setUploadState(selectedFile ? "ready" : "idle");
+      setUploadState(selectedFiles.length ? "ready" : "idle");
       await loadDocuments(nextSession);
     } catch (requestError) {
       setAuthError((requestError as Error).message);
@@ -444,80 +448,84 @@ function HomeContent() {
     }
   }
 
-  function selectUploadFile(file?: File) {
+  function selectUploadFiles(files: File[]) {
     setError("");
-    if (!file) return;
-    if (!supportedUploadMimeType(file)) {
+    if (!files.length) return;
+    const unsupportedFile = files.find((file) => !supportedUploadMimeType(file));
+    if (unsupportedFile) {
       setError(
-        "Choose a supported PDF, image, video, or archive: ZIP, 7Z, RAR, TAR, GZ, BZ2, and XZ are accepted.",
+        `${unsupportedFile.name} is not supported. Choose a PDF, image, video, or archive: ZIP, 7Z, RAR, TAR, GZ, BZ2, and XZ are accepted.`,
       );
       return;
     }
     const maxFileSize = session
       ? AUTHENTICATED_MAX_FILE_SIZE
       : GUEST_MAX_FILE_SIZE;
-    if (file.size > maxFileSize) {
+    const oversizedFile = files.find((file) => file.size > maxFileSize);
+    if (oversizedFile) {
       setError(
         session
-          ? "The file must be no larger than 3 GB."
-          : "Guest uploads are limited to 100 MB. Log in to upload up to 3 GB.",
+          ? `${oversizedFile.name} is larger than the 3 GB per-file limit.`
+          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to 3 GB.`,
       );
       return;
     }
-    setSelectedFile(file);
+    setSelectedFiles((currentFiles) => {
+      const uniqueFiles = new Map(
+        currentFiles.map((file) => [
+          `${file.name}:${file.size}:${file.lastModified}`,
+          file,
+        ]),
+      );
+      files.forEach((file) => {
+        uniqueFiles.set(`${file.name}:${file.size}:${file.lastModified}`, file);
+      });
+      return Array.from(uniqueFiles.values());
+    });
     setUploadState("ready");
     setUploadProgress(0);
-    setActiveDocument(null);
+    setActiveUploads([]);
   }
 
   function chooseFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    selectUploadFile(file);
+    selectUploadFiles(files);
   }
 
   function dropFile(event: DragEvent<HTMLButtonElement>) {
     event.preventDefault();
-    selectUploadFile(event.dataTransfer.files?.[0]);
+    selectUploadFiles(Array.from(event.dataTransfer.files));
   }
 
-  function removeSelectedFile() {
-    setSelectedFile(null);
-    setUploadState("idle");
+  function removeSelectedFile(index: number) {
+    setSelectedFiles((currentFiles) => {
+      const nextFiles = currentFiles.filter((_, fileIndex) => fileIndex !== index);
+      if (!nextFiles.length) {
+        setUploadState("idle");
+        setAcceptedGuestLegal(false);
+      }
+      return nextFiles;
+    });
     setUploadProgress(0);
-    setActiveDocument(null);
-    setActiveDocumentAccessToken("");
-    setAcceptedGuestLegal(false);
+    setActiveUploads([]);
     setError("");
   }
 
   async function pollUntilProcessed(
     documentId: string,
     accessToken: string,
-    currentSession: Session | null,
-  ) {
+  ): Promise<FlyDocument> {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const document = await api<FlyDocument>(
         `/documents/${documentId}`,
         {},
         accessToken,
       );
-      setActiveDocument(document);
-      if (document.status === "APPROVED") {
-        setUploadState("approved");
-        setWorkflowStep(3);
-        if (!window.matchMedia("(min-width: 1100px)").matches) {
-          window.setTimeout(() => stepThree.current?.scrollIntoView({ block: "nearest" }), 0);
-        }
-        if (currentSession) await loadDocuments(currentSession);
-        return;
-      }
+      if (document.status === "APPROVED") return document;
       if (["FAILED", "REJECTED"].includes(document.status)) {
-        setUploadState("failed");
-        if (currentSession) await loadDocuments(currentSession);
-        return;
+        return document;
       }
-      setUploadState("processing");
       await new Promise((resolve) => window.setTimeout(resolve, 500));
     }
     throw new Error("Processing is taking longer than expected. Keep this page open and retry.");
@@ -525,7 +533,7 @@ function HomeContent() {
 
   async function startUpload() {
     if (
-      !selectedFile ||
+      !selectedFiles.length ||
       !categoryId ||
       (!isJustDocument(selectedCategory) && !msn.trim())
     ) return;
@@ -536,17 +544,18 @@ function HomeContent() {
     const maxFileSize = session
       ? AUTHENTICATED_MAX_FILE_SIZE
       : GUEST_MAX_FILE_SIZE;
-    if (selectedFile.size > maxFileSize) {
+    const oversizedFile = selectedFiles.find((file) => file.size > maxFileSize);
+    if (oversizedFile) {
       setError(
         session
-          ? "The file must be no larger than 3 GB."
-          : "Guest uploads are limited to 100 MB. Log in to upload up to 3 GB.",
+          ? `${oversizedFile.name} is larger than the 3 GB per-file limit.`
+          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to 3 GB.`,
       );
       return;
     }
     const currentSession = session;
-    const uploadMimeType = supportedUploadMimeType(selectedFile);
-    if (!uploadMimeType) {
+    const unsupportedFile = selectedFiles.find((file) => !supportedUploadMimeType(file));
+    if (unsupportedFile) {
       setError("Choose a supported PDF, image, video, or archive file.");
       return;
     }
@@ -555,8 +564,9 @@ function HomeContent() {
     setUploadState("preparing");
     setWorkflowStep(2);
 
-    let document: FlyDocument | null = null;
+    const createdUploads: ActiveUpload[] = [];
     let uppy: Uppy<UploadMeta, UploadBody> | null = null;
+    let uploadFinished = false;
     try {
       const currentGuestSession = currentSession
         ? null
@@ -572,22 +582,26 @@ function HomeContent() {
         currentSession?.accessToken ?? currentGuestSession?.accessToken;
       if (!accessToken) throw new Error("Could not create a secure upload session.");
 
-      document = await api<FlyDocument>(
-        "/documents",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            categoryId,
-            msn: isJustDocument(selectedCategory) ? GENERAL_DOCUMENT_MSN : msn.trim(),
-            filename: selectedFile.name,
-            mimeType: uploadMimeType,
-            sizeBytes: selectedFile.size,
-          }),
-        },
-        accessToken,
-      );
-      setActiveDocument(document);
-      setActiveDocumentAccessToken(accessToken);
+      for (const file of selectedFiles) {
+        const uploadMimeType = supportedUploadMimeType(file);
+        if (!uploadMimeType) throw new Error(`${file.name} is not a supported file type.`);
+        const document = await api<FlyDocument>(
+          "/documents",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              categoryId,
+              msn: isJustDocument(selectedCategory) ? GENERAL_DOCUMENT_MSN : msn.trim(),
+              filename: file.name,
+              mimeType: uploadMimeType,
+              sizeBytes: file.size,
+            }),
+          },
+          accessToken,
+        );
+        createdUploads.push({ document, accessToken });
+      }
+      setActiveUploads(createdUploads);
 
       uppy = new Uppy<UploadMeta, UploadBody>({
         autoProceed: false,
@@ -595,7 +609,7 @@ function HomeContent() {
         restrictions: {
           allowedFileTypes: UPPY_ALLOWED_FILE_TYPES,
           maxFileSize,
-          maxNumberOfFiles: 1,
+          maxNumberOfFiles: selectedFiles.length,
         },
       });
 
@@ -638,7 +652,13 @@ function HomeContent() {
             },
             accessToken,
           );
-          setActiveDocument(completed);
+          setActiveUploads((currentUploads) =>
+            currentUploads.map((upload) =>
+              upload.document.id === completed.id
+                ? { ...upload, document: completed }
+                : upload,
+            ),
+          );
           return { location: completed.shareUrl ?? undefined };
         },
         abortMultipartUpload: async (file, { uploadId }) => {
@@ -651,28 +671,89 @@ function HomeContent() {
         },
       });
 
-      uppy.on("upload-progress", (_file, progress) => {
-        if (!progress.bytesTotal) return;
+      uppy.on("progress", (progress) => {
         setUploadState("uploading");
-        setUploadProgress(
-          Math.min(100, Math.round((progress.bytesUploaded / progress.bytesTotal) * 100)),
-        );
+        setUploadProgress(progress);
       });
-      uppy.addFile({
-        name: selectedFile.name,
-        type: uploadMimeType,
-        data: selectedFile,
-        meta: { documentId: document.id },
+      selectedFiles.forEach((file, index) => {
+        const document = createdUploads[index].document;
+        uppy?.addFile({
+          name: file.name,
+          type: document.mimeType,
+          data: file,
+          meta: { documentId: document.id },
+        });
       });
 
       const result = await uppy.upload();
-      if (result?.failed?.length) {
-        throw result.failed[0].error ?? new Error("Upload failed.");
+      uploadFinished = true;
+      const successfulDocumentIds = new Set(
+        result?.successful?.map((file) => file.meta.documentId) ?? [],
+      );
+      const failedUploads = createdUploads.filter(
+        (upload) => !successfulDocumentIds.has(upload.document.id),
+      );
+      if (failedUploads.length) {
+        await Promise.allSettled(
+          failedUploads.map((upload) =>
+            api<void>(
+              `/documents/${upload.document.id}`,
+              { method: "DELETE" },
+              upload.accessToken,
+            ),
+          ),
+        );
+      }
+      const successfulUploads = createdUploads.filter((upload) =>
+        successfulDocumentIds.has(upload.document.id),
+      );
+      if (!successfulUploads.length) {
+        throw result?.failed?.[0]?.error ?? new Error("Upload failed.");
       }
       setUploadProgress(100);
       setUploadState("processing");
-      await pollUntilProcessed(document.id, accessToken, currentSession);
+      const processedDocuments = await Promise.all(
+        successfulUploads.map((upload) =>
+          pollUntilProcessed(upload.document.id, upload.accessToken),
+        ),
+      );
+      const processedUploads = processedDocuments.map((document) => ({
+        document,
+        accessToken,
+      }));
+      setActiveUploads(processedUploads);
+      if (currentSession) await loadDocuments(currentSession);
+
+      const approvedUploads = processedUploads.filter(
+        (upload) => upload.document.status === "APPROVED" && upload.document.shareUrl,
+      );
+      if (!approvedUploads.length) {
+        setUploadState("failed");
+        setError("The files were uploaded but could not be approved.");
+        return;
+      }
+      setUploadState("approved");
+      setWorkflowStep(3);
+      if (approvedUploads.length < selectedFiles.length) {
+        setError(
+          `${approvedUploads.length} of ${selectedFiles.length} files were approved. Files that failed verification were not shared.`,
+        );
+      }
+      if (!window.matchMedia("(min-width: 1100px)").matches) {
+        window.setTimeout(() => stepThree.current?.scrollIntoView({ block: "nearest" }), 0);
+      }
     } catch (requestError) {
+      if (!uploadFinished && createdUploads.length) {
+        await Promise.allSettled(
+          createdUploads.map((upload) =>
+            api<void>(
+              `/documents/${upload.document.id}`,
+              { method: "DELETE" },
+              upload.accessToken,
+            ),
+          ),
+        );
+      }
       setUploadState("failed");
       setError((requestError as Error).message);
     } finally {
@@ -691,18 +772,21 @@ function HomeContent() {
         { method: "DELETE" },
         session.accessToken,
       );
-      if (activeDocument?.id === documentId) setActiveDocument(null);
+      setActiveUploads((currentUploads) =>
+        currentUploads.filter((upload) => upload.document.id !== documentId),
+      );
       await loadDocuments(session);
     } catch (requestError) {
       setError((requestError as Error).message);
     }
   }
 
-  async function deleteActiveDocument() {
-    const accessToken = activeDocumentAccessToken;
+  async function deleteActiveDocument(documentId: string) {
+    const activeUpload = activeUploads.find(
+      (upload) => upload.document.id === documentId,
+    );
     if (
-      !accessToken ||
-      !activeDocument ||
+      !activeUpload ||
       !window.confirm("Delete this item and its uploaded file?")
     ) {
       return;
@@ -710,15 +794,19 @@ function HomeContent() {
     setError("");
     try {
       await api<void>(
-        `/documents/${activeDocument.id}`,
+        `/documents/${documentId}`,
         { method: "DELETE" },
-        accessToken,
+        activeUpload.accessToken,
       );
-      setActiveDocument(null);
-      setActiveDocumentAccessToken("");
-      setSelectedFile(null);
-      setUploadState("idle");
-      setWorkflowStep(1);
+      const remainingUploads = activeUploads.filter(
+        (upload) => upload.document.id !== documentId,
+      );
+      setActiveUploads(remainingUploads);
+      if (!remainingUploads.length) {
+        setSelectedFiles([]);
+        setUploadState("idle");
+        setWorkflowStep(1);
+      }
       if (session) await loadDocuments(session);
     } catch (requestError) {
       setError((requestError as Error).message);
@@ -735,11 +823,10 @@ function HomeContent() {
 
   function resetUploadFlow() {
     setMsn("");
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setUploadState("idle");
     setUploadProgress(0);
-    setActiveDocument(null);
-    setActiveDocumentAccessToken("");
+    setActiveUploads([]);
     setAcceptedGuestLegal(false);
     setError("");
     setWorkflowStep(1);
@@ -781,10 +868,9 @@ function HomeContent() {
     setShowDocuments(false);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
-    setUploadState("idle");
+    setUploadState(selectedFiles.length ? "ready" : "idle");
     setWorkflowStep(1);
-    setActiveDocument(null);
-    setActiveDocumentAccessToken("");
+    setActiveUploads([]);
   }
 
   const selectedCategory = categories.find((category) => category.id === categoryId);
@@ -792,6 +878,10 @@ function HomeContent() {
     categoryId && (isJustDocument(selectedCategory) || msn.trim()),
   );
   const uploadBusy = ["preparing", "uploading", "processing"].includes(uploadState);
+  const selectedFilesSize = selectedFiles.reduce((total, file) => total + file.size, 0);
+  const approvedUploads = activeUploads.filter(
+    (upload) => upload.document.status === "APPROVED" && upload.document.shareUrl,
+  );
   const documentFolders = groupDocumentsIntoFolders(documents);
   const openFolder = documentFolders.find((folder) => folder.key === openFolderKey);
   const userDisplayName =
@@ -1272,14 +1362,21 @@ function HomeContent() {
               </section>
             )}
 
-            {workflowStep > 2 && selectedFile && (
+            {workflowStep > 2 && selectedFiles.length > 0 && (
               <article className="step-summary" aria-label="File upload completed">
                 <span className="step-summary-number" aria-hidden="true">✓</span>
                 <div>
                   <small>Step 02 complete</small>
-                  <strong>{selectedFile.name} · {formatBytes(selectedFile.size)}</strong>
+                  <strong>
+                    {selectedFiles.length} {selectedFiles.length === 1 ? "file" : "files"} ·{" "}
+                    {formatBytes(selectedFilesSize)}
+                  </strong>
                 </div>
-                <span className="summary-status">Approved</span>
+                <span className="summary-status">
+                  {approvedUploads.length === selectedFiles.length
+                    ? "Approved"
+                    : `${approvedUploads.length}/${selectedFiles.length} approved`}
+                </span>
               </article>
             )}
 
@@ -1296,7 +1393,7 @@ function HomeContent() {
                     <h2>File upload</h2>
                     <p>
                       PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · maximum{" "}
-                      {session ? "3 GB" : "100 MB as guest"} · one file per upload.
+                      {session ? "3 GB" : "100 MB as guest"} per file · multiple files allowed.
                     </p>
                   </div>
                 </div>
@@ -1305,13 +1402,14 @@ function HomeContent() {
                   ref={fileInput}
                   className="visually-hidden"
                   type="file"
+                  multiple
                   accept={SUPPORTED_UPLOAD_ACCEPT}
                   onChange={chooseFile}
                 />
 
                 <div className="upload-drop-area">
                   <button
-                    className={`app-drop-zone ${selectedFile ? "file-selected" : ""}`}
+                    className={`app-drop-zone ${selectedFiles.length ? "file-selected" : ""}`}
                     disabled={uploadBusy}
                     onClick={() => fileInput.current?.click()}
                     onDragOver={(event) => event.preventDefault()}
@@ -1324,9 +1422,9 @@ function HomeContent() {
                       </svg>
                     </span>
                     <span>
-                      <strong>Choose a file or drag &amp; drop it here</strong>
+                      <strong>Choose files or drag &amp; drop them here</strong>
                       <small>
-                        {session ? "Maximum 3 GB file size" : "Maximum 100 MB file size"}
+                        {session ? "Maximum 3 GB per file" : "Maximum 100 MB per file"}
                       </small>
                     </span>
                   </button>
@@ -1337,32 +1435,38 @@ function HomeContent() {
                   </div>
                 </div>
 
-                {selectedFile && (
-                  <div className="selected-upload-row">
-                    <span className="selected-check" aria-hidden="true">✓</span>
-                    <span className="selected-file-icon" aria-hidden="true" />
-                    <div>
-                      <strong>{selectedFile.name}</strong>
-                      <small>{formatBytes(selectedFile.size)}</small>
-                    </div>
-                    {!uploadBusy && (
-                      <button
-                        type="button"
-                        className="remove-upload"
-                        onClick={removeSelectedFile}
-                        aria-label={`Remove ${selectedFile.name}`}
+                {selectedFiles.length > 0 && (
+                  <div className="selected-upload-list" aria-label="Selected files">
+                    {selectedFiles.map((file, index) => (
+                      <div
+                        className="selected-upload-row"
+                        key={`${file.name}:${file.size}:${file.lastModified}`}
                       >
-                        <i aria-hidden="true" />
-                      </button>
-                    )}
+                        <span className="selected-check" aria-hidden="true">✓</span>
+                        <span className="selected-file-icon" aria-hidden="true" />
+                        <div>
+                          <strong>{file.name}</strong>
+                          <small>{formatBytes(file.size)}</small>
+                        </div>
+                        {!uploadBusy && (
+                          <button
+                            type="button"
+                            className="remove-upload"
+                            onClick={() => removeSelectedFile(index)}
+                            aria-label={`Remove ${file.name}`}
+                          >
+                            <i aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
 
-                {!session && selectedFile && !uploadBusy && (
+                {!session && selectedFiles.length > 0 && !uploadBusy && (
                   <div className="guest-upload-options">
                     <p>
-                      Upload as a guest. This temporary access is limited to this
-                      document; My Documents requires sign-in.
+                      Upload these files as a guest. My Documents requires sign-in.
                     </p>
                     <label className="legal-check">
                       <input
@@ -1371,8 +1475,15 @@ function HomeContent() {
                         onChange={(event) => setAcceptedGuestLegal(event.target.checked)}
                       />
                       <span>
-                        I accept the <Link href="/terms">Terms</Link> and{" "}
-                        <Link href="/privacy">Privacy Policy</Link>.
+                        I accept the{" "}
+                        <Link href="/terms" target="_blank" rel="noopener noreferrer">
+                          Terms
+                        </Link>{" "}
+                        and{" "}
+                        <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+                          Privacy Policy
+                        </Link>
+                        .
                       </span>
                     </label>
                     <button
@@ -1392,13 +1503,14 @@ function HomeContent() {
                     <div>
                       <strong>
                         {uploadState === "preparing" && "Preparing secure upload"}
-                        {uploadState === "uploading" && `Uploading · ${uploadProgress}%`}
-                        {uploadState === "processing" && "Verifying document"}
+                        {uploadState === "uploading" &&
+                          `Uploading ${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"} · ${uploadProgress}%`}
+                        {uploadState === "processing" && "Verifying files"}
                       </strong>
                       <span>
                         {uploadState === "processing"
-                          ? "The uploaded file is being processed."
-                          : "The file is sent directly to private object storage."}
+                          ? "The uploaded files are being processed."
+                          : "Files are sent directly to private object storage."}
                       </span>
                     </div>
                     <div className="progress-track">
@@ -1414,7 +1526,7 @@ function HomeContent() {
                   </div>
                 )}
 
-                {selectedFile && !uploadBusy && (
+                {selectedFiles.length > 0 && !uploadBusy && (
                   <button
                     className="button button-primary upload-button"
                     disabled={
@@ -1423,14 +1535,16 @@ function HomeContent() {
                     onClick={() => void startUpload()}
                   >
                     {documentDetailsReady
-                      ? "Upload securely"
+                      ? selectedFiles.length === 1
+                        ? "Upload securely"
+                        : `Upload ${selectedFiles.length} files securely`
                       : "Complete document details to upload"}
                   </button>
                 )}
               </section>
             )}
 
-            {workflowStep === 3 && activeDocument?.shareUrl && (
+            {workflowStep === 3 && approvedUploads.length > 0 && (
               <section
                 className="share-result wizard-share-result"
                 aria-live="polite"
@@ -1439,25 +1553,38 @@ function HomeContent() {
                 <div className="success-mark" aria-hidden="true">✓</div>
                 <div>
                   <p className="eyebrow">Step 03 · Approved</p>
-                  <h2>Your secure link is ready</h2>
-                  <p>The recipient can use this link to access the approved file.</p>
+                  <h2>
+                    {approvedUploads.length === 1
+                      ? "Your secure link is ready"
+                      : "Your secure links are ready"}
+                  </h2>
+                  <p>Recipients can use these links to access the approved files.</p>
                 </div>
                 <div className="share-result-actions">
-                  <code>{activeDocument.shareUrl}</code>
-                  <button
-                    className="button button-success"
-                    onClick={() => void copyShareLink(activeDocument.shareUrl!)}
-                  >
-                    Copy link
-                  </button>
+                  <div className="share-link-list">
+                    {approvedUploads.map(({ document }) => (
+                      <div className="share-link-item" key={document.id}>
+                        <strong>{document.filename}</strong>
+                        <code>{document.shareUrl}</code>
+                        <div className="share-link-buttons">
+                          <button
+                            className="button button-success"
+                            onClick={() => void copyShareLink(document.shareUrl!)}
+                          >
+                            Copy link
+                          </button>
+                          <button
+                            className="button button-secondary"
+                            onClick={() => void deleteActiveDocument(document.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   <button className="button button-secondary" onClick={resetUploadFlow}>
-                    Upload another document
-                  </button>
-                  <button
-                    className="button button-secondary"
-                    onClick={() => void deleteActiveDocument()}
-                  >
-                    Delete document
+                    Upload more files
                   </button>
                 </div>
               </section>

@@ -65,12 +65,6 @@ class DocumentService(
                 "This upload is limited to $limitMb MB.",
             )
         }
-        if (owner is AuthenticatedGuest && documents.existsByGuestSessionId(owner.id)) {
-            throw ApiProblem(
-                HttpStatus.CONFLICT,
-                "This guest session has already been used for a document.",
-            )
-        }
         val category = categories.findByIdAndActiveTrue(request.categoryId)
             ?: throw ApiProblem(HttpStatus.BAD_REQUEST, "The selected category is unavailable.")
         val now = clock.instant()
