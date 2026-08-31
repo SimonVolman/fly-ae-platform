@@ -2,6 +2,7 @@
 
 import AwsS3, { type AwsS3Part } from "@uppy/aws-s3";
 import Uppy from "@uppy/core";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ChangeEvent,
@@ -59,6 +60,22 @@ const IDENTIFIER_FIELDS: Record<string, IdentifierField> = {
       "Types: NLG | LH_MLG | RH_MLG | SHIPSET. Examples: NLG — N12345; LH MLG — L-45678; RH MLG — R-45679; NLG — 2Y-2386; Complete Shipset — MSN 34567",
   },
 };
+
+const CATEGORY_CARD_IMAGES: Record<string, string> = {
+  AIRCRAFT: "/category-aircraft.svg",
+  APU: "/category-apu.svg",
+  ENGINE: "/category-engine.svg",
+  LANDING_GEAR: "/category-landing-gear.svg",
+  JUST_DOCUMENT: "/category-just-document.svg",
+};
+
+const CATEGORY_CARD_CATALOG = [
+  { code: "AIRCRAFT", name: "Aircraft" },
+  { code: "APU", name: "APU" },
+  { code: "ENGINE", name: "Engine" },
+  { code: "LANDING_GEAR", name: "Landing Gear" },
+  { code: "JUST_DOCUMENT", name: "Just Document" },
+] as const;
 
 type DocumentStatus =
   | "CREATED"
@@ -1014,14 +1031,67 @@ function HomeContent() {
         </section>
       ) : (
         <section className="upload-workspace" aria-labelledby="upload-title">
-          <div className="workspace-intro">
-            <p className="eyebrow">Secure document transfer</p>
-            <h1 id="upload-title">Upload an aviation document</h1>
-            <p>
-              Upload a text PDF up to 3 GB. First upload up to 100 MB—no email
-              required.
-            </p>
-          </div>
+          <aside className="desktop-category-sidebar" aria-label="Document details">
+            <h2>Document details</h2>
+            <div className="desktop-category-list">
+              {CATEGORY_CARD_CATALOG.map((card) => {
+                const category = categories.find((item) => item.code === card.code);
+                const isSelected = category
+                  ? category.id === categoryId
+                  : card.code === "AIRCRAFT" && !categoryId;
+                const imageSource =
+                  card.code === "AIRCRAFT" && isSelected
+                    ? "/category-aircraft-selected.svg"
+                    : CATEGORY_CARD_IMAGES[card.code];
+
+                if (!imageSource) return null;
+
+                return (
+                  <button
+                    key={card.code}
+                    type="button"
+                    className={`desktop-category-card ${
+                      isSelected ? "is-selected" : ""
+                    } ${card.code === "AIRCRAFT" ? "is-aircraft" : ""}`}
+                    aria-pressed={isSelected}
+                    aria-label={card.name}
+                    disabled={!category}
+                    onClick={() => {
+                      if (!category) return;
+                      setCategoryId(category.id);
+                      if (isJustDocument(category)) setMsn("");
+                    }}
+                  >
+                    <Image
+                      src={imageSource}
+                      alt=""
+                      width={216}
+                      height={78}
+                      aria-hidden="true"
+                      priority={card.code === "AIRCRAFT"}
+                    />
+                    {isSelected && card.code !== "AIRCRAFT" && (
+                      <span className="desktop-category-check" aria-hidden="true">✓</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <nav className="desktop-category-legal" aria-label="Legal">
+              <Link href="/privacy">Privacy Policy</Link>
+              <Link href="/terms">Terms and Conditions</Link>
+            </nav>
+          </aside>
+
+          <div className="workspace-main">
+            <div className="workspace-intro">
+              <p className="eyebrow">Secure document transfer</p>
+              <h1 id="upload-title">Upload an aviation document</h1>
+              <p>
+                Upload a text PDF up to 3 GB. First upload up to 100 MB—no email
+                required.
+              </p>
+            </div>
 
           <ol className="progress-steps" aria-label="Upload steps">
             <li
@@ -1177,30 +1247,32 @@ function HomeContent() {
                   onChange={chooseFile}
                 />
 
-                <button
-                  className={`app-drop-zone ${selectedFile ? "file-selected" : ""}`}
-                  disabled={uploadBusy}
-                  onClick={() => fileInput.current?.click()}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={dropFile}
-                >
-                  <span className="upload-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M7 3.5h7l3 3v14H7z" />
-                      <path d="M14 3.5v3h3M12 16v-6m-3 3 3-3 3 3" />
-                    </svg>
-                  </span>
-                  <span>
-                    <strong>Choose a PDF or drag &amp; drop it here</strong>
-                    <small>
-                      {session ? "Maximum 3 GB file size" : "Maximum 100 MB file size"}
-                    </small>
-                  </span>
-                </button>
+                <div className="upload-drop-area">
+                  <button
+                    className={`app-drop-zone ${selectedFile ? "file-selected" : ""}`}
+                    disabled={uploadBusy}
+                    onClick={() => fileInput.current?.click()}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={dropFile}
+                  >
+                    <span className="upload-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M7 3.5h7l3 3v14H7z" />
+                        <path d="M14 3.5v3h3M12 16v-6m-3 3 3-3 3 3" />
+                      </svg>
+                    </span>
+                    <span>
+                      <strong>Choose a PDF or drag &amp; drop it here</strong>
+                      <small>
+                        {session ? "Maximum 3 GB file size" : "Maximum 100 MB file size"}
+                      </small>
+                    </span>
+                  </button>
 
-                <div className="aviation-notice">
-                  Please upload only materials related to aviation components.
-                  Every document is subject to verification.
+                  <div className="aviation-notice">
+                    Please upload only materials related to aviation components.
+                    Every document is subject to verification.
+                  </div>
                 </div>
 
                 {selectedFile && (
@@ -1336,6 +1408,7 @@ function HomeContent() {
               <span>{error}</span>
             </div>
           )}
+          </div>
         </section>
       )}
 
