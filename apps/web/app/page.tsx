@@ -362,7 +362,9 @@ function HomeContent() {
   const [categories, setCategories] = useState<Category[]>(() => [
     ...CATEGORY_CARD_CATALOG,
   ]);
-  const [categoryId, setCategoryId] = useState(CATEGORY_CARD_CATALOG[0].id);
+  const [categoryId, setCategoryId] = useState<string>(
+    CATEGORY_CARD_CATALOG[0].id,
+  );
   const [msn, setMsn] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [documents, setDocuments] = useState<FlyDocument[]>([]);
