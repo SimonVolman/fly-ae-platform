@@ -153,6 +153,23 @@ class DynamoRepositoryIntegrationTest {
             guestDocument.id,
             documents.findByIdAndGuestSessionIdAndDeletedAtIsNull(guestDocument.id, guest.id)?.id,
         )
+        val secondGuestDocument = documents.save(
+            Document(
+                guestSession = guest,
+                category = category,
+                msn = "98765",
+                originalFilename = "inspection.mp4",
+                objectKey = "guests/${guest.id}/inspection.mp4",
+                mimeType = "video/mp4",
+                sizeBytes = 42,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        assertEquals(
+            secondGuestDocument.id,
+            documents.findByIdAndGuestSessionIdAndDeletedAtIsNull(secondGuestDocument.id, guest.id)?.id,
+        )
 
         val otp = otpCodes.save(
             OtpCode(

@@ -51,7 +51,6 @@ The V0 table uses `pk` and `sk`, plus the `gsi1` index for documents by owner.
 | Telegram-user lookup | `TELEGRAM_USER#{telegramUserId}` | `USER` |
 | Terms acceptance | `USER#{id}` | `TERMS#{type}#{version}` |
 | Guest session | `GUEST#{id}` | `SESSION` |
-| One-document guest lock | `GUEST#{id}` | `DOCUMENT_LOCK` |
 | Category list item | `CATEGORY` | `ORDER#{order}#{id}` |
 | Category lookup | `CATEGORY_ID#{id}` | `PROFILE` |
 | Document | `DOCUMENT#{id}` | `METADATA` |
@@ -67,8 +66,8 @@ application still checks `expiresAt` because DynamoDB TTL deletion is
 asynchronous.
 
 Conditional transactional writes preserve V0 invariants that PostgreSQL
-enforces with unique constraints: unique email or Telegram user ID, a single
-guest document and a single share token per document.
+enforces with unique constraints: unique email or Telegram user ID and a
+single share token per document. Guest sessions may own multiple documents.
 
 ## Infrastructure
 

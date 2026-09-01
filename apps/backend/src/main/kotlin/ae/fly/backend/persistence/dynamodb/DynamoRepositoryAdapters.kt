@@ -258,40 +258,14 @@ class DynamoDocumentRepository(
     }
 
     override fun existsByGuestSessionId(guestSessionId: UUID): Boolean =
-        client.get(table, "GUEST#$guestSessionId", "DOCUMENT_LOCK") != null
+        client.queryAll(
+            tableName = table,
+            partitionValue = "OWNER#GUEST#$guestSessionId",
+            indexName = DYNAMO_GSI1,
+        ).isNotEmpty()
 
     override fun save(document: Document): Document {
-        val item = document.toDynamoItem()
-        val existing = findById(document.id)
-        val guestId = document.guestSession?.id
-        if (existing == null && guestId != null) {
-            val lock = mapOf(
-                DYNAMO_PK to text("GUEST#$guestId"),
-                DYNAMO_SK to text("DOCUMENT_LOCK"),
-                "type" to text("GUEST_DOCUMENT_LOCK"),
-                "documentId" to text(document.id.toString()),
-            )
-            client.transactWriteItems(
-                TransactWriteItemsRequest.builder()
-                    .transactItems(
-                        transactPut(
-                            table,
-                            item,
-                            "attribute_not_exists(#pk)",
-                            mapOf("#pk" to DYNAMO_PK),
-                        ),
-                        transactPut(
-                            table,
-                            lock,
-                            "attribute_not_exists(#pk)",
-                            mapOf("#pk" to DYNAMO_PK),
-                        ),
-                    )
-                    .build(),
-            )
-        } else {
-            client.put(table, item)
-        }
+        client.put(table, document.toDynamoItem())
         return document
     }
 
