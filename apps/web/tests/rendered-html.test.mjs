@@ -62,6 +62,20 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /Upload an aviation file/);
   assert.match(html, /Document details/);
   assert.match(html, /<select[^>]*aria-label="Category"/);
+  assert.doesNotMatch(html, /Loading categories/);
+  assert.doesNotMatch(
+    html,
+    /class="desktop-category-card[^"]*"[^>]*disabled/,
+  );
+  for (const category of [
+    "Aircraft",
+    "APU",
+    "Engine",
+    "Landing Gear",
+    "Just Document",
+  ]) {
+    assert.match(html, new RegExp(`<option[^>]*>${category}</option>`));
+  }
   assert.match(html, /Continue to file upload/);
   assert.match(html, /<h2>File upload<\/h2>/);
   assert.match(html, /PDF, image, video, or archive/);

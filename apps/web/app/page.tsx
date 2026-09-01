@@ -70,12 +70,32 @@ const CATEGORY_CARD_IMAGES: Record<string, string> = {
 };
 
 const CATEGORY_CARD_CATALOG = [
-  { code: "AIRCRAFT", name: "Aircraft" },
-  { code: "APU", name: "APU" },
-  { code: "ENGINE", name: "Engine" },
-  { code: "LANDING_GEAR", name: "Landing Gear" },
-  { code: "JUST_DOCUMENT", name: "Just Document" },
-] as const;
+  {
+    id: "7b42604e-d3f8-4bb5-9480-36c451c8f141",
+    code: "AIRCRAFT",
+    name: "Aircraft",
+  },
+  {
+    id: "d78f3618-37b6-4959-9346-3e34ef42f4d2",
+    code: "APU",
+    name: "APU",
+  },
+  {
+    id: "e7870801-60b0-47fb-baf2-86ce800ecb1f",
+    code: "ENGINE",
+    name: "Engine",
+  },
+  {
+    id: "d5a0ada0-3c80-4ea0-8188-73c5d55a6d26",
+    code: "LANDING_GEAR",
+    name: "Landing Gear",
+  },
+  {
+    id: "420c86a3-3ec4-4ea2-96f7-53f8a42ef679",
+    code: "JUST_DOCUMENT",
+    name: "Just Document",
+  },
+] as const satisfies readonly Category[];
 
 const SUPPORTED_UPLOAD_TYPES: Record<string, readonly string[]> = {
   "application/pdf": ["pdf"],
@@ -339,8 +359,10 @@ function groupFoldersIntoCategories(folders: DocumentFolder[]) {
 }
 
 function HomeContent() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState<Category[]>(() => [
+    ...CATEGORY_CARD_CATALOG,
+  ]);
+  const [categoryId, setCategoryId] = useState(CATEGORY_CARD_CATALOG[0].id);
   const [msn, setMsn] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [documents, setDocuments] = useState<FlyDocument[]>([]);
@@ -393,7 +415,11 @@ function HomeContent() {
     void api<Category[]>("/categories")
       .then((result) => {
         setCategories(result);
-        setCategoryId((current) => current || result[0]?.id || "");
+        setCategoryId((current) =>
+          result.some((category) => category.id === current)
+            ? current
+            : result[0]?.id || "",
+        );
       })
       .catch((requestError: Error) => setError(requestError.message));
 
