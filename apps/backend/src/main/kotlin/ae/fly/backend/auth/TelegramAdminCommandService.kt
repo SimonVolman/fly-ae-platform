@@ -48,7 +48,7 @@ class TelegramAdminCommandService(
             chatId,
             "🔐 fly.ae admin\n\n" +
                 "/activity [1-5] — последние загруженные файлы\n" +
-                "/users [1-5] — последние пользователи\n" +
+                "/users [1-10] — последние пользователи (по умолчанию 10)\n" +
                 "/files <email|user UUID|Telegram ID> [1-5] — файлы пользователя\n" +
                 "/file <document UUID> — информация и ссылка на один файл\n\n" +
                 "Ссылки приватные и действуют ${storageProperties.downloadSignatureTtl.toMinutes()} минут.",
@@ -66,7 +66,13 @@ class TelegramAdminCommandService(
     }
 
     private fun sendRecentUsers(chatId: Long, argument: String) {
-        val limit = parseLimit(chatId, argument, "/users") ?: return
+        val limit = parseLimit(
+            chatId = chatId,
+            argument = argument,
+            usage = "/users",
+            defaultLimit = DEFAULT_USERS_LIMIT,
+            maxLimit = MAX_USERS_LIMIT,
+        ) ?: return
         val recent = users.findRecent(limit)
         if (recent.isEmpty()) {
             botClient.sendAdminMessage(chatId, "Пользователи пока не найдены.")
@@ -175,11 +181,17 @@ class TelegramAdminCommandService(
             ?: user.telegramUserId?.let { "Telegram user $it" }
             ?: "User"
 
-    private fun parseLimit(chatId: Long, argument: String, usage: String): Int? {
-        if (argument.isBlank()) return DEFAULT_LIMIT
-        val limit = argument.toIntOrNull()?.takeIf { it in 1..MAX_LIMIT }
+    private fun parseLimit(
+        chatId: Long,
+        argument: String,
+        usage: String,
+        defaultLimit: Int = DEFAULT_LIMIT,
+        maxLimit: Int = MAX_LIMIT,
+    ): Int? {
+        if (argument.isBlank()) return defaultLimit
+        val limit = argument.toIntOrNull()?.takeIf { it in 1..maxLimit }
         if (limit == null) {
-            botClient.sendAdminMessage(chatId, "Использование: $usage [1-5]")
+            botClient.sendAdminMessage(chatId, "Использование: $usage [1-$maxLimit]")
         }
         return limit
     }
@@ -204,6 +216,8 @@ class TelegramAdminCommandService(
     companion object {
         private const val DEFAULT_LIMIT = 5
         private const val MAX_LIMIT = 5
+        private const val DEFAULT_USERS_LIMIT = 10
+        private const val MAX_USERS_LIMIT = 10
         private const val MAX_SCAN_RESULTS = 100
         private val ADMIN_COMMANDS = setOf("admin", "activity", "recent", "users", "files", "file")
         private val DOWNLOADABLE_STATUSES = setOf(

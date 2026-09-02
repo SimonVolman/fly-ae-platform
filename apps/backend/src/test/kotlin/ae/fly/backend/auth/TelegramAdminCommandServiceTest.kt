@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import java.net.URI
 import java.time.Duration
@@ -90,6 +91,31 @@ class TelegramAdminCommandServiceTest {
         assertTrue(requireNotNull(bot.text).startsWith("Файлы pilot@example.com"))
         assertEquals(document.id.toString(), requireNotNull(bot.text).substringAfter("Document ID: "))
         assertEquals(1, bot.buttons.size)
+    }
+
+    @Test
+    fun `returns ten recent users by default`() {
+        val recentUsers = (1..10).map { index ->
+            User(
+                id = UUID.randomUUID(),
+                email = "pilot$index@example.com",
+                createdAt = user.createdAt,
+                updatedAt = user.updatedAt,
+            )
+        }
+        `when`(users.findRecent(10)).thenReturn(recentUsers)
+
+        service.handle(adminMessage("/users"))
+
+        verify(users).findRecent(10)
+        assertTrue(requireNotNull(bot.text).contains("10. pilot10@example.com"))
+    }
+
+    @Test
+    fun `reports the users limit range`() {
+        service.handle(adminMessage("/users 11"))
+
+        assertEquals("Использование: /users [1-10]", bot.text)
     }
 
     @Test
