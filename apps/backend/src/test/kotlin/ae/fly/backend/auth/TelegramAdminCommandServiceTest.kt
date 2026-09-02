@@ -66,7 +66,7 @@ class TelegramAdminCommandServiceTest {
 
     @Test
     fun `returns recent file details and a private download button to the admin`() {
-        `when`(documents.findRecent(100)).thenReturn(listOf(document))
+        `when`(documents.findRecent(10)).thenReturn(listOf(document))
         `when`(users.findById(user.id)).thenReturn(user)
 
         val handled = service.handle(adminMessage("/activity"))
@@ -112,10 +112,52 @@ class TelegramAdminCommandServiceTest {
     }
 
     @Test
-    fun `reports the users limit range`() {
-        service.handle(adminMessage("/users 11"))
+    fun `accepts a users limit above ten and splits the response`() {
+        val recentUsers = sampleUsers(12)
+        `when`(users.findRecent(12)).thenReturn(recentUsers)
 
-        assertEquals("Использование: /users [1-10]", bot.text)
+        service.handle(adminMessage("/users 12"))
+
+        verify(users).findRecent(12)
+        assertEquals(2, bot.messages.size)
+        assertTrue(bot.messages.first().text.startsWith("Последние пользователи (1–10 из 12)"))
+        assertTrue(bot.messages.last().text.contains("12. pilot12@example.com"))
+    }
+
+    @Test
+    fun `accepts an activity limit above ten and splits file buttons`() {
+        val recentDocuments = sampleDocuments(12)
+        `when`(documents.findRecent(12)).thenReturn(recentDocuments)
+        `when`(users.findById(user.id)).thenReturn(user)
+
+        service.handle(adminMessage("/activity 12"))
+
+        verify(documents).findRecent(12)
+        assertEquals(listOf(5, 5, 2), bot.messages.map { it.buttons.size })
+        assertTrue(bot.messages.last().text.contains("12. engine-report-12.pdf"))
+        assertEquals(12, storage.signedDownloads)
+    }
+
+    @Test
+    fun `accepts a files limit above ten`() {
+        `when`(users.findByEmail("pilot@example.com")).thenReturn(user)
+        `when`(documents.findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(user.id))
+            .thenReturn(sampleDocuments(12))
+
+        service.handle(adminMessage("/files pilot@example.com 12"))
+
+        assertEquals(listOf(5, 5, 2), bot.messages.map { it.buttons.size })
+        assertTrue(bot.messages.last().text.contains("12. engine-report-12.pdf"))
+    }
+
+    @Test
+    fun `rejects a non-positive limit`() {
+        service.handle(adminMessage("/users 0"))
+
+        assertEquals(
+            "Использование: /users [N], N — положительное целое число",
+            bot.text,
+        )
     }
 
     @Test
@@ -144,10 +186,42 @@ class TelegramAdminCommandServiceTest {
         from = TelegramUser(id = adminChatId),
     )
 
+    private fun sampleUsers(count: Int): List<User> = (1..count).map { index ->
+        User(
+            id = UUID.randomUUID(),
+            email = "pilot$index@example.com",
+            createdAt = user.createdAt,
+            updatedAt = user.updatedAt,
+        )
+    }
+
+    private fun sampleDocuments(count: Int): List<Document> = (1..count).map { index ->
+        Document(
+            id = UUID.randomUUID(),
+            user = user,
+            category = document.category,
+            msn = document.msn,
+            originalFilename = "engine-report-$index.pdf",
+            objectKey = "users/${user.id}/documents/report/engine-report-$index.pdf",
+            mimeType = document.mimeType,
+            sizeBytes = document.sizeBytes,
+            status = document.status,
+            createdAt = document.createdAt,
+            updatedAt = document.updatedAt,
+        )
+    }
+
     private class CapturingTelegramBotClient : TelegramBotClient {
+        data class Message(
+            val chatId: Long,
+            val text: String,
+            val buttons: List<TelegramUrlButton>,
+        )
+
         var chatId: Long? = null
         var text: String? = null
         var buttons: List<TelegramUrlButton> = emptyList()
+        val messages = mutableListOf<Message>()
 
         override fun sendOtp(chatId: Long, code: String, ttl: Duration) = Unit
 
@@ -168,6 +242,7 @@ class TelegramAdminCommandServiceTest {
             this.chatId = chatId
             this.text = text
             this.buttons = buttons
+            messages += Message(chatId, text, buttons)
         }
     }
 

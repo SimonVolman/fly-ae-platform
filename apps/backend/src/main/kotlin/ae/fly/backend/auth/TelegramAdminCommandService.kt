@@ -47,17 +47,18 @@ class TelegramAdminCommandService(
         botClient.sendAdminMessage(
             chatId,
             "🔐 fly.ae admin\n\n" +
-                "/activity [1-5] — последние загруженные файлы\n" +
-                "/users [1-10] — последние пользователи (по умолчанию 10)\n" +
-                "/files <email|user UUID|Telegram ID> [1-5] — файлы пользователя\n" +
+                "/activity [N] — последние загруженные файлы\n" +
+                "/users [N] — последние пользователи\n" +
+                "/files <email|user UUID|Telegram ID> [N] — файлы пользователя\n" +
                 "/file <document UUID> — информация и ссылка на один файл\n\n" +
+                "N — любое положительное число, по умолчанию $DEFAULT_LIMIT.\n" +
                 "Ссылки приватные и действуют ${storageProperties.downloadSignatureTtl.toMinutes()} минут.",
         )
     }
 
     private fun sendRecentActivity(chatId: Long, argument: String) {
         val limit = parseLimit(chatId, argument, "/activity") ?: return
-        val recent = documents.findRecent(MAX_SCAN_RESULTS)
+        val recent = documents.findRecent(limit)
             .asSequence()
             .filter(::isDownloadable)
             .take(limit)
@@ -66,28 +67,24 @@ class TelegramAdminCommandService(
     }
 
     private fun sendRecentUsers(chatId: Long, argument: String) {
-        val limit = parseLimit(
-            chatId = chatId,
-            argument = argument,
-            usage = "/users",
-            defaultLimit = DEFAULT_USERS_LIMIT,
-            maxLimit = MAX_USERS_LIMIT,
-        ) ?: return
+        val limit = parseLimit(chatId, argument, "/users") ?: return
         val recent = users.findRecent(limit)
         if (recent.isEmpty()) {
             botClient.sendAdminMessage(chatId, "Пользователи пока не найдены.")
             return
         }
-        val text = buildString {
-            append("Последние пользователи\n\n")
-            recent.forEachIndexed { index, user ->
-                append(index + 1).append(". ").append(userIdentity(user)).append('\n')
-                append("ID: ").append(user.id).append('\n')
-                append("Создан: ").append(user.createdAt).append('\n')
-                append("Обновлён: ").append(user.updatedAt).append("\n\n")
+        recent.withIndex().toList().chunked(USERS_PER_MESSAGE).forEach { chunk ->
+            val text = buildString {
+                append(batchTitle("Последние пользователи", chunk, recent.size)).append("\n\n")
+                chunk.forEach { (index, user) ->
+                    append(index + 1).append(". ").append(userIdentity(user)).append('\n')
+                    append("ID: ").append(user.id).append('\n')
+                    append("Создан: ").append(user.createdAt).append('\n')
+                    append("Обновлён: ").append(user.updatedAt).append("\n\n")
+                }
             }
-        }.trimEnd()
-        botClient.sendAdminMessage(chatId, text)
+            botClient.sendAdminMessage(chatId, text.trimEnd())
+        }
     }
 
     private fun sendUserFiles(chatId: Long, argument: String) {
@@ -95,7 +92,7 @@ class TelegramAdminCommandService(
         if (parts.isEmpty()) {
             botClient.sendAdminMessage(
                 chatId,
-                "Использование: /files <email|user UUID|Telegram ID> [1-5]",
+                "Использование: /files <email|user UUID|Telegram ID> [N]",
             )
             return
         }
@@ -133,30 +130,32 @@ class TelegramAdminCommandService(
             return
         }
 
-        val text = buildString {
-            append(title).append("\n\n")
-            found.forEachIndexed { index, document ->
-                append(index + 1).append(". ").append(singleLine(document.originalFilename, 100)).append('\n')
-                append("Пользователь: ").append(documentOwner(document)).append('\n')
-                append("Категория: ").append(singleLine(document.category.name, 50)).append('\n')
-                append("MSN: ").append(singleLine(document.msn, 50).ifBlank { "—" }).append('\n')
-                append("Тип: ").append(singleLine(document.mimeType, 60)).append('\n')
-                append("Размер: ").append(formatFileSize(document.sizeBytes)).append('\n')
-                append("Статус: ").append(document.status.name).append('\n')
-                append("Создан: ").append(document.createdAt).append('\n')
-                append("Document ID: ").append(document.id).append("\n\n")
+        found.withIndex().toList().chunked(DOCUMENTS_PER_MESSAGE).forEach { chunk ->
+            val text = buildString {
+                append(batchTitle(title, chunk, found.size)).append("\n\n")
+                chunk.forEach { (index, document) ->
+                    append(index + 1).append(". ").append(singleLine(document.originalFilename, 100)).append('\n')
+                    append("Пользователь: ").append(documentOwner(document)).append('\n')
+                    append("Категория: ").append(singleLine(document.category.name, 50)).append('\n')
+                    append("MSN: ").append(singleLine(document.msn, 50).ifBlank { "—" }).append('\n')
+                    append("Тип: ").append(singleLine(document.mimeType, 60)).append('\n')
+                    append("Размер: ").append(formatFileSize(document.sizeBytes)).append('\n')
+                    append("Статус: ").append(document.status.name).append('\n')
+                    append("Создан: ").append(document.createdAt).append('\n')
+                    append("Document ID: ").append(document.id).append("\n\n")
+                }
+            }.trimEnd()
+            val buttons = chunk.map { (index, document) ->
+                TelegramUrlButton(
+                    text = "⬇️ ${index + 1}. ${singleLine(document.originalFilename, 50)}",
+                    url = storage.signDownload(
+                        document.objectKey,
+                        storageProperties.downloadSignatureTtl,
+                    ).toString(),
+                )
             }
-        }.trimEnd()
-        val buttons = found.mapIndexed { index, document ->
-            TelegramUrlButton(
-                text = "⬇️ ${index + 1}. ${singleLine(document.originalFilename, 50)}",
-                url = storage.signDownload(
-                    document.objectKey,
-                    storageProperties.downloadSignatureTtl,
-                ).toString(),
-            )
+            botClient.sendAdminMessage(chatId, text, buttons)
         }
-        botClient.sendAdminMessage(chatId, text, buttons)
     }
 
     private fun findUser(candidate: String): User? {
@@ -181,19 +180,21 @@ class TelegramAdminCommandService(
             ?: user.telegramUserId?.let { "Telegram user $it" }
             ?: "User"
 
-    private fun parseLimit(
-        chatId: Long,
-        argument: String,
-        usage: String,
-        defaultLimit: Int = DEFAULT_LIMIT,
-        maxLimit: Int = MAX_LIMIT,
-    ): Int? {
-        if (argument.isBlank()) return defaultLimit
-        val limit = argument.toIntOrNull()?.takeIf { it in 1..maxLimit }
+    private fun parseLimit(chatId: Long, argument: String, usage: String): Int? {
+        if (argument.isBlank()) return DEFAULT_LIMIT
+        val limit = argument.toIntOrNull()?.takeIf { it > 0 }
         if (limit == null) {
-            botClient.sendAdminMessage(chatId, "Использование: $usage [1-$maxLimit]")
+            botClient.sendAdminMessage(
+                chatId,
+                "Использование: $usage [N], N — положительное целое число",
+            )
         }
         return limit
+    }
+
+    private fun <T> batchTitle(title: String, chunk: List<IndexedValue<T>>, total: Int): String {
+        if (total <= chunk.size) return title
+        return "$title (${chunk.first().index + 1}–${chunk.last().index + 1} из $total)"
     }
 
     private fun isDownloadable(document: Document): Boolean =
@@ -214,11 +215,9 @@ class TelegramAdminCommandService(
     }
 
     companion object {
-        private const val DEFAULT_LIMIT = 5
-        private const val MAX_LIMIT = 5
-        private const val DEFAULT_USERS_LIMIT = 10
-        private const val MAX_USERS_LIMIT = 10
-        private const val MAX_SCAN_RESULTS = 100
+        private const val DEFAULT_LIMIT = 10
+        private const val USERS_PER_MESSAGE = 10
+        private const val DOCUMENTS_PER_MESSAGE = 5
         private val ADMIN_COMMANDS = setOf("admin", "activity", "recent", "users", "files", "file")
         private val DOWNLOADABLE_STATUSES = setOf(
             DocumentStatus.PENDING,
