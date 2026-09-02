@@ -48,6 +48,10 @@ Parameters:
   TelegramWebhookSecretParameter:
     Type: String
     Default: fly-ae/v0-prod/telegram-webhook-secret
+  TelegramUploadNotificationChatId:
+    Type: Number
+    Default: 0
+    MinValue: 0
   DeploymentRevision:
     Type: String
     Default: local
@@ -256,6 +260,7 @@ Resources:
             - TelegramOtpEnabled
             - !Sub "{{resolve:secretsmanager:${TelegramWebhookSecretParameter}:SecretString}}"
             - ""
+          FLY_TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID: !Ref TelegramUploadNotificationChatId
           FLY_DEPLOYMENT_REVISION: !Ref DeploymentRevision
           FLY_SESSION_SECRET: !Sub "{{resolve:secretsmanager:${SessionSecretParameter}:SecretString}}"
           FLY_OTP_PEPPER: !Sub "{{resolve:secretsmanager:${OtpPepperParameter}:SecretString}}"

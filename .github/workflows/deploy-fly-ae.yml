@@ -61,6 +61,7 @@ jobs:
       RELEASE_MODE: ${{ inputs.release_mode || 'maintenance' }}
       ENABLE_CUSTOM_DOMAIN: ${{ inputs.enable_custom_domain && 'true' || 'false' }}
       ENABLE_TELEGRAM_OTP: ${{ inputs.enable_telegram_otp && 'true' || 'false' }}
+      TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID: ${{ vars.TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID || '0' }}
 
     steps:
       - name: Check out source
@@ -147,6 +148,7 @@ jobs:
               TelegramBotUsername="FlyAeOtpBot" \
               TelegramBotTokenParameter="$SECRET_PATH_PREFIX/telegram-bot-token" \
               TelegramWebhookSecretParameter="$SECRET_PATH_PREFIX/telegram-webhook-secret" \
+              TelegramUploadNotificationChatId="$TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID" \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
 

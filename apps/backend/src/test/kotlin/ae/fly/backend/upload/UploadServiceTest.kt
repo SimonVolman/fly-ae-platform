@@ -2,6 +2,7 @@ package ae.fly.backend.upload
 
 import ae.fly.backend.config.StorageProperties
 import ae.fly.backend.auth.AuthenticatedUser
+import ae.fly.backend.auth.FlyPrincipal
 import ae.fly.backend.domain.Category
 import ae.fly.backend.domain.Document
 import ae.fly.backend.domain.DocumentStatus
@@ -40,11 +41,13 @@ class UploadServiceTest {
     private val documents = mock(DocumentRepository::class.java)
     private val storage = FakeObjectStorage()
     private val queue = CapturingQueue()
+    private val notifier = CapturingUploadNotifier()
     private val clock = MutableClock(Instant.parse("2026-07-26T12:00:00Z"))
     private val service = UploadService(
         documents,
         storage,
         queue,
+        notifier,
         StorageProperties(
             endpoint = URI("http://localhost:9000"),
             bucket = "fly-ae-documents",
@@ -77,6 +80,7 @@ class UploadServiceTest {
 
         assertEquals(DocumentStatus.PENDING, result.status)
         assertEquals(documentId, queue.documentId)
+        assertEquals(documentId, notifier.documentId)
         assertTrue(storage.completed)
     }
 
@@ -135,6 +139,7 @@ class UploadServiceTest {
         assertEquals("INVALID_FILE", document.failureReason)
         assertTrue(storage.deleted)
         assertEquals(null, queue.documentId)
+        assertEquals(null, notifier.documentId)
     }
 
     private class CapturingQueue : JobQueue {
@@ -142,6 +147,14 @@ class UploadServiceTest {
 
         override fun enqueue(documentId: UUID) {
             this.documentId = documentId
+        }
+    }
+
+    private class CapturingUploadNotifier : UploadNotifier {
+        var documentId: UUID? = null
+
+        override fun completed(owner: FlyPrincipal, document: Document) {
+            documentId = document.id
         }
     }
 

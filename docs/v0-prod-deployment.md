@@ -239,12 +239,20 @@ FLY_TELEGRAM_ENABLED=true
 FLY_TELEGRAM_BOT_TOKEN=...
 FLY_TELEGRAM_BOT_USERNAME=FlyAeOtpBot
 FLY_TELEGRAM_WEBHOOK_SECRET=...
+FLY_TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID=123456789
 ```
+
+`FLY_TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID` is optional. When it is a positive
+private Telegram chat ID, the bot sends successful upload alerts only to that
+single chat. A value of `0` disables upload alerts. Configure the matching
+`TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID` GitHub environment variable so deploys
+pass it to the SAM stack without committing the recipient ID.
 
 В SAM template канал включается параметром `EnableTelegramOtp=true`. Также
 передаются `TelegramBotUsername`, `TelegramBotTokenParameter` и
 `TelegramWebhookSecretParameter`; два последних значения — имена секретов в
-Secrets Manager, а не сами секреты.
+Secrets Manager, а не сами секреты. Единственный получатель upload-уведомлений
+задаётся параметром `TelegramUploadNotificationChatId`.
 
 Webhook регистрируется на `${ApiBaseUrl}/api/v1/auth/telegram/webhook`, где
 `ApiBaseUrl` — output application stack, с тем же `secret_token`. Bot token и

@@ -6,12 +6,24 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 import java.time.Duration
+import java.time.Instant
+import java.util.Locale
+import java.util.UUID
 
 interface TelegramBotClient {
     fun sendOtp(chatId: Long, code: String, ttl: Duration)
     fun sendInvalidLink(chatId: Long)
     fun sendInstructions(chatId: Long)
+    fun sendUploadNotification(chatId: Long, notification: TelegramUploadNotification)
 }
+
+data class TelegramUploadNotification(
+    val uploader: String,
+    val filename: String,
+    val sizeBytes: Long,
+    val documentId: UUID,
+    val uploadedAt: Instant,
+)
 
 @Component
 class HttpTelegramBotClient(
@@ -43,6 +55,18 @@ class HttpTelegramBotClient(
         )
     }
 
+    override fun sendUploadNotification(chatId: Long, notification: TelegramUploadNotification) {
+        sendMessage(
+            chatId,
+            "📄 Новый файл загружен на fly.ae\n\n" +
+                "Пользователь: ${singleLine(notification.uploader)}\n" +
+                "Файл: ${singleLine(notification.filename)}\n" +
+                "Размер: ${formatFileSize(notification.sizeBytes)}\n" +
+                "Время (UTC): ${notification.uploadedAt}\n" +
+                "Document ID: ${notification.documentId}",
+        )
+    }
+
     private fun sendMessage(chatId: Long, text: String, protectContent: Boolean = false) {
         if (!properties.enabled) throw TelegramDeliveryException()
         val uri = "${properties.apiBaseUrl.trimEnd('/')}/bot${properties.botToken}/sendMessage"
@@ -63,6 +87,18 @@ class HttpTelegramBotClient(
             // Do not include the request URI in the exception: Telegram embeds the bot token in it.
             throw TelegramDeliveryException()
         }
+    }
+
+    private fun singleLine(value: String): String =
+        value.replace(Regex("[\\r\\n\\t]+"), " ").trim().take(255)
+
+    private fun formatFileSize(bytes: Long): String = when {
+        bytes >= 1024L * 1024L * 1024L ->
+            String.format(Locale.ROOT, "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+        bytes >= 1024L * 1024L ->
+            String.format(Locale.ROOT, "%.2f MB", bytes / (1024.0 * 1024.0))
+        bytes >= 1024L -> String.format(Locale.ROOT, "%.2f KB", bytes / 1024.0)
+        else -> "$bytes B"
     }
 }
 

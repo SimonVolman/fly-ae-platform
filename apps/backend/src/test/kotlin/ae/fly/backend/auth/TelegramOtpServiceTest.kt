@@ -138,5 +138,10 @@ class TelegramOtpServiceTest {
         override fun sendInvalidLink(chatId: Long) = Unit
 
         override fun sendInstructions(chatId: Long) = Unit
+
+        override fun sendUploadNotification(
+            chatId: Long,
+            notification: TelegramUploadNotification,
+        ) = Unit
     }
 }
