@@ -5,6 +5,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest
 import java.time.Instant
 import java.util.UUID
 
@@ -78,6 +79,29 @@ internal fun DynamoDbClient.queryAll(
         cursor?.takeIf(Map<*, *>::isNotEmpty)?.let(builder::exclusiveStartKey)
 
         val response = query(builder.build())
+        results += response.items()
+        cursor = response.lastEvaluatedKey()
+    } while (!cursor.isNullOrEmpty())
+    return results
+}
+
+internal fun DynamoDbClient.scanAll(
+    tableName: String,
+    filterExpression: String,
+    expressionAttributeNames: Map<String, String>,
+    expressionAttributeValues: DynamoItem,
+): List<DynamoItem> {
+    val results = mutableListOf<DynamoItem>()
+    var cursor: DynamoItem? = null
+    do {
+        val builder = ScanRequest.builder()
+            .tableName(tableName)
+            .filterExpression(filterExpression)
+            .expressionAttributeNames(expressionAttributeNames)
+            .expressionAttributeValues(expressionAttributeValues)
+        cursor?.takeIf(Map<*, *>::isNotEmpty)?.let(builder::exclusiveStartKey)
+
+        val response = scan(builder.build())
         results += response.items()
         cursor = response.lastEvaluatedKey()
     } while (!cursor.isNullOrEmpty())

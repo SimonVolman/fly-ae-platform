@@ -94,6 +94,10 @@ class DynamoRepositoryIntegrationTest {
             ),
         )
         assertEquals(telegramUser.id, users.findByTelegramUserId(991)?.id)
+        assertEquals(
+            setOf(user.id, telegramUser.id),
+            users.findRecent(10).map(User::id).toSet(),
+        )
 
         val guest = guests.save(
             GuestSession(
@@ -169,6 +173,10 @@ class DynamoRepositoryIntegrationTest {
         assertEquals(
             secondGuestDocument.id,
             documents.findByIdAndGuestSessionIdAndDeletedAtIsNull(secondGuestDocument.id, guest.id)?.id,
+        )
+        assertEquals(
+            setOf(userDocument.id, guestDocument.id, secondGuestDocument.id),
+            documents.findRecent(10).map(Document::id).toSet(),
         )
 
         val otp = otpCodes.save(

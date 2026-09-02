@@ -48,7 +48,7 @@ Parameters:
   TelegramWebhookSecretParameter:
     Type: String
     Default: fly-ae/v0-prod/telegram-webhook-secret
-  TelegramUploadNotificationChatId:
+  TelegramAdminChatId:
     Type: Number
     Default: 0
     MinValue: 0
@@ -206,6 +206,7 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:PutItem
                   - dynamodb:Query
+                  - dynamodb:Scan
                   - dynamodb:TransactWriteItems
                   - dynamodb:UpdateItem
                 Resource:
@@ -260,7 +261,7 @@ Resources:
             - TelegramOtpEnabled
             - !Sub "{{resolve:secretsmanager:${TelegramWebhookSecretParameter}:SecretString}}"
             - ""
-          FLY_TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID: !Ref TelegramUploadNotificationChatId
+          FLY_TELEGRAM_ADMIN_CHAT_ID: !Ref TelegramAdminChatId
           FLY_DEPLOYMENT_REVISION: !Ref DeploymentRevision
           FLY_SESSION_SECRET: !Sub "{{resolve:secretsmanager:${SessionSecretParameter}:SecretString}}"
           FLY_OTP_PEPPER: !Sub "{{resolve:secretsmanager:${OtpPepperParameter}:SecretString}}"

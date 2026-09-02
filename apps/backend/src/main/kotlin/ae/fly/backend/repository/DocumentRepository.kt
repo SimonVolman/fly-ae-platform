@@ -5,6 +5,7 @@ import java.util.UUID
 
 interface DocumentRepository {
     fun findById(id: UUID): Document?
+    fun findRecent(limit: Int): List<Document>
     fun findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId: UUID): List<Document>
     fun findByIdAndUserIdAndDeletedAtIsNull(id: UUID, userId: UUID): Document?
     fun findByIdAndGuestSessionIdAndDeletedAtIsNull(id: UUID, guestSessionId: UUID): Document?

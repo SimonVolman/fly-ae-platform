@@ -3,6 +3,7 @@ package ae.fly.backend.upload
 import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.TelegramBotClient
 import ae.fly.backend.auth.TelegramUploadNotification
+import ae.fly.backend.auth.TelegramUrlButton
 import ae.fly.backend.config.TelegramProperties
 import ae.fly.backend.domain.Category
 import ae.fly.backend.domain.Document
@@ -73,7 +74,7 @@ class TelegramUploadNotifierTest {
         botToken = "test-token",
         botUsername = "FlyAeOtpBot",
         webhookSecret = "test-webhook-secret",
-        uploadNotificationChatId = chatId,
+        adminChatId = chatId,
     )
 
     private class CapturingTelegramBotClient : TelegramBotClient {
@@ -95,5 +96,11 @@ class TelegramUploadNotifierTest {
             this.chatId = chatId
             this.notification = notification
         }
+
+        override fun sendAdminMessage(
+            chatId: Long,
+            text: String,
+            buttons: List<TelegramUrlButton>,
+        ) = Unit
     }
 }

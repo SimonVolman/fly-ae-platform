@@ -143,5 +143,11 @@ class TelegramOtpServiceTest {
             chatId: Long,
             notification: TelegramUploadNotification,
         ) = Unit
+
+        override fun sendAdminMessage(
+            chatId: Long,
+            text: String,
+            buttons: List<TelegramUrlButton>,
+        ) = Unit
     }
 }

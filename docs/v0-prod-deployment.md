@@ -239,20 +239,34 @@ FLY_TELEGRAM_ENABLED=true
 FLY_TELEGRAM_BOT_TOKEN=...
 FLY_TELEGRAM_BOT_USERNAME=FlyAeOtpBot
 FLY_TELEGRAM_WEBHOOK_SECRET=...
-FLY_TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID=123456789
+FLY_TELEGRAM_ADMIN_CHAT_ID=123456789
 ```
 
-`FLY_TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID` is optional. When it is a positive
-private Telegram chat ID, the bot sends successful upload alerts only to that
-single chat. A value of `0` disables upload alerts. Configure the matching
-`TELEGRAM_UPLOAD_NOTIFICATION_CHAT_ID` GitHub environment variable so deploys
-pass it to the SAM stack without committing the recipient ID.
+`FLY_TELEGRAM_ADMIN_CHAT_ID` is optional. When it is a positive private
+Telegram chat ID, the bot sends successful upload alerts and accepts admin
+commands only from that single chat. A value of `0` disables both capabilities.
+Configure the matching `TELEGRAM_ADMIN_CHAT_ID` GitHub environment variable so
+deploys pass it to the SAM stack without committing the recipient ID.
 
 В SAM template канал включается параметром `EnableTelegramOtp=true`. Также
 передаются `TelegramBotUsername`, `TelegramBotTokenParameter` и
 `TelegramWebhookSecretParameter`; два последних значения — имена секретов в
 Secrets Manager, а не сами секреты. Единственный получатель upload-уведомлений
-задаётся параметром `TelegramUploadNotificationChatId`.
+задаётся параметром `TelegramAdminChatId`.
+
+В личном чате администратора доступны команды:
+
+```text
+/admin
+/activity [1-5]
+/users [1-5]
+/files <email|user UUID|Telegram ID> [1-5]
+/file <document UUID>
+```
+
+Команды из любого другого chat ID игнорируются без ответа. Кнопки скачивания
+содержат короткоживущие presigned S3 URL с тем же TTL, что и обычные download-
+ссылки приложения.
 
 Webhook регистрируется на `${ApiBaseUrl}/api/v1/auth/telegram/webhook`, где
 `ApiBaseUrl` — output application stack, с тем же `secret_token`. Bot token и

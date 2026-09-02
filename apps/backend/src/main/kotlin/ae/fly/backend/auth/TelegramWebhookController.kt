@@ -11,6 +11,7 @@ import java.time.Duration
 @RestController
 class TelegramWebhookController(
     private val telegramOtpService: TelegramOtpService,
+    private val telegramAdminCommands: TelegramAdminCommandService,
     private val rateLimiter: RateLimiter,
 ) {
     @PostMapping("/api/v1/auth/telegram/webhook")
@@ -28,7 +29,9 @@ class TelegramWebhookController(
                 10,
                 Duration.ofMinutes(15),
             )
-            telegramOtpService.handle(message)
+            if (!telegramAdminCommands.handle(message)) {
+                telegramOtpService.handle(message)
+            }
         }
         return ResponseEntity.ok().build()
     }

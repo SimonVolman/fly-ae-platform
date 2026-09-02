@@ -24,7 +24,7 @@ class TelegramUploadNotifier(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun completed(owner: FlyPrincipal, document: Document) {
-        val chatId = telegram.uploadNotificationChatId
+        val chatId = telegram.adminChatId
             .takeIf { telegram.enabled && it > 0 }
             ?: return
 

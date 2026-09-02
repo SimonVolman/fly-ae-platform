@@ -15,6 +15,7 @@ interface TelegramBotClient {
     fun sendInvalidLink(chatId: Long)
     fun sendInstructions(chatId: Long)
     fun sendUploadNotification(chatId: Long, notification: TelegramUploadNotification)
+    fun sendAdminMessage(chatId: Long, text: String, buttons: List<TelegramUrlButton> = emptyList())
 }
 
 data class TelegramUploadNotification(
@@ -23,6 +24,11 @@ data class TelegramUploadNotification(
     val sizeBytes: Long,
     val documentId: UUID,
     val uploadedAt: Instant,
+)
+
+data class TelegramUrlButton(
+    val text: String,
+    val url: String,
 )
 
 @Component
@@ -67,20 +73,42 @@ class HttpTelegramBotClient(
         )
     }
 
-    private fun sendMessage(chatId: Long, text: String, protectContent: Boolean = false) {
+    override fun sendAdminMessage(chatId: Long, text: String, buttons: List<TelegramUrlButton>) {
+        sendMessage(chatId, text, protectContent = true, buttons = buttons)
+    }
+
+    private fun sendMessage(
+        chatId: Long,
+        text: String,
+        protectContent: Boolean = false,
+        buttons: List<TelegramUrlButton> = emptyList(),
+    ) {
         if (!properties.enabled) throw TelegramDeliveryException()
         val uri = "${properties.apiBaseUrl.trimEnd('/')}/bot${properties.botToken}/sendMessage"
         try {
             restClient.post()
                 .uri(uri)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(
-                    mapOf(
-                        "chat_id" to chatId,
-                        "text" to text,
-                        "protect_content" to protectContent,
-                    ),
-                )
+                .body(buildMap<String, Any> {
+                    put("chat_id", chatId)
+                    put("text", text)
+                    put("protect_content", protectContent)
+                    if (buttons.isNotEmpty()) {
+                        put(
+                            "reply_markup",
+                            mapOf(
+                                "inline_keyboard" to buttons.map { button ->
+                                    listOf(
+                                        mapOf(
+                                            "text" to singleLine(button.text).take(64),
+                                            "url" to button.url,
+                                        ),
+                                    )
+                                },
+                            ),
+                        )
+                    }
+                })
                 .retrieve()
                 .toBodilessEntity()
         } catch (_: RestClientException) {

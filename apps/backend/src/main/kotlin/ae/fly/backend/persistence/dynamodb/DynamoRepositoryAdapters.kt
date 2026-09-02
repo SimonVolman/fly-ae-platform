@@ -42,6 +42,16 @@ class DynamoUserRepository(
     override fun findById(id: UUID): User? =
         client.get(table, "USER#$id", PROFILE)?.toUser()
 
+    override fun findRecent(limit: Int): List<User> =
+        client.scanAll(
+            tableName = table,
+            filterExpression = "#type = :type",
+            expressionAttributeNames = mapOf("#type" to "type"),
+            expressionAttributeValues = mapOf(":type" to text("USER")),
+        ).map { it.toUser() }
+            .sortedByDescending(User::updatedAt)
+            .take(limit)
+
     override fun existsById(id: UUID): Boolean = findById(id) != null
 
     override fun findByEmail(email: String): User? {
@@ -238,6 +248,17 @@ class DynamoDocumentRepository(
 
     override fun findById(id: UUID): Document? =
         client.get(table, "DOCUMENT#$id", "METADATA")?.toDocument()
+
+    override fun findRecent(limit: Int): List<Document> =
+        client.scanAll(
+            tableName = table,
+            filterExpression = "#type = :type",
+            expressionAttributeNames = mapOf("#type" to "type"),
+            expressionAttributeValues = mapOf(":type" to text("DOCUMENT")),
+        ).map { it.toDocument() }
+            .filter { it.deletedAt == null }
+            .sortedByDescending(Document::createdAt)
+            .take(limit)
 
     override fun findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId: UUID): List<Document> =
         client.queryAll(
