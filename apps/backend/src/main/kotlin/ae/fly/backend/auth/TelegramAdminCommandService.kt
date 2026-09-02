@@ -47,37 +47,38 @@ class TelegramAdminCommandService(
         botClient.sendAdminMessage(
             chatId,
             "🔐 fly.ae admin\n\n" +
-                "/activity [N] — последние загруженные файлы\n" +
-                "/users [N] — последние пользователи\n" +
-                "/files <email|user UUID|Telegram ID> [N] — файлы пользователя\n" +
+                "/activity [N|A-B] — последние загруженные файлы\n" +
+                "/users [N|A-B] — последние пользователи\n" +
+                "/files <email|user UUID|Telegram ID> [N|A-B] — файлы пользователя\n" +
                 "/file <document UUID> — информация и ссылка на один файл\n\n" +
-                "N — любое положительное число, по умолчанию $DEFAULT_LIMIT.\n" +
+                "Без параметра: первые $DEFAULT_LIMIT. N: первые N. A-B: позиции от A до B включительно.\n" +
                 "Ссылки приватные и действуют ${storageProperties.downloadSignatureTtl.toMinutes()} минут.",
         )
     }
 
     private fun sendRecentActivity(chatId: Long, argument: String) {
-        val limit = parseLimit(chatId, argument, "/activity") ?: return
-        val recent = documents.findRecent(limit)
+        val range = parseRange(chatId, argument, "/activity") ?: return
+        val recent = documents.findRecent(range.endInclusive)
             .asSequence()
             .filter(::isDownloadable)
-            .take(limit)
             .toList()
-        sendDocuments(chatId, "Последние загрузки", recent)
+            .slice(range)
+        sendDocuments(chatId, "Последние загрузки", recent, range.startInclusive - 1)
     }
 
     private fun sendRecentUsers(chatId: Long, argument: String) {
-        val limit = parseLimit(chatId, argument, "/users") ?: return
-        val recent = users.findRecent(limit)
+        val range = parseRange(chatId, argument, "/users") ?: return
+        val recent = users.findRecent(range.endInclusive).slice(range)
         if (recent.isEmpty()) {
             botClient.sendAdminMessage(chatId, "Пользователи пока не найдены.")
             return
         }
         recent.withIndex().toList().chunked(USERS_PER_MESSAGE).forEach { chunk ->
             val text = buildString {
-                append(batchTitle("Последние пользователи", chunk, recent.size)).append("\n\n")
+                append(batchTitle("Последние пользователи", chunk, range.startInclusive - 1, recent.size))
+                    .append("\n\n")
                 chunk.forEach { (index, user) ->
-                    append(index + 1).append(". ").append(userIdentity(user)).append('\n')
+                    append(range.startInclusive + index).append(". ").append(userIdentity(user)).append('\n')
                     append("ID: ").append(user.id).append('\n')
                     append("Создан: ").append(user.createdAt).append('\n')
                     append("Обновлён: ").append(user.updatedAt).append("\n\n")
@@ -92,7 +93,7 @@ class TelegramAdminCommandService(
         if (parts.isEmpty()) {
             botClient.sendAdminMessage(
                 chatId,
-                "Использование: /files <email|user UUID|Telegram ID> [N]",
+                "Использование: /files <email|user UUID|Telegram ID> [N|A-B]",
             )
             return
         }
@@ -101,13 +102,13 @@ class TelegramAdminCommandService(
             botClient.sendAdminMessage(chatId, "Пользователь не найден.")
             return
         }
-        val limit = parseLimit(chatId, parts.getOrElse(1) { "" }, "/files ${parts[0]}") ?: return
+        val range = parseRange(chatId, parts.getOrElse(1) { "" }, "/files ${parts[0]}") ?: return
         val userDocuments = documents.findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(user.id)
             .asSequence()
             .filter(::isDownloadable)
-            .take(limit)
             .toList()
-        sendDocuments(chatId, "Файлы ${userIdentity(user)}", userDocuments)
+            .slice(range)
+        sendDocuments(chatId, "Файлы ${userIdentity(user)}", userDocuments, range.startInclusive - 1)
     }
 
     private fun sendFile(chatId: Long, argument: String) {
@@ -124,7 +125,12 @@ class TelegramAdminCommandService(
         sendDocuments(chatId, "Файл", listOf(document))
     }
 
-    private fun sendDocuments(chatId: Long, title: String, found: List<Document>) {
+    private fun sendDocuments(
+        chatId: Long,
+        title: String,
+        found: List<Document>,
+        numberOffset: Int = 0,
+    ) {
         if (found.isEmpty()) {
             botClient.sendAdminMessage(chatId, "$title: ничего не найдено.")
             return
@@ -132,9 +138,12 @@ class TelegramAdminCommandService(
 
         found.withIndex().toList().chunked(DOCUMENTS_PER_MESSAGE).forEach { chunk ->
             val text = buildString {
-                append(batchTitle(title, chunk, found.size)).append("\n\n")
+                append(batchTitle(title, chunk, numberOffset, found.size)).append("\n\n")
                 chunk.forEach { (index, document) ->
-                    append(index + 1).append(". ").append(singleLine(document.originalFilename, 100)).append('\n')
+                    append(numberOffset + index + 1)
+                        .append(". ")
+                        .append(singleLine(document.originalFilename, 100))
+                        .append('\n')
                     append("Пользователь: ").append(documentOwner(document)).append('\n')
                     append("Категория: ").append(singleLine(document.category.name, 50)).append('\n')
                     append("MSN: ").append(singleLine(document.msn, 50).ifBlank { "—" }).append('\n')
@@ -147,7 +156,7 @@ class TelegramAdminCommandService(
             }.trimEnd()
             val buttons = chunk.map { (index, document) ->
                 TelegramUrlButton(
-                    text = "⬇️ ${index + 1}. ${singleLine(document.originalFilename, 50)}",
+                    text = "⬇️ ${numberOffset + index + 1}. ${singleLine(document.originalFilename, 50)}",
                     url = storage.signDownload(
                         document.objectKey,
                         storageProperties.downloadSignatureTtl,
@@ -180,21 +189,38 @@ class TelegramAdminCommandService(
             ?: user.telegramUserId?.let { "Telegram user $it" }
             ?: "User"
 
-    private fun parseLimit(chatId: Long, argument: String, usage: String): Int? {
-        if (argument.isBlank()) return DEFAULT_LIMIT
-        val limit = argument.toIntOrNull()?.takeIf { it > 0 }
-        if (limit == null) {
-            botClient.sendAdminMessage(
-                chatId,
-                "Использование: $usage [N], N — положительное целое число",
-            )
+    private fun parseRange(chatId: Long, argument: String, usage: String): ResultRange? {
+        if (argument.isBlank()) return ResultRange(1, DEFAULT_LIMIT)
+
+        argument.toIntOrNull()?.takeIf { it > 0 }?.let { limit ->
+            return ResultRange(1, limit)
         }
-        return limit
+
+        val match = RANGE.matchEntire(argument)
+        val start = match?.groupValues?.get(1)?.toIntOrNull()
+        val end = match?.groupValues?.get(2)?.toIntOrNull()
+        if (start != null && end != null && start > 0 && end >= start) {
+            return ResultRange(start, end)
+        }
+
+        botClient.sendAdminMessage(
+            chatId,
+            "Использование: $usage [N|A-B], числа должны быть положительными и A ≤ B",
+        )
+        return null
     }
 
-    private fun <T> batchTitle(title: String, chunk: List<IndexedValue<T>>, total: Int): String {
-        if (total <= chunk.size) return title
-        return "$title (${chunk.first().index + 1}–${chunk.last().index + 1} из $total)"
+    private fun <T> List<T>.slice(range: ResultRange): List<T> =
+        drop(range.startInclusive - 1).take(range.size)
+
+    private fun <T> batchTitle(
+        title: String,
+        chunk: List<IndexedValue<T>>,
+        numberOffset: Int,
+        total: Int,
+    ): String {
+        if (numberOffset == 0 && total <= chunk.size) return title
+        return "$title (${numberOffset + chunk.first().index + 1}–${numberOffset + chunk.last().index + 1})"
     }
 
     private fun isDownloadable(document: Document): Boolean =
@@ -215,6 +241,13 @@ class TelegramAdminCommandService(
     }
 
     companion object {
+        private data class ResultRange(
+            val startInclusive: Int,
+            val endInclusive: Int,
+        ) {
+            val size: Int = endInclusive - startInclusive + 1
+        }
+
         private const val DEFAULT_LIMIT = 10
         private const val USERS_PER_MESSAGE = 10
         private const val DOCUMENTS_PER_MESSAGE = 5
@@ -228,5 +261,6 @@ class TelegramAdminCommandService(
         private val COMMAND = Regex(
             "^/([A-Za-z]+)(?:@[A-Za-z0-9_]{5,32})?(?:\\s+(.+))?$",
         )
+        private val RANGE = Regex("^(\\d+)\\s*(?:-|–|\\.\\.)\\s*(\\d+)$")
     }
 }

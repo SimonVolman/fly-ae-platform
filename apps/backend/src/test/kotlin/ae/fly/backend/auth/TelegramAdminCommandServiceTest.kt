@@ -120,8 +120,22 @@ class TelegramAdminCommandServiceTest {
 
         verify(users).findRecent(12)
         assertEquals(2, bot.messages.size)
-        assertTrue(bot.messages.first().text.startsWith("Последние пользователи (1–10 из 12)"))
+        assertTrue(bot.messages.first().text.startsWith("Последние пользователи (1–10)"))
         assertTrue(bot.messages.last().text.contains("12. pilot12@example.com"))
+    }
+
+    @Test
+    fun `returns an inclusive range of recent users`() {
+        `when`(users.findRecent(10)).thenReturn(sampleUsers(10))
+
+        service.handle(adminMessage("/users 5-10"))
+
+        verify(users).findRecent(10)
+        assertEquals(1, bot.messages.size)
+        assertTrue(bot.text!!.startsWith("Последние пользователи (5–10)"))
+        assertTrue(bot.text!!.contains("5. pilot5@example.com"))
+        assertTrue(bot.text!!.contains("10. pilot10@example.com"))
+        assertFalse(bot.text!!.contains("pilot4@example.com"))
     }
 
     @Test
@@ -139,6 +153,21 @@ class TelegramAdminCommandServiceTest {
     }
 
     @Test
+    fun `returns an inclusive range of recent activity`() {
+        `when`(documents.findRecent(10)).thenReturn(sampleDocuments(10))
+        `when`(users.findById(user.id)).thenReturn(user)
+
+        service.handle(adminMessage("/activity 5-10"))
+
+        verify(documents).findRecent(10)
+        assertEquals(listOf(5, 1), bot.messages.map { it.buttons.size })
+        assertTrue(bot.messages.first().text.startsWith("Последние загрузки (5–9)"))
+        assertTrue(bot.messages.first().text.contains("5. engine-report-5.pdf"))
+        assertTrue(bot.messages.last().text.contains("10. engine-report-10.pdf"))
+        assertEquals(6, storage.signedDownloads)
+    }
+
+    @Test
     fun `accepts a files limit above ten`() {
         `when`(users.findByEmail("pilot@example.com")).thenReturn(user)
         `when`(documents.findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(user.id))
@@ -151,11 +180,24 @@ class TelegramAdminCommandServiceTest {
     }
 
     @Test
+    fun `returns an inclusive range of user files`() {
+        `when`(users.findByEmail("pilot@example.com")).thenReturn(user)
+        `when`(documents.findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(user.id))
+            .thenReturn(sampleDocuments(10))
+
+        service.handle(adminMessage("/files pilot@example.com 5-10"))
+
+        assertEquals(listOf(5, 1), bot.messages.map { it.buttons.size })
+        assertTrue(bot.messages.first().text.contains("5. engine-report-5.pdf"))
+        assertTrue(bot.messages.last().text.contains("10. engine-report-10.pdf"))
+    }
+
+    @Test
     fun `rejects a non-positive limit`() {
         service.handle(adminMessage("/users 0"))
 
         assertEquals(
-            "Использование: /users [N], N — положительное целое число",
+            "Использование: /users [N|A-B], числа должны быть положительными и A ≤ B",
             bot.text,
         )
     }
