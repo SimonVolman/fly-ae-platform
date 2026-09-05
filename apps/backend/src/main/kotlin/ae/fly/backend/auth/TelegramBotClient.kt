@@ -6,12 +6,30 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 import java.time.Duration
+import java.time.Instant
+import java.util.Locale
+import java.util.UUID
 
 interface TelegramBotClient {
     fun sendOtp(chatId: Long, code: String, ttl: Duration)
     fun sendInvalidLink(chatId: Long)
     fun sendInstructions(chatId: Long)
+    fun sendUploadNotification(chatId: Long, notification: TelegramUploadNotification)
+    fun sendAdminMessage(chatId: Long, text: String, buttons: List<TelegramUrlButton> = emptyList())
 }
+
+data class TelegramUploadNotification(
+    val uploader: String,
+    val filename: String,
+    val sizeBytes: Long,
+    val documentId: UUID,
+    val uploadedAt: Instant,
+)
+
+data class TelegramUrlButton(
+    val text: String,
+    val url: String,
+)
 
 @Component
 class HttpTelegramBotClient(
@@ -43,26 +61,72 @@ class HttpTelegramBotClient(
         )
     }
 
-    private fun sendMessage(chatId: Long, text: String, protectContent: Boolean = false) {
+    override fun sendUploadNotification(chatId: Long, notification: TelegramUploadNotification) {
+        sendMessage(
+            chatId,
+            "📄 Новый файл загружен на fly.ae\n\n" +
+                "Пользователь: ${singleLine(notification.uploader)}\n" +
+                "Файл: ${singleLine(notification.filename)}\n" +
+                "Размер: ${formatFileSize(notification.sizeBytes)}\n" +
+                "Время (UTC): ${notification.uploadedAt}\n" +
+                "Document ID: ${notification.documentId}",
+        )
+    }
+
+    override fun sendAdminMessage(chatId: Long, text: String, buttons: List<TelegramUrlButton>) {
+        sendMessage(chatId, text, protectContent = true, buttons = buttons)
+    }
+
+    private fun sendMessage(
+        chatId: Long,
+        text: String,
+        protectContent: Boolean = false,
+        buttons: List<TelegramUrlButton> = emptyList(),
+    ) {
         if (!properties.enabled) throw TelegramDeliveryException()
         val uri = "${properties.apiBaseUrl.trimEnd('/')}/bot${properties.botToken}/sendMessage"
         try {
             restClient.post()
                 .uri(uri)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(
-                    mapOf(
-                        "chat_id" to chatId,
-                        "text" to text,
-                        "protect_content" to protectContent,
-                    ),
-                )
+                .body(buildMap<String, Any> {
+                    put("chat_id", chatId)
+                    put("text", text)
+                    put("protect_content", protectContent)
+                    if (buttons.isNotEmpty()) {
+                        put(
+                            "reply_markup",
+                            mapOf(
+                                "inline_keyboard" to buttons.map { button ->
+                                    listOf(
+                                        mapOf(
+                                            "text" to singleLine(button.text).take(64),
+                                            "url" to button.url,
+                                        ),
+                                    )
+                                },
+                            ),
+                        )
+                    }
+                })
                 .retrieve()
                 .toBodilessEntity()
         } catch (_: RestClientException) {
             // Do not include the request URI in the exception: Telegram embeds the bot token in it.
             throw TelegramDeliveryException()
         }
+    }
+
+    private fun singleLine(value: String): String =
+        value.replace(Regex("[\\r\\n\\t]+"), " ").trim().take(255)
+
+    private fun formatFileSize(bytes: Long): String = when {
+        bytes >= 1024L * 1024L * 1024L ->
+            String.format(Locale.ROOT, "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+        bytes >= 1024L * 1024L ->
+            String.format(Locale.ROOT, "%.2f MB", bytes / (1024.0 * 1024.0))
+        bytes >= 1024L -> String.format(Locale.ROOT, "%.2f KB", bytes / 1024.0)
+        else -> "$bytes B"
     }
 }
 

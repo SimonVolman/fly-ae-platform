@@ -36,6 +36,7 @@ jobs:
       FRONTEND_DOMAIN: dev.fly.ae
       HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH
       ENABLE_TELEGRAM_OTP: ${{ inputs.enable_telegram_otp && 'true' || 'false' }}
+      TELEGRAM_ADMIN_CHAT_ID: ${{ vars.TELEGRAM_ADMIN_CHAT_ID || '0' }}
 
     steps:
       - name: Check out source
@@ -105,6 +106,7 @@ jobs:
               DeploymentRevision="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
               EnableTelegramOtp="$ENABLE_TELEGRAM_OTP" \
               TelegramBotUsername="FlyAeOtpBot" \
+              TelegramAdminChatId="$TELEGRAM_ADMIN_CHAT_ID" \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
 

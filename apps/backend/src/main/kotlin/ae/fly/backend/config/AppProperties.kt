@@ -39,8 +39,12 @@ data class TelegramProperties(
     val botUsername: String = "",
     val webhookSecret: String = "",
     val apiBaseUrl: String = "https://api.telegram.org",
+    val adminChatId: Long = 0,
 ) {
     init {
+        require(adminChatId >= 0) {
+            "fly.telegram.admin-chat-id must be zero or a private Telegram chat ID"
+        }
         if (enabled) {
             require(botToken.isNotBlank()) { "fly.telegram.bot-token is required when Telegram is enabled" }
             require(botUsername.matches(Regex("^[A-Za-z0-9_]{5,32}$"))) {

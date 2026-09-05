@@ -5,6 +5,7 @@ import java.util.UUID
 
 interface UserRepository {
     fun findById(id: UUID): User?
+    fun findRecent(limit: Int): List<User>
     fun existsById(id: UUID): Boolean
     fun findByEmail(email: String): User?
     fun findByTelegramUserId(telegramUserId: Long): User?

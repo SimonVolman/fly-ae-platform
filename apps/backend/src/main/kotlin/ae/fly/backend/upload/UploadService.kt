@@ -24,6 +24,7 @@ class UploadService(
     private val documents: DocumentRepository,
     private val storage: ObjectStorage,
     private val queue: JobQueue,
+    private val notifier: UploadNotifier,
     private val storageProperties: StorageProperties,
     private val clock: Clock,
 ) {
@@ -103,6 +104,7 @@ class UploadService(
         document.failureReason = null
         documents.save(document)
         queue.enqueue(document.id)
+        notifier.completed(owner, document)
         return DocumentResponse.from(document)
     }
 

@@ -21,6 +21,8 @@ import ae.fly.backend.repository.UserRepository
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.util.UUID
@@ -28,6 +30,7 @@ import java.util.UUID
 private const val POSTGRES_PROPERTY = "fly.persistence.type"
 
 interface JpaUserRepository : JpaRepository<User, UUID> {
+    fun findAllByOrderByUpdatedAtDesc(pageable: Pageable): List<User>
     fun findByEmail(email: String): User?
     fun findByTelegramUserId(telegramUserId: Long): User?
 }
@@ -42,6 +45,7 @@ interface JpaCategoryRepository : JpaRepository<Category, UUID> {
 }
 
 interface JpaDocumentRepository : JpaRepository<Document, UUID> {
+    fun findAllByDeletedAtIsNullOrderByCreatedAtDesc(pageable: Pageable): List<Document>
     fun findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId: UUID): List<Document>
     fun findByIdAndUserIdAndDeletedAtIsNull(id: UUID, userId: UUID): Document?
     fun findByIdAndGuestSessionIdAndDeletedAtIsNull(id: UUID, guestSessionId: UUID): Document?
@@ -79,6 +83,8 @@ class PostgresUserRepository(
     private val delegate: JpaUserRepository,
 ) : UserRepository {
     override fun findById(id: UUID): User? = delegate.findById(id).orElse(null)
+    override fun findRecent(limit: Int): List<User> =
+        delegate.findAllByOrderByUpdatedAtDesc(PageRequest.of(0, limit))
     override fun existsById(id: UUID): Boolean = delegate.existsById(id)
     override fun findByEmail(email: String): User? = delegate.findByEmail(email)
     override fun findByTelegramUserId(telegramUserId: Long): User? =
@@ -116,6 +122,9 @@ class PostgresDocumentRepository(
     private val delegate: JpaDocumentRepository,
 ) : DocumentRepository {
     override fun findById(id: UUID): Document? = delegate.findById(id).orElse(null)
+
+    override fun findRecent(limit: Int): List<Document> =
+        delegate.findAllByDeletedAtIsNullOrderByCreatedAtDesc(PageRequest.of(0, limit))
 
     override fun findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId: UUID): List<Document> =
         delegate.findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId)
