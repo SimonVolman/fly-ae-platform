@@ -43,6 +43,23 @@ class DocumentController(
         @PathVariable documentId: UUID,
     ): DocumentResponse = documentService.get(authentication.flyPrincipal(), documentId)
 
+    @PostMapping("/{documentId}/claim")
+    fun claimGuestDocument(
+        authentication: Authentication,
+        @PathVariable documentId: UUID,
+        @Valid @RequestBody request: ClaimGuestDocumentRequest,
+    ): DocumentResponse {
+        val principal = authentication.flyPrincipal()
+        if (principal !is AuthenticatedUser) {
+            throw ApiProblem(HttpStatus.FORBIDDEN, "Saving to My Documents requires email verification.")
+        }
+        return documentService.claimGuestDocument(
+            userId = principal.id,
+            documentId = documentId,
+            guestAccessToken = request.guestAccessToken,
+        )
+    }
+
     @DeleteMapping("/{documentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(

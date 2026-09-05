@@ -218,6 +218,11 @@ type ActiveUpload = {
   accessToken: string;
 };
 
+type GuestDocumentClaim = {
+  documentId: string;
+  guestAccessToken: string;
+};
+
 type UploadState =
   | "idle"
   | "ready"
@@ -373,6 +378,9 @@ function HomeContent() {
   const [workflowStep, setWorkflowStep] = useState<WorkflowStep>(1);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeUploads, setActiveUploads] = useState<ActiveUpload[]>([]);
+  const [pendingGuestClaim, setPendingGuestClaim] =
+    useState<GuestDocumentClaim | null>(null);
+  const [claimBusyDocumentId, setClaimBusyDocumentId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
@@ -516,10 +524,23 @@ function HomeContent() {
       });
       setSession(nextSession);
       window.sessionStorage.setItem("flyae:session", JSON.stringify(nextSession));
+      if (pendingGuestClaim) {
+        try {
+          const claimed = await claimGuestDocument(pendingGuestClaim, nextSession);
+          replaceClaimedUpload(claimed, nextSession.accessToken);
+        } catch (claimError) {
+          setError(
+            `You are signed in, but the document could not be saved: ${(claimError as Error).message}`,
+          );
+        }
+        setPendingGuestClaim(null);
+      }
       setAuthOpen(false);
       setMobileMenuOpen(false);
       setAccountMenuOpen(false);
-      setUploadState(selectedFiles.length ? "ready" : "idle");
+      setUploadState(
+        pendingGuestClaim ? "approved" : selectedFiles.length ? "ready" : "idle",
+      );
       await loadDocuments(nextSession);
     } catch (requestError) {
       setAuthError((requestError as Error).message);
@@ -901,6 +922,54 @@ function HomeContent() {
     }
   }
 
+  async function claimGuestDocument(
+    claim: GuestDocumentClaim,
+    currentSession: Session,
+  ): Promise<FlyDocument> {
+    return api<FlyDocument>(
+      `/documents/${claim.documentId}/claim`,
+      {
+        method: "POST",
+        body: JSON.stringify({ guestAccessToken: claim.guestAccessToken }),
+      },
+      currentSession.accessToken,
+    );
+  }
+
+  function replaceClaimedUpload(document: FlyDocument, accessToken: string) {
+    setActiveUploads((currentUploads) =>
+      currentUploads.map((upload) =>
+        upload.document.id === document.id
+          ? { document, accessToken }
+          : upload,
+      ),
+    );
+  }
+
+  async function saveGuestUpload(upload: ActiveUpload) {
+    const claim = {
+      documentId: upload.document.id,
+      guestAccessToken: upload.accessToken,
+    };
+    if (!session) {
+      setPendingGuestClaim(claim);
+      prepareAuthDialog();
+      return;
+    }
+
+    setClaimBusyDocumentId(upload.document.id);
+    setError("");
+    try {
+      const claimed = await claimGuestDocument(claim, session);
+      replaceClaimedUpload(claimed, session.accessToken);
+      await loadDocuments(session);
+    } catch (claimError) {
+      setError((claimError as Error).message);
+    } finally {
+      setClaimBusyDocumentId(null);
+    }
+  }
+
   async function copyFolderLinks(folderDocuments: FlyDocument[]) {
     const links = folderDocuments.flatMap((document) =>
       document.shareUrl ? [document.shareUrl] : [],
@@ -1046,7 +1115,7 @@ function HomeContent() {
     if (session) void loadDocuments(session);
   }
 
-  function openAuth() {
+  function prepareAuthDialog() {
     setAuthStep("method");
     setAuthError("");
     setAuthenticationMethod("EMAIL");
@@ -1057,9 +1126,15 @@ function HomeContent() {
     setAuthOpen(true);
   }
 
+  function openAuth() {
+    setPendingGuestClaim(null);
+    prepareAuthDialog();
+  }
+
   function closeAuth() {
     setAuthOpen(false);
     setAuthError("");
+    setPendingGuestClaim(null);
   }
 
   function logOut() {
@@ -1833,26 +1908,41 @@ function HomeContent() {
                 </div>
                 <div className="share-result-actions">
                   <div className="share-link-list">
-                    {approvedUploads.map(({ document }) => (
-                      <div className="share-link-item" key={document.id}>
-                        <strong>{document.filename}</strong>
-                        <code>{document.shareUrl}</code>
-                        <div className="share-link-buttons">
-                          <button
-                            className="button button-success"
-                            onClick={() => void copyShareLink(document.shareUrl!)}
-                          >
-                            Copy link
-                          </button>
-                          <button
-                            className="button button-secondary"
-                            onClick={() => void deleteActiveDocument(document.id)}
-                          >
-                            Delete
-                          </button>
+                    {approvedUploads.map((upload) => {
+                      const { document } = upload;
+                      const isGuestDocument = upload.accessToken.startsWith("gst_");
+                      return (
+                        <div className="share-link-item" key={document.id}>
+                          <strong>{document.filename}</strong>
+                          <code>{document.shareUrl}</code>
+                          <div className="share-link-buttons">
+                            <button
+                              className="button button-success"
+                              onClick={() => void copyShareLink(document.shareUrl!)}
+                            >
+                              Copy link
+                            </button>
+                            {isGuestDocument && (
+                              <button
+                                className="button button-primary"
+                                disabled={claimBusyDocumentId === document.id}
+                                onClick={() => void saveGuestUpload(upload)}
+                              >
+                                {claimBusyDocumentId === document.id
+                                  ? "Saving…"
+                                  : "Save to My Documents"}
+                              </button>
+                            )}
+                            <button
+                              className="button button-secondary"
+                              onClick={() => void deleteActiveDocument(document.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <button className="button button-secondary" onClick={resetUploadFlow}>
                     Upload more files
@@ -1935,12 +2025,15 @@ function HomeContent() {
 
             {authStep === "method" ? (
               <form onSubmit={requestOtp}>
-                <h2 id="auth-title">Log in</h2>
+                <h2 id="auth-title">
+                  {pendingGuestClaim ? "Save to My Documents" : "Log in"}
+                </h2>
                 <p className="info-box">
-                  Log in to keep a My Documents history and upload files up to 3 GB.
-                  Choose email or Telegram. Each method creates its own fly.ae account.
+                  {pendingGuestClaim
+                    ? "Verify your email to add this guest document to My Documents without uploading it again."
+                    : "Log in to keep a My Documents history and upload files up to 3 GB. Choose email or Telegram. Each method creates its own fly.ae account."}
                 </p>
-                {telegramEnabled && (
+                {telegramEnabled && !pendingGuestClaim && (
                   <fieldset className="otp-delivery-options">
                     <legend>Sign in with</legend>
                     <div>

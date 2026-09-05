@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: fly.ae API
-  version: 0.2.0
+  version: 0.3.0
   description: REST API for guest or OTP-authenticated document, image and video upload, processing and secure sharing.
 servers:
   - url: http://localhost:8080/api/v1
@@ -230,6 +230,32 @@ paths:
       responses:
         "204":
           description: Object removed and document marked DELETED.
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /documents/{documentId}/claim:
+    parameters:
+      - $ref: "#/components/parameters/DocumentId"
+    post:
+      tags: [Documents]
+      operationId: claimGuestDocument
+      description: Moves a document owned by a valid guest capability into the authenticated user's My Documents without changing its share link.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimGuestDocument"
+      responses:
+        "200":
+          description: Guest document is now owned by the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
   /documents/{documentId}/multipart:
@@ -613,6 +639,15 @@ components:
           type: integer
           minimum: 1
           maximum: 3221225472
+    ClaimGuestDocument:
+      type: object
+      additionalProperties: false
+      required: [guestAccessToken]
+      properties:
+        guestAccessToken:
+          type: string
+          pattern: "^gst_[A-Za-z0-9._-]+$"
+          maxLength: 2048
     Document:
       type: object
       required:

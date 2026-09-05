@@ -38,6 +38,10 @@ the frontend with `NEXT_PUBLIC_MAINTENANCE_MODE=true`, publishes the static
 export to S3 behind CloudFront, invalidates CloudFront, and checks
 `https://fly.ae`.
 
+The same release passes the maintenance state to the backend. While it is
+active, every Telegram bot response starts with a prominent bilingual
+maintenance warning. Application releases disable the warning again.
+
 It is manual-only. Re-running it is the rollback path from the application
 release to the maintenance page.
 
@@ -65,3 +69,9 @@ secret from `fly-ae/domain-prod/telegram-bot-token` and
 
 Both PROD workflows use the `fly-ae-domain-prod` concurrency group, so they
 cannot publish maintenance and application releases at the same time.
+
+## Telegram environment labels
+
+Administrative Telegram messages and upload/share notifications are prefixed
+with `[DEV]` or `[PROD]`, derived from the deployed CloudFormation
+`EnvironmentName`. User OTP messages are not prefixed.

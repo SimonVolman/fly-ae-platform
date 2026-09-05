@@ -59,6 +59,7 @@ jobs:
       FRONTEND_DOMAIN: fly.ae
       HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH
       RELEASE_MODE: ${{ inputs.release_mode || 'maintenance' }}
+      MAINTENANCE_MODE: ${{ inputs.release_mode == 'application' && 'false' || 'true' }}
       ENABLE_CUSTOM_DOMAIN: ${{ inputs.enable_custom_domain && 'true' || 'false' }}
       ENABLE_TELEGRAM_OTP: ${{ inputs.enable_telegram_otp && 'true' || 'false' }}
       TELEGRAM_ADMIN_CHAT_ID: ${{ vars.TELEGRAM_ADMIN_CHAT_ID || '0' }}
@@ -141,6 +142,7 @@ jobs:
               HostedZoneId="$HOSTED_ZONE_ID" \
               FrontendCertificateArn="${{ steps.bootstrap.outputs.certificate_arn }}" \
               DeploymentRevision="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+              MaintenanceMode="$MAINTENANCE_MODE" \
               SessionSecretParameter="$SECRET_PATH_PREFIX/session-secret" \
               OtpPepperParameter="$SECRET_PATH_PREFIX/otp-pepper" \
               ShareEncryptionSecretParameter="$SECRET_PATH_PREFIX/share-encryption-secret" \
@@ -179,7 +181,7 @@ jobs:
       - name: Build static frontend
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.application.outputs.api_url }}/api/v1
-          NEXT_PUBLIC_MAINTENANCE_MODE: ${{ inputs.release_mode == 'application' && 'false' || 'true' }}
+          NEXT_PUBLIC_MAINTENANCE_MODE: ${{ env.MAINTENANCE_MODE }}
         run: npm run build:aws --workspace @fly-ae/web
 
       - name: Publish static frontend

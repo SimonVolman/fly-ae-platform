@@ -24,6 +24,7 @@ data class DocumentProperties(
 data class WebProperties(
     val allowedOrigins: List<String> = listOf("http://localhost:3000"),
     val publicBaseUrl: String = "http://localhost:3000",
+    val maintenanceMode: Boolean = false,
 )
 
 @ConfigurationProperties("fly.email")
@@ -40,6 +41,7 @@ data class TelegramProperties(
     val webhookSecret: String = "",
     val apiBaseUrl: String = "https://api.telegram.org",
     val adminChatId: Long = 0,
+    val environment: String = "local",
 ) {
     init {
         require(adminChatId >= 0) {

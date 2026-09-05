@@ -174,6 +174,16 @@ class DynamoRepositoryIntegrationTest {
             secondGuestDocument.id,
             documents.findByIdAndGuestSessionIdAndDeletedAtIsNull(secondGuestDocument.id, guest.id)?.id,
         )
+        guestDocument.user = user
+        guestDocument.guestSession = null
+        documents.save(guestDocument)
+        assertNull(
+            documents.findByIdAndGuestSessionIdAndDeletedAtIsNull(guestDocument.id, guest.id),
+        )
+        assertTrue(
+            documents.findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(user.id)
+                .any { it.id == guestDocument.id },
+        )
         assertEquals(
             setOf(userDocument.id, guestDocument.id, secondGuestDocument.id),
             documents.findRecent(10).map(Document::id).toSet(),

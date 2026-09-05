@@ -250,5 +250,7 @@ Figma → design-system.json → CSS tokens → components → screens
 - Terms содержит английский черновик от 15 августа 2026 года, который требует
   реквизитов оператора, UAE legal review и при необходимости арабской версии;
   Privacy остаётся placeholder до получения утверждённого текста;
-- нет OCR, DOCX, папок, admin UI, ручной модерации, общих уведомлений, browser-restart
-  resume и staging-окружения.
+- нет OCR, DOCX, папок, admin UI, ручной модерации, browser-restart resume и
+  staging-окружения; базовое Telegram-уведомление администратору об открытии
+  share-ссылки реализовано, а уведомления владельца и антиспам запланированы как
+  продолжение `UP-014` в `docs/user-paths.md`.

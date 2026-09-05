@@ -59,6 +59,7 @@ fly:
   web:
     allowed-origins: ${FLY_ALLOWED_ORIGINS:http://localhost:3000}
     public-base-url: ${FLY_PUBLIC_BASE_URL:http://localhost:3000}
+    maintenance-mode: ${FLY_MAINTENANCE_MODE:false}
   email:
     from: ${FLY_EMAIL_FROM:no-reply@fly.ae}
     region: ${FLY_EMAIL_REGION:eu-central-1}
@@ -69,6 +70,7 @@ fly:
     webhook-secret: ${FLY_TELEGRAM_WEBHOOK_SECRET:}
     api-base-url: ${FLY_TELEGRAM_API_BASE_URL:https://api.telegram.org}
     admin-chat-id: ${FLY_TELEGRAM_ADMIN_CHAT_ID:0}
+    environment: ${FLY_TELEGRAM_ENVIRONMENT:local}
   storage:
     endpoint: ${FLY_S3_ENDPOINT:}
     region: ${FLY_S3_REGION:us-east-1}

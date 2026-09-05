@@ -1,6 +1,7 @@
 package ae.fly.backend.auth
 
 import ae.fly.backend.config.TelegramProperties
+import ae.fly.backend.config.WebProperties
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
@@ -34,6 +35,7 @@ data class TelegramUrlButton(
 @Component
 class HttpTelegramBotClient(
     private val properties: TelegramProperties,
+    private val webProperties: WebProperties,
 ) : TelegramBotClient {
     private val restClient = RestClient.builder().build()
 
@@ -41,8 +43,11 @@ class HttpTelegramBotClient(
         val minutes = ttl.toMinutes().coerceAtLeast(1)
         sendMessage(
             chatId,
-            "Your fly.ae one-time code: $code\n\n" +
-                "It expires in $minutes minutes. Do not share this code.",
+            "✈️ fly.ae sign-in\n\n" +
+                "Your one-time code:\n$code\n\n" +
+                "Enter it in the fly.ae window where you started signing in. " +
+                "The code expires in $minutes minutes.\n\n" +
+                "Never share this code. If you did not request it, you can safely ignore this message.",
             protectContent = true,
         )
     }
@@ -50,31 +55,45 @@ class HttpTelegramBotClient(
     override fun sendInvalidLink(chatId: Long) {
         sendMessage(
             chatId,
-            "This fly.ae sign-in URL is invalid or has expired. Return to fly.ae and start Telegram sign-in again.",
+            "⚠️ This fly.ae sign-in link is invalid or has expired.\n\n" +
+                "Return to fly.ae, choose Log in → Telegram, and open the new link shown there.",
         )
     }
 
     override fun sendInstructions(chatId: Long) {
         sendMessage(
             chatId,
-            "Start Telegram sign-in on fly.ae, then open the Telegram button shown there.",
+            "✈️ Sign in to fly.ae with Telegram\n\n" +
+                "1. Return to fly.ae.\n" +
+                "2. Choose Log in → Telegram.\n" +
+                "3. Open the Telegram button shown there.\n\n" +
+                "The bot will send a one-time code to enter in your browser. " +
+                "It will never ask for your Telegram password.",
         )
     }
 
     override fun sendUploadNotification(chatId: Long, notification: TelegramUploadNotification) {
         sendMessage(
             chatId,
-            "📄 Новый файл загружен на fly.ae\n\n" +
-                "Пользователь: ${singleLine(notification.uploader)}\n" +
-                "Файл: ${singleLine(notification.filename)}\n" +
-                "Размер: ${formatFileSize(notification.sizeBytes)}\n" +
-                "Время (UTC): ${notification.uploadedAt}\n" +
-                "Document ID: ${notification.documentId}",
+            withEnvironmentHeader(
+                "📄 Новый файл загружен на fly.ae\n\n" +
+                    "Пользователь: ${singleLine(notification.uploader)}\n" +
+                    "Файл: ${singleLine(notification.filename)}\n" +
+                    "Размер: ${formatFileSize(notification.sizeBytes)}\n" +
+                    "Время (UTC): ${notification.uploadedAt}\n" +
+                    "Document ID: ${notification.documentId}",
+                properties.environment,
+            ),
         )
     }
 
     override fun sendAdminMessage(chatId: Long, text: String, buttons: List<TelegramUrlButton>) {
-        sendMessage(chatId, text, protectContent = true, buttons = buttons)
+        sendMessage(
+            chatId,
+            withEnvironmentHeader(text, properties.environment),
+            protectContent = true,
+            buttons = buttons,
+        )
     }
 
     private fun sendMessage(
@@ -91,8 +110,9 @@ class HttpTelegramBotClient(
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(buildMap<String, Any> {
                     put("chat_id", chatId)
-                    put("text", text)
+                    put("text", withMaintenanceBanner(text, webProperties.maintenanceMode))
                     put("protect_content", protectContent)
+                    put("link_preview_options", mapOf("is_disabled" to true))
                     if (buttons.isNotEmpty()) {
                         put(
                             "reply_markup",
@@ -128,6 +148,18 @@ class HttpTelegramBotClient(
         bytes >= 1024L -> String.format(Locale.ROOT, "%.2f KB", bytes / 1024.0)
         else -> "$bytes B"
     }
+}
+
+internal fun withMaintenanceBanner(text: String, maintenanceMode: Boolean): String {
+    if (!maintenanceMode) return text
+    return "🚧🚧🚧 FLY.AE MAINTENANCE 🚧🚧🚧\n" +
+        "⚠️ САЙТ ВРЕМЕННО НЕДОСТУПЕН / THE WEBSITE IS TEMPORARILY UNAVAILABLE ⚠️\n\n" +
+        text
+}
+
+internal fun withEnvironmentHeader(text: String, environment: String): String {
+    val label = environment.trim().uppercase(Locale.ROOT).ifBlank { "LOCAL" }.take(24)
+    return "[$label]\n$text"
 }
 
 class TelegramDeliveryException : RuntimeException("Telegram delivery failed")

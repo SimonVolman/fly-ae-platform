@@ -25,6 +25,7 @@ class ShareController(
     private val storage: ObjectStorage,
     private val storageProperties: StorageProperties,
     private val rateLimiter: RateLimiter,
+    private val accessNotifier: ShareAccessNotifier,
 ) {
     @GetMapping("/{token}")
     fun resolve(
@@ -38,6 +39,7 @@ class ShareController(
             document.objectKey,
             storageProperties.downloadSignatureTtl,
         )
+        accessNotifier.accessed(document)
         return SharedDocumentResponse(
             category = document.category.name,
             msn = document.msn,

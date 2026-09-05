@@ -6,6 +6,7 @@ import ae.fly.backend.domain.DocumentStatus
 import ae.fly.backend.auth.AuthenticatedGuest
 import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.FlyPrincipal
+import ae.fly.backend.auth.GuestSessionTokenService
 import ae.fly.backend.config.DocumentProperties
 import ae.fly.backend.repository.CategoryRepository
 import ae.fly.backend.repository.DocumentRepository
@@ -26,6 +27,7 @@ class DocumentService(
     private val categories: CategoryRepository,
     private val users: UserRepository,
     private val guestSessions: GuestSessionRepository,
+    private val guestSessionTokens: GuestSessionTokenService,
     private val objectStorage: ObjectStorage,
     private val shareTokens: ShareTokenService,
     private val webProperties: WebProperties,
@@ -102,6 +104,36 @@ class DocumentService(
     @Transactional(readOnly = true)
     fun get(owner: FlyPrincipal, documentId: UUID): DocumentResponse =
         response(requireOwned(owner, documentId))
+
+    @Transactional
+    fun claimGuestDocument(
+        userId: UUID,
+        documentId: UUID,
+        guestAccessToken: String,
+    ): DocumentResponse {
+        val user = users.findById(userId)
+            ?: throw ApiProblem(HttpStatus.UNAUTHORIZED, "The authenticated user no longer exists.")
+        if (user.email.isNullOrBlank()) {
+            throw ApiProblem(
+                HttpStatus.FORBIDDEN,
+                "Saving a guest document requires an email-verified account.",
+            )
+        }
+        val guest = guestSessionTokens.verify(guestAccessToken)
+            ?: throw ApiProblem(HttpStatus.UNAUTHORIZED, "The guest session is invalid or expired.")
+        if (!guestSessions.existsByIdAndExpiresAtAfter(guest.guestSessionId, clock.instant())) {
+            throw ApiProblem(HttpStatus.UNAUTHORIZED, "The guest session is invalid or expired.")
+        }
+        val document = documents.findByIdAndGuestSessionIdAndDeletedAtIsNull(
+            documentId,
+            guest.guestSessionId,
+        ) ?: throw ApiProblem(HttpStatus.NOT_FOUND, "Document not found.")
+
+        document.user = user
+        document.guestSession = null
+        document.updatedAt = clock.instant()
+        return response(documents.save(document))
+    }
 
     @Transactional
     fun markDeleted(owner: FlyPrincipal, documentId: UUID) {

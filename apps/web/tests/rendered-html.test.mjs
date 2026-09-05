@@ -151,6 +151,9 @@ test("removes the disposable starter preview", async () => {
     /I accept the\{" "\}\s*<Link href="\/terms" target="_blank" rel="noopener noreferrer">[\s\S]*?<Link href="\/privacy" target="_blank" rel="noopener noreferrer">/,
   );
   assert.match(page, /guest\/sessions/);
+  assert.match(page, /documents\/\$\{claim\.documentId\}\/claim/);
+  assert.match(page, /Save to My Documents/);
+  assert.match(page, /guestAccessToken/);
   assert.match(page, /GUEST_MAX_FILE_SIZE = 100 \* 1024 \* 1024/);
   assert.match(page, /AUTHENTICATED_MAX_FILE_SIZE = 3 \* 1024 \* 1024 \* 1024/);
   assert.match(page, /workflowStep === 2/);

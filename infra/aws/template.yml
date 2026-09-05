@@ -38,6 +38,12 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
+  MaintenanceMode:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
   TelegramBotUsername:
     Type: String
     Default: FlyAeOtpBot
@@ -249,6 +255,7 @@ Resources:
           FLY_S3_PATH_STYLE: "false"
           FLY_PUBLIC_BASE_URL: !Sub https://${FrontendDomainName}
           FLY_ALLOWED_ORIGINS: !Sub https://${FrontendDomainName}
+          FLY_MAINTENANCE_MODE: !Ref MaintenanceMode
           FLY_EMAIL_FROM: !Sub no-reply@${FrontendDomainName}
           FLY_EMAIL_REGION: !Ref AWS::Region
           FLY_TELEGRAM_ENABLED: !Ref EnableTelegramOtp
@@ -262,6 +269,7 @@ Resources:
             - !Sub "{{resolve:secretsmanager:${TelegramWebhookSecretParameter}:SecretString}}"
             - ""
           FLY_TELEGRAM_ADMIN_CHAT_ID: !Ref TelegramAdminChatId
+          FLY_TELEGRAM_ENVIRONMENT: !Ref EnvironmentName
           FLY_DEPLOYMENT_REVISION: !Ref DeploymentRevision
           FLY_SESSION_SECRET: !Sub "{{resolve:secretsmanager:${SessionSecretParameter}:SecretString}}"
           FLY_OTP_PEPPER: !Sub "{{resolve:secretsmanager:${OtpPepperParameter}:SecretString}}"

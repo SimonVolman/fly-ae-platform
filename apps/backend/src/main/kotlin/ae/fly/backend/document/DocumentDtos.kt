@@ -51,6 +51,13 @@ data class CreateDocumentRequest(
     val sizeBytes: Long,
 )
 
+data class ClaimGuestDocumentRequest(
+    @field:NotBlank
+    @field:Size(max = 2048)
+    @field:Pattern(regexp = "^gst_[A-Za-z0-9._-]+$")
+    val guestAccessToken: String,
+)
+
 data class DocumentResponse(
     val id: UUID,
     val category: CategoryResponse,
