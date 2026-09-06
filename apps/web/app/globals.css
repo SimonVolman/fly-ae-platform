@@ -2467,6 +2467,10 @@ footer a {
   margin: 0;
 }
 
+.mission-content p + p {
+  margin-top: 20px;
+}
+
 .product-footer {
   min-height: 180px;
   padding-block: 48px;
