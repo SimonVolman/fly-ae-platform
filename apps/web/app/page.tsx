@@ -1,7 +1,7 @@
 "use client";
 
-import AwsS3, { type AwsS3Part } from "@uppy/aws-s3";
-import Uppy from "@uppy/core";
+import type { AwsS3Part } from "@uppy/aws-s3";
+import type Uppy from "@uppy/core";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -669,6 +669,12 @@ function HomeContent() {
     let uppy: Uppy<UploadMeta, UploadBody> | null = null;
     let uploadFinished = false;
     try {
+      // Load the upload engine only when a validated upload is started.
+      // Resolve it before creating server records so a chunk failure is retryable.
+      const [{ default: Uppy }, { default: AwsS3 }] = await Promise.all([
+        import("@uppy/core"),
+        import("@uppy/aws-s3"),
+      ]);
       const currentGuestSession = currentSession
         ? null
         : await api<GuestSession>("/guest/sessions", {
@@ -1336,8 +1342,8 @@ function HomeContent() {
               </button>
             )}
             <nav className="mobile-navigation-legal" aria-label="Legal">
-              <Link href="/terms">Terms and Conditions</Link>
-              <Link href="/privacy">Privacy Policy</Link>
+              <Link href="/terms" prefetch={false}>Terms and Conditions</Link>
+              <Link href="/privacy" prefetch={false}>Privacy Policy</Link>
             </nav>
           </aside>
         </div>
@@ -1576,8 +1582,8 @@ function HomeContent() {
               })}
             </div>
             <nav className="desktop-category-legal" aria-label="Legal">
-              <Link href="/privacy">Privacy Policy</Link>
-              <Link href="/terms">Terms and Conditions</Link>
+              <Link href="/privacy" prefetch={false}>Privacy Policy</Link>
+              <Link href="/terms" prefetch={false}>Terms and Conditions</Link>
             </nav>
           </aside>
 
@@ -1993,8 +1999,8 @@ function HomeContent() {
         <Brand />
         <p>Secure aviation file transfer.</p>
         <nav aria-label="Project">
-          <Link href="/terms">Terms</Link>
-          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms" prefetch={false}>Terms</Link>
+          <Link href="/privacy" prefetch={false}>Privacy</Link>
         </nav>
       </footer>
 
