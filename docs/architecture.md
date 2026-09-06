@@ -45,22 +45,17 @@ SDK DynamoDB adapter. See [`persistence.md`](./persistence.md).
 only a hash of the code. `POST /auth/otp/verify` consumes the code once, creates
 or loads the user and returns a short-lived bearer session.
 
-### 1a. Telegram OTP
+### 1a. Telegram notifications and administration
 
-`GET /auth/otp/options` сообщает Web, включён ли Telegram. Telegram-вход начинается
-с первого экрана авторизации и не требует email. `POST /auth/telegram/request`
-создаёт короткоживущий browser `requestId` и отдельный случайный token, после
-чего возвращает `t.me/<bot>?start=<token>`.
+Sign-in uses email OTP only. `GET /auth/otp/options` always returns
+`emailEnabled: true` and `telegramEnabled: false`, including when the bot is
+configured. Telegram login request and verification endpoints are removed.
 
-После нажатия пользователем Start Telegram вызывает
-`POST /auth/telegram/webhook`. Backend проверяет секретный webhook header,
-находит HMAC deep-link token, записывает Telegram user/chat ID и отправляет
-шестизначный OTP в private chat. В базе хранится только hash OTP.
-
-`POST /auth/telegram/verify` принимает browser `requestId`, OTP и legal consent,
-одноразово погашает запрос, создаёт или загружает пользователя по неизменяемому
-Telegram user ID и возвращает bearer session. Email- и Telegram-пользователи V0
-имеют разные профили; автоматического объединения аккаунтов нет.
+`POST /auth/telegram/webhook` keeps its existing URL for compatibility and
+validates the secret header before processing administrator commands. Old
+`/start` login links receive instructions to sign in by email; they cannot
+issue codes or create sessions. Upload and share-access notifications keep
+using the configured bot.
 
 Alternatively, `POST /guest/sessions` records Terms/Privacy acceptance and
 returns a 12-hour capability token for one upload batch. It does not create a

@@ -265,9 +265,7 @@ class TelegramAdminCommandServiceTest {
         var buttons: List<TelegramUrlButton> = emptyList()
         val messages = mutableListOf<Message>()
 
-        override fun sendOtp(chatId: Long, code: String, ttl: Duration) = Unit
 
-        override fun sendInvalidLink(chatId: Long) = Unit
 
         override fun sendInstructions(chatId: Long) = Unit
 

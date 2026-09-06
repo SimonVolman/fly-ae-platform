@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
-import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
@@ -61,8 +60,6 @@ class TelegramShareAccessNotifierTest {
     private class CapturingTelegramBotClient : TelegramBotClient {
         var text = ""
 
-        override fun sendOtp(chatId: Long, code: String, ttl: Duration) = Unit
-        override fun sendInvalidLink(chatId: Long) = Unit
         override fun sendInstructions(chatId: Long) = Unit
         override fun sendUploadNotification(
             chatId: Long,

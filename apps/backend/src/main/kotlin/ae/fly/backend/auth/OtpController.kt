@@ -15,12 +15,11 @@ import java.time.Duration
 @RequestMapping("/api/v1/auth/otp")
 class OtpController(
     private val otpService: OtpService,
-    private val telegramOtpService: TelegramOtpService,
     private val rateLimiter: RateLimiter,
 ) {
     @GetMapping("/options")
     fun deliveryOptions(): OtpDeliveryOptions = OtpDeliveryOptions(
-        telegramEnabled = telegramOtpService.isEnabled,
+        telegramEnabled = false,
     )
 
     @PostMapping("/request")

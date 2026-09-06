@@ -6,14 +6,11 @@ import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
-import java.time.Duration
 import java.time.Instant
 import java.util.Locale
 import java.util.UUID
 
 interface TelegramBotClient {
-    fun sendOtp(chatId: Long, code: String, ttl: Duration)
-    fun sendInvalidLink(chatId: Long)
     fun sendInstructions(chatId: Long)
     fun sendUploadNotification(chatId: Long, notification: TelegramUploadNotification)
     fun sendAdminMessage(chatId: Long, text: String, buttons: List<TelegramUrlButton> = emptyList())
@@ -39,36 +36,12 @@ class HttpTelegramBotClient(
 ) : TelegramBotClient {
     private val restClient = RestClient.builder().build()
 
-    override fun sendOtp(chatId: Long, code: String, ttl: Duration) {
-        val minutes = ttl.toMinutes().coerceAtLeast(1)
-        sendMessage(
-            chatId,
-            "✈️ fly.ae sign-in\n\n" +
-                "Your one-time code:\n$code\n\n" +
-                "Enter it in the fly.ae window where you started signing in. " +
-                "The code expires in $minutes minutes.\n\n" +
-                "Never share this code. If you did not request it, you can safely ignore this message.",
-            protectContent = true,
-        )
-    }
-
-    override fun sendInvalidLink(chatId: Long) {
-        sendMessage(
-            chatId,
-            "⚠️ This fly.ae sign-in link is invalid or has expired.\n\n" +
-                "Return to fly.ae, choose Log in → Telegram, and open the new link shown there.",
-        )
-    }
-
     override fun sendInstructions(chatId: Long) {
         sendMessage(
             chatId,
-            "✈️ Sign in to fly.ae with Telegram\n\n" +
-                "1. Return to fly.ae.\n" +
-                "2. Choose Log in → Telegram.\n" +
-                "3. Open the Telegram button shown there.\n\n" +
-                "The bot will send a one-time code to enter in your browser. " +
-                "It will never ask for your Telegram password.",
+            "✈️ fly.ae\n\n" +
+                "Sign in with your email at ${webProperties.publicBaseUrl}.\n\n" +
+                "This bot provides notifications. Telegram sign-in is no longer available.",
         )
     }
 

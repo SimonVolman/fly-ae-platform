@@ -23,7 +23,8 @@ S3 and Secrets Manager data; all user-facing deployment names use DEV.
 
 The manual `.github/workflows/deploy-dev.yml` workflow deploys the application
 to `dev.fly.ae`. It uses the `dev` GitHub environment and the `fly-ae-dev`
-concurrency group. Selecting `enable_telegram_otp` requires the
+concurrency group. The legacy `enable_telegram_otp` input enables bot notifications and admin commands,
+not sign-in. It requires the
 `fly-ae/v0-prod/telegram-bot-token` and
 `fly-ae/v0-prod/telegram-webhook-secret` Secrets Manager values.
 
@@ -63,7 +64,8 @@ on Lambda` and enter `deploy-fly.ae` in the confirmation field. It reuses the
 `fly-ae-domain-prod` stack and builds the frontend with
 `NEXT_PUBLIC_MAINTENANCE_MODE=false`. Until that workflow is explicitly run,
 the maintenance release remains active on `fly.ae`; DEV is not affected.
-Selecting `enable_telegram_otp` reads the production bot token and webhook
+The legacy `enable_telegram_otp` input controls bot notifications and admin
+commands only. It reads the production bot token and webhook
 secret from `fly-ae/domain-prod/telegram-bot-token` and
 `fly-ae/domain-prod/telegram-webhook-secret`.
 
@@ -74,4 +76,7 @@ cannot publish maintenance and application releases at the same time.
 
 Administrative Telegram messages and upload/share notifications are prefixed
 with `[DEV]` or `[PROD]`, derived from the deployed CloudFormation
-`EnvironmentName`. User OTP messages are not prefixed.
+`EnvironmentName`. Sign-in codes are delivered by email only.
+
+Deployment smoke tests require `emailEnabled: true` and `telegramEnabled: false`
+regardless of the bot setting.

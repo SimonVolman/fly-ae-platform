@@ -109,9 +109,9 @@ erDiagram
 `documents_exactly_one_owner` requires either `user_id` or `guest_session_id`,
 never both. `documents_one_per_guest` limits each guest capability to one
 document. `users_exactly_one_login_identity` requires either email or Telegram
-user ID, never both. `telegram_login_requests` stores only HMAC values for the
-deep-link token and OTP; the browser holds the request UUID while the raw token
-exists only in a short-lived `t.me` URL.
+user ID, never both. Historical Telegram identities and `telegram_login_requests`
+are retained for data compatibility. Telegram sign-in was removed on 2026-09-06;
+new users authenticate through email and no new Telegram login records are created.
 
 ## Document transitions
 

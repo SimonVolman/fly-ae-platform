@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
-import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
@@ -82,9 +81,7 @@ class TelegramUploadNotifierTest {
         var notification: TelegramUploadNotification? = null
         var fail = false
 
-        override fun sendOtp(chatId: Long, code: String, ttl: Duration) = Unit
 
-        override fun sendInvalidLink(chatId: Long) = Unit
 
         override fun sendInstructions(chatId: Long) = Unit
 

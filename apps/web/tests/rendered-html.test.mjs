@@ -141,11 +141,7 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /maxNumberOfFiles: selectedFiles\.length/);
   assert.match(page, /Upload \$\{selectedFiles\.length\} files securely/);
   assert.match(page, /auth\/otp\/verify/);
-  assert.match(page, /auth\/otp\/options/);
-  assert.match(page, /auth\/telegram\/request/);
-  assert.match(page, /auth\/telegram\/verify/);
-  assert.match(page, /Continue with Telegram/);
-  assert.match(page, /Open Telegram bot/);
+  assert.doesNotMatch(page, /auth\/telegram|Continue with Telegram|Open Telegram bot/);
   assert.match(
     page,
     /I accept the\{" "\}\s*<Link href="\/terms" target="_blank" rel="noopener noreferrer">[\s\S]*?<Link href="\/privacy" target="_blank" rel="noopener noreferrer">/,
@@ -199,8 +195,6 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /empty-documents-state/);
   assert.match(page, /auth-dialog-error/);
   assert.match(css, /\.auth-dialog-error/);
-  assert.match(css, /\.otp-delivery-options/);
-  assert.match(css, /\.telegram-open-button/);
   assert.match(css, /\.aviation-notice/);
   assert.match(css, /--color-ink:\s*#101a3a/);
   assert.match(css, /--radius-control:\s*6px/);

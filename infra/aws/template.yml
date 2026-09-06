@@ -34,6 +34,7 @@ Parameters:
     Default: fly-ae/v0-prod/share-encryption-secret
   EnableTelegramOtp:
     Type: String
+    Description: Legacy parameter name; enables bot notifications and admin commands, not sign-in.
     Default: "false"
     AllowedValues:
       - "true"

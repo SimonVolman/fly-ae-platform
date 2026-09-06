@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       enable_telegram_otp:
-        description: Enable Telegram OTP (requires Secrets Manager values)
+        description: Enable Telegram bot notifications and admin commands (requires Secrets Manager values)
         required: true
         type: boolean
         default: false

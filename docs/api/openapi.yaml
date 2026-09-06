@@ -21,7 +21,7 @@ paths:
       security: []
       responses:
         "200":
-          description: Delivery channels enabled for OTP requests.
+          description: Email-only sign-in. The Telegram compatibility flag is always false.
           content:
             application/json:
               schema:
@@ -44,51 +44,11 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /auth/telegram/request:
-    post:
-      tags: [Authentication]
-      operationId: requestTelegramLogin
-      description: Creates a short-lived browser request and Telegram deep link.
-      security: []
-      responses:
-        "200":
-          description: Telegram login request created.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TelegramLoginAccepted"
-        "429":
-          $ref: "#/components/responses/RateLimited"
-        "503":
-          description: Telegram sign-in is not configured.
-  /auth/telegram/verify:
-    post:
-      tags: [Authentication]
-      operationId: verifyTelegramOtp
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/TelegramOtpVerification"
-      responses:
-        "200":
-          description: Telegram OTP consumed and session created.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Session"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/RateLimited"
   /auth/telegram/webhook:
     post:
       tags: [Authentication]
       operationId: receiveTelegramUpdate
+      description: Receives bot admin commands; Telegram sign-in is unavailable.
       security: []
       parameters:
         - name: X-Telegram-Bot-Api-Secret-Token
@@ -426,20 +386,6 @@ components:
           type: string
           format: email
           maxLength: 254
-    TelegramLoginAccepted:
-      type: object
-      additionalProperties: false
-      required: [requestId, telegramStartUrl, expiresAt]
-      properties:
-        requestId:
-          type: string
-          format: uuid
-        telegramStartUrl:
-          type: string
-          format: uri
-        expiresAt:
-          type: string
-          format: date-time
     OtpDeliveryOptions:
       type: object
       additionalProperties: false
@@ -449,6 +395,7 @@ components:
           type: boolean
         telegramEnabled:
           type: boolean
+          const: false
     TelegramUpdate:
       type: object
       additionalProperties: true
@@ -479,28 +426,6 @@ components:
                   format: int64
                 username:
                   type: string
-    TelegramOtpVerification:
-      type: object
-      additionalProperties: false
-      required:
-        [requestId, code, acceptedLegal, termsVersion, privacyVersion]
-      properties:
-        requestId:
-          type: string
-          format: uuid
-        code:
-          type: string
-          pattern: "^[0-9]{6}$"
-        acceptedLegal:
-          const: true
-        termsVersion:
-          type: string
-          minLength: 1
-          maxLength: 32
-        privacyVersion:
-          type: string
-          minLength: 1
-          maxLength: 32
     OtpVerification:
       type: object
       additionalProperties: false
