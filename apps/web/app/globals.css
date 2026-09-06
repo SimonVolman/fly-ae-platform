@@ -2406,37 +2406,64 @@ footer a {
 }
 
 .mission-section {
-  align-items: start;
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-line);
+  align-items: center;
+  background: #f1f0f0;
   display: grid;
-  gap: clamp(32px, 6vw, 96px);
-  grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
-  padding: 64px var(--app-inline);
+  isolation: isolate;
+  min-height: 400px;
+  overflow: hidden;
+  padding: 72px max(var(--app-inline), calc((100% - 1200px) / 2));
+  position: relative;
 }
 
-.mission-section .eyebrow {
-  margin: 0 0 12px;
+.mission-section::after {
+  background: linear-gradient(90deg, rgb(241 240 240 / 92%), rgb(241 240 240 / 72%) 35%, transparent 68%);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+.mission-image {
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 300ms ease;
+  z-index: -2;
+}
+
+.mission-image.is-loaded {
+  opacity: 1;
+}
+
+.mission-image img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  object-position: right bottom;
+  width: 100%;
+}
+
+.mission-content {
+  max-width: 620px;
 }
 
 .mission-section h2 {
   font-family: var(--font-sans);
-  font-size: clamp(32px, 4vw, 52px);
-  letter-spacing: -0.045em;
-  line-height: 1;
-  margin: 0;
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin: 0 0 24px;
 }
 
-.mission-copy {
-  display: grid;
-  gap: 18px;
-  max-width: 720px;
-}
-
-.mission-copy p {
-  color: var(--color-muted);
-  font-size: clamp(16px, 1.5vw, 20px);
-  line-height: 1.55;
+.mission-content p {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 1.6;
   margin: 0;
 }
 
@@ -3348,8 +3375,11 @@ footer a {
   }
 
   .mission-section {
-    grid-template-columns: 1fr;
     padding: 48px 24px;
+  }
+
+  .mission-content {
+    max-width: min(620px, 70%);
   }
 
   .upload-layout {
@@ -3552,24 +3582,41 @@ footer a {
     grid-template-columns: 1fr;
   }
 
-  .mission-section {
-    gap: 20px;
-    padding: 38px 18px;
-  }
-
-  .mission-section h2 {
-    font-size: 32px;
-  }
-
-  .mission-copy p {
-    font-size: 14px;
-  }
-
   .shared-card dl > div {
     border-bottom: 1px solid var(--color-line);
   }
 
   .shared-card dl > div:last-child {
     border-bottom: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .mission-section {
+    align-items: start;
+    min-height: 550px;
+    padding: 40px 24px 280px;
+  }
+
+  .mission-section::after {
+    background: linear-gradient(180deg, #f1f0f0 0%, #f1f0f0 45%, transparent 72%);
+  }
+
+  .mission-image {
+    height: 280px;
+    top: auto;
+  }
+
+  .mission-content {
+    max-width: none;
+  }
+
+  .mission-section h2 {
+    font-size: 32px;
+    margin-bottom: 20px;
+  }
+
+  .mission-content p {
+    font-size: 18px;
   }
 }

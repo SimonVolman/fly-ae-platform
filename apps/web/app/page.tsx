@@ -16,6 +16,7 @@ import {
 import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
+import { Mission } from "./components/Mission";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
@@ -1926,32 +1927,7 @@ function HomeContent() {
         </section>
       )}
 
-      <section className="mission-section" aria-labelledby="mission-title">
-        <div>
-          <p className="eyebrow">Purpose-built for aviation</p>
-          <h2 id="mission-title">Mission of fly.ae</h2>
-        </div>
-        <div className="mission-copy">
-          <p>
-            There is no product on the market today built specifically for aviation
-            experts to securely store and share proprietary data. If you’re tired of
-            dropping your files into boxes or relying on yet another way to transfer
-            them, fly.ae gives your aviation data a place of its own.
-          </p>
-          <p>
-            For now, fly.ae is free to use. You can store your files for up to one year
-            with virtually unlimited space. We know that VBSI data can take up a lot of
-            it, so you’ve come to the right place—and you won’t be disappointed.
-          </p>
-          <p>
-            One warning: anything unrelated to flying machines—including personal
-            files, entertainment videos, or pornographic content—will be deleted, and
-            the associated account may be blocked. fly.ae is exclusively for aviation
-            data. For everything else, please find another box—or another way to
-            transfer it. Don’t overstay your welcome.
-          </p>
-        </div>
-      </section>
+      <Mission />
 
       <footer className="product-footer">
         <Brand />
