@@ -3598,17 +3598,11 @@ footer a {
 @media (max-width: 640px) {
   .mission-section {
     align-items: start;
-    min-height: 550px;
-    padding: 40px 24px 280px;
+    padding: 40px 24px;
   }
 
   .mission-section::after {
-    background: linear-gradient(180deg, #f1f0f0 0%, #f1f0f0 45%, transparent 72%);
-  }
-
-  .mission-image {
-    height: 280px;
-    top: auto;
+    background: linear-gradient(180deg, rgb(241 240 240 / 90%), rgb(241 240 240 / 80%) 45%, rgb(241 240 240 / 84%));
   }
 
   .mission-content {
