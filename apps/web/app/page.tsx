@@ -10,6 +10,7 @@ import {
   FormEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -17,6 +18,13 @@ import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { Mission } from "./components/Mission";
+import { DocumentsNavigation } from "./components/DocumentsNavigation";
+import { DocumentIcon, FolderActions, FolderCard, type FolderAction } from "./components/Folder";
+import {
+  categoryItem, documentCount, folderItem, folderLabel, groupDocumentsIntoFolders,
+  groupFoldersIntoCategories, resolveFolderLocation, shareableDocuments,
+  type Category, type DocumentStatus, type FlyDocument, type FolderViewItem,
+} from "./document-library";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
@@ -25,12 +33,6 @@ const AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
 const GUEST_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const GENERAL_DOCUMENT_MSN = "GENERAL";
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
-
-type Category = {
-  id: string;
-  code: string;
-  name: string;
-};
 
 type IdentifierField = {
   label: string;
@@ -153,28 +155,6 @@ function supportedUploadMimeType(file: File): string | null {
   );
 }
 
-type DocumentStatus =
-  | "CREATED"
-  | "UPLOADING"
-  | "PENDING"
-  | "PROCESSING"
-  | "APPROVED"
-  | "REJECTED"
-  | "FAILED"
-  | "DELETED";
-
-type FlyDocument = {
-  id: string;
-  category: Category;
-  msn: string;
-  filename: string;
-  mimeType: string;
-  sizeBytes: number;
-  status: DocumentStatus;
-  shareUrl: string | null;
-  createdAt: string;
-};
-
 type Session = {
   accessToken: string;
   expiresAt: string;
@@ -221,29 +201,6 @@ type UploadState =
   | "failed";
 
 type WorkflowStep = 1 | 2 | 3;
-
-type DocumentFolder = {
-  key: string;
-  category: Category;
-  msn: string;
-  documents: FlyDocument[];
-};
-
-type CategoryFolder = {
-  key: string;
-  category: Category;
-  folders: DocumentFolder[];
-  documents: FlyDocument[];
-};
-
-type FolderViewItem = {
-  key: string;
-  label: string;
-  description: string;
-  documents: FlyDocument[];
-  categoryId: string;
-  folderKey: string | null;
-};
 
 async function api<T>(
   path: string,
@@ -297,60 +254,6 @@ function identifierField(category?: Category) {
   return IDENTIFIER_FIELDS[category?.code ?? ""] ?? IDENTIFIER_FIELDS.AIRCRAFT;
 }
 
-function groupDocumentsIntoFolders(documents: FlyDocument[]) {
-  const folders = new Map<string, DocumentFolder>();
-
-  documents.forEach((document) => {
-    const key = `${document.category.id}:${document.msn}`;
-    const folder = folders.get(key);
-
-    if (folder) {
-      folder.documents.push(document);
-      return;
-    }
-
-    folders.set(key, {
-      key,
-      category: document.category,
-      msn: document.msn,
-      documents: [document],
-    });
-  });
-
-  return Array.from(folders.values());
-}
-
-function groupFoldersIntoCategories(folders: DocumentFolder[]) {
-  const categories = new Map<string, CategoryFolder>();
-
-  folders.forEach((folder) => {
-    const categoryFolder = categories.get(folder.category.id);
-
-    if (categoryFolder) {
-      categoryFolder.folders.push(folder);
-      categoryFolder.documents.push(...folder.documents);
-      return;
-    }
-
-    categories.set(folder.category.id, {
-      key: `category:${folder.category.id}`,
-      category: folder.category,
-      folders: [folder],
-      documents: [...folder.documents],
-    });
-  });
-
-  return Array.from(categories.values()).sort((left, right) => {
-    const leftIndex = CATEGORY_CARD_CATALOG.findIndex(
-      (category) => category.code === left.category.code,
-    );
-    const rightIndex = CATEGORY_CARD_CATALOG.findIndex(
-      (category) => category.code === right.category.code,
-    );
-    return leftIndex - rightIndex;
-  });
-}
-
 function HomeContent() {
   const [categories, setCategories] = useState<Category[]>(() => [
     ...CATEGORY_CARD_CATALOG,
@@ -383,24 +286,30 @@ function HomeContent() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
   const [openFolderKey, setOpenFolderKey] = useState<string | null>(null);
-  const [folderMenuKey, setFolderMenuKey] = useState<string | null>(null);
-  const [selectedFolderKey, setSelectedFolderKey] = useState<string | null>(null);
+  const [expandedDocumentCategories, setExpandedDocumentCategories] = useState<string[]>(["root"]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsLoadError, setDocumentsLoadError] = useState("");
+  const [folderActionBusy, setFolderActionBusy] = useState(false);
+  const [documentNotice, setDocumentNotice] = useState<{ error: boolean; message: string } | null>(null);
+  const documentsHeading = useRef<HTMLHeadingElement>(null);
+  const documentRequest = useRef(0);
+  const folderActionInFlight = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const stepTwo = useRef<HTMLElement>(null);
   const stepThree = useRef<HTMLElement>(null);
-  const folderLongPressTimer = useRef<number | null>(null);
-  const folderLongPressActivated = useRef(false);
 
   const loadDocuments = useCallback(async (currentSession: Session) => {
+    if (folderActionInFlight.current) return;
+    const request = ++documentRequest.current;
+    setDocumentsLoading(true);
+    setDocumentsLoadError("");
     try {
-      const result = await api<FlyDocument[]>(
-        "/documents",
-        {},
-        currentSession.accessToken,
-      );
-      setDocuments(result);
+      const result = await api<FlyDocument[]>("/documents", {}, currentSession.accessToken);
+      if (request === documentRequest.current) setDocuments(result);
     } catch (requestError) {
-      setError((requestError as Error).message);
+      if (request === documentRequest.current) setDocumentsLoadError((requestError as Error).message);
+    } finally {
+      if (request === documentRequest.current) setDocumentsLoading(false);
     }
   }, []);
 
@@ -831,10 +740,14 @@ function HomeContent() {
   }
 
   async function deleteDocument(documentId: string) {
-    if (!session || !window.confirm("Delete this item and its uploaded file?")) {
+    if (!session || folderActionInFlight.current || !window.confirm("Delete this item and its uploaded file?")) {
       return;
     }
-    setError("");
+    folderActionInFlight.current = true;
+    setFolderActionBusy(true);
+    documentRequest.current += 1;
+    setDocumentsLoading(false);
+    setDocumentNotice(null);
     try {
       await api<void>(
         `/documents/${documentId}`,
@@ -844,9 +757,13 @@ function HomeContent() {
       setActiveUploads((currentUploads) =>
         currentUploads.filter((upload) => upload.document.id !== documentId),
       );
-      await loadDocuments(session);
+      setDocuments((current) => current.filter((document) => document.id !== documentId));
+      setDocumentNotice({ error: false, message: "Document deleted." });
     } catch (requestError) {
-      setError((requestError as Error).message);
+      setDocumentNotice({ error: true, message: (requestError as Error).message });
+    } finally {
+      folderActionInFlight.current = false;
+      setFolderActionBusy(false);
     }
   }
 
@@ -938,121 +855,79 @@ function HomeContent() {
     }
   }
 
-  async function copyFolderLinks(folderDocuments: FlyDocument[]) {
-    const links = folderDocuments.flatMap((document) =>
-      document.shareUrl ? [document.shareUrl] : [],
-    );
-    setFolderMenuKey(null);
-    setSelectedFolderKey(null);
-    if (!links.length) {
-      setError("This folder does not have any approved share links yet.");
-      return;
+  async function performFolderAction(action: FolderAction, folder: FolderViewItem) {
+    if (!session || folderActionInFlight.current) return;
+    if (action === "delete" && !window.confirm(
+      `Delete all ${documentCount(folder.documents.length)} in “${folder.label}” and their uploaded files? This cannot be undone.`,
+    )) return;
+    folderActionInFlight.current = true;
+    setFolderActionBusy(true);
+    if (action === "delete") {
+      documentRequest.current += 1;
+      setDocumentsLoading(false);
     }
-    await copyShareLink(links.join("\n"));
-  }
-
-  async function downloadFolderDocuments(folderDocuments: FlyDocument[]) {
-    const links = folderDocuments.flatMap((document) =>
-      document.shareUrl ? [document.shareUrl] : [],
-    );
-    setFolderMenuKey(null);
-    setSelectedFolderKey(null);
-    if (!links.length) {
-      setError("This folder does not have any approved documents to download yet.");
-      return;
-    }
-
-    setError("");
+    setDocumentNotice(null);
     try {
-      const downloads = await Promise.all(
-        links.map(async (link) => {
-          const token = new URL(link, window.location.origin).pathname
-            .split("/")
-            .filter(Boolean)
-            .at(-1);
+      const available = shareableDocuments(folder.documents);
+      if (action === "copy") {
+        if (!available.length) throw new Error("No approved share links are available yet.");
+        await navigator.clipboard.writeText(available.map((document) => document.shareUrl).join("\n"));
+        setDocumentNotice({ error: false, message: `Copied ${available.length} ${available.length === 1 ? "link" : "links"}.` });
+      } else if (action === "download") {
+        if (!available.length) throw new Error("No approved documents are available to download yet.");
+        const downloads = await Promise.all(available.map(async (document) => {
+          const token = new URL(document.shareUrl!, window.location.origin).pathname.split("/").filter(Boolean).at(-1);
           if (!token) throw new Error("The document share link is invalid.");
-          return api<{ downloadUrl: string }>(
-            `/shares/${encodeURIComponent(decodeURIComponent(token))}`,
-          );
-        }),
-      );
-
-      downloads.forEach(({ downloadUrl }) => {
-        const downloadLink = document.createElement("a");
-        downloadLink.href = downloadUrl;
-        downloadLink.target = "_blank";
-        downloadLink.rel = "noopener noreferrer";
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        downloadLink.remove();
-      });
+          return api<{ downloadUrl: string }>(`/shares/${encodeURIComponent(decodeURIComponent(token))}`);
+        }));
+        downloads.forEach(({ downloadUrl }) => {
+          const link = document.createElement("a");
+          link.href = downloadUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        });
+        setDocumentNotice({ error: false, message: `Requested downloads for ${documentCount(downloads.length)}. Allow multiple downloads if your browser asks.` });
+      } else {
+        const results = await Promise.allSettled(folder.documents.map((document) =>
+          api<void>(`/documents/${document.id}`, { method: "DELETE" }, session.accessToken),
+        ));
+        const deletedIds = new Set(folder.documents.filter((_, index) => results[index].status === "fulfilled").map((document) => document.id));
+        setDocuments((current) => current.filter((document) => !deletedIds.has(document.id)));
+        setActiveUploads((current) => current.filter((upload) => !deletedIds.has(upload.document.id)));
+        const failed = results.length - deletedIds.size;
+        setDocumentNotice({
+          error: failed > 0,
+          message: failed
+            ? `Deleted ${documentCount(deletedIds.size)}. ${failed} could not be deleted. Please try again.`
+            : `Deleted ${documentCount(deletedIds.size)} from “${folder.label}”.`,
+        });
+      }
     } catch (requestError) {
-      setError((requestError as Error).message);
+      setDocumentNotice({ error: true, message: action === "copy"
+        ? "The links could not be copied. Please allow clipboard access and try again."
+        : (requestError as Error).message });
+    } finally {
+      folderActionInFlight.current = false;
+      setFolderActionBusy(false);
     }
   }
 
-  async function deleteFolderDocuments(folderDocuments: FlyDocument[]) {
-    if (
-      !session ||
-      !window.confirm(
-        `Delete all ${folderDocuments.length} ${folderDocuments.length === 1 ? "document" : "documents"} in this folder?`,
-      )
-    ) {
-      return;
-    }
-
-    setError("");
-    setFolderMenuKey(null);
-    setSelectedFolderKey(null);
-    try {
-      await Promise.all(
-        folderDocuments.map((document) =>
-          api<void>(
-            `/documents/${document.id}`,
-            { method: "DELETE" },
-            session.accessToken,
-          ),
-        ),
-      );
-      setOpenFolderKey(null);
-      await loadDocuments(session);
-    } catch (requestError) {
-      setError((requestError as Error).message);
-    }
+  function navigateDocuments(category: string | null, folder: string | null) {
+    setOpenCategoryId(category);
+    setOpenFolderKey(folder);
+    setShowDocuments(true);
+    setMobileMenuOpen(false);
+    setAccountMenuOpen(false);
+    setDocumentNotice(null);
+    setExpandedDocumentCategories((current) => Array.from(new Set([...current, "root", ...(category ? [category] : [])])));
   }
 
-  function startFolderLongPress(folderKey: string) {
-    if (!window.matchMedia("(max-width: 820px)").matches) return;
-    if (folderLongPressTimer.current !== null) {
-      window.clearTimeout(folderLongPressTimer.current);
-    }
-    folderLongPressActivated.current = false;
-    folderLongPressTimer.current = window.setTimeout(() => {
-      folderLongPressActivated.current = true;
-      setSelectedFolderKey(folderKey);
-      setFolderMenuKey(null);
-    }, 550);
-  }
-
-  function cancelFolderLongPress() {
-    if (folderLongPressTimer.current !== null) {
-      window.clearTimeout(folderLongPressTimer.current);
-      folderLongPressTimer.current = null;
-    }
-  }
-
-  function openFolderItem(item: FolderViewItem) {
-    if (folderLongPressActivated.current) {
-      folderLongPressActivated.current = false;
-      return;
-    }
-    setFolderMenuKey(null);
-    setSelectedFolderKey(null);
-    if (item.folderKey) {
-      setOpenFolderKey(item.folderKey);
-      return;
-    }
-    setOpenCategoryId(item.categoryId);
+  function toggleDocumentCategory(id: string) {
+    setExpandedDocumentCategories((current) => current.includes(id)
+      ? current.filter((item) => item !== id) : [...current, id]);
   }
 
   function resetUploadFlow() {
@@ -1070,16 +945,12 @@ function HomeContent() {
     setShowDocuments(false);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
-    setFolderMenuKey(null);
-    setSelectedFolderKey(null);
   }
 
   function showDocumentsView() {
     setShowDocuments(true);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
-    setFolderMenuKey(null);
-    setSelectedFolderKey(null);
     if (session) void loadDocuments(session);
   }
 
@@ -1103,6 +974,11 @@ function HomeContent() {
   }
 
   function logOut() {
+    documentRequest.current += 1;
+    setDocumentsLoading(false);
+    setDocumentsLoadError("");
+    setDocumentNotice(null);
+    setExpandedDocumentCategories(["root"]);
     window.sessionStorage.removeItem("flyae:session");
     setSession(null);
     setDocuments([]);
@@ -1111,8 +987,6 @@ function HomeContent() {
     setAccountMenuOpen(false);
     setOpenCategoryId(null);
     setOpenFolderKey(null);
-    setFolderMenuKey(null);
-    setSelectedFolderKey(null);
     setUploadState(selectedFiles.length ? "ready" : "idle");
     setWorkflowStep(1);
     setActiveUploads([]);
@@ -1129,29 +1003,16 @@ function HomeContent() {
   );
   const documentFolders = groupDocumentsIntoFolders(documents);
   const categoryFolders = groupFoldersIntoCategories(documentFolders);
-  const openCategory = categoryFolders.find(
-    (folder) => folder.category.id === openCategoryId,
-  );
-  const openFolder = documentFolders.find((folder) => folder.key === openFolderKey);
-  const visibleFolderItems: FolderViewItem[] = openCategory
-    ? openCategory.folders.map((folder) => ({
-        key: `document:${folder.key}`,
-        label: isJustDocument(folder.category) ? "General documents" : folder.msn,
-        description: `${folder.documents.length} ${folder.documents.length === 1 ? "document" : "documents"}`,
-        documents: folder.documents,
-        categoryId: folder.category.id,
-        folderKey: folder.key,
-      }))
-    : categoryFolders.map((folder) => ({
-        key: folder.key,
-        label: folder.category.name,
-        description: `${folder.documents.length} ${folder.documents.length === 1 ? "document" : "documents"}`,
-        documents: folder.documents,
-        categoryId: folder.category.id,
-        folderKey: null,
-      }));
-  const selectedFolder = visibleFolderItems.find(
-    (folder) => folder.key === selectedFolderKey,
+  const { category: openCategory, folder: openFolder } = resolveFolderLocation(categoryFolders, openCategoryId, openFolderKey);
+  useLayoutEffect(() => {
+    if (showDocuments && !mobileMenuOpen) documentsHeading.current?.focus();
+  }, [showDocuments, mobileMenuOpen, openCategory?.key, openFolder?.key]);
+  const visibleFolderItems = openCategory ? openCategory.folders.map(folderItem) : categoryFolders.map(categoryItem);
+  const currentFolderItem = openFolder ? folderItem(openFolder) : openCategory ? categoryItem(openCategory) : null;
+  const folderNavigation = (
+    <DocumentsNavigation categories={categoryFolders} active={showDocuments}
+      categoryId={openCategory?.category.id ?? null} folderKey={openFolder?.key ?? null}
+      expanded={expandedDocumentCategories} onToggle={toggleDocumentCategory} onNavigate={navigateDocuments} />
   );
   const userDisplayName =
     session?.user.displayName ??
@@ -1267,22 +1128,13 @@ function HomeContent() {
                 ×
               </button>
             </div>
-            <nav aria-label="Mobile product navigation">
-              <button
-                type="button"
-                className={!showDocuments ? "nav-active" : ""}
-                onClick={showUploadView}
-              >
-                Upload
-              </button>
-              <button
-                type="button"
-                className={showDocuments ? "nav-active" : ""}
-                onClick={showDocumentsView}
-              >
-                My Documents
-              </button>
-            </nav>
+            <div className="mobile-product-navigation">
+              <nav aria-label="Mobile product navigation">
+                <button type="button" className={!showDocuments ? "nav-active" : ""} onClick={showUploadView}>Upload</button>
+                {!session && <button type="button" className={showDocuments ? "nav-active" : ""} onClick={showDocumentsView}>My Documents</button>}
+              </nav>
+              {session && folderNavigation}
+            </div>
             {session ? (
               <div className="mobile-session">
                 <span>{userDisplayName}</span>
@@ -1309,189 +1161,88 @@ function HomeContent() {
       )}
 
       {showDocuments ? (
-        <section className="documents-view" aria-labelledby="documents-title">
-          <div className="app-section-heading">
-            <div>
-              <p className="eyebrow">
-                {openFolder
-                  ? openFolder.category.name
-                  : openCategory
-                    ? "My Documents"
-                    : "Private workspace"}
-              </p>
-              <div className="documents-title-row">
-                {(openCategory || openFolder) && (
-                  <button
-                    className="folder-back-button"
-                    type="button"
-                    aria-label="Go back"
-                    onClick={() => {
-                      setFolderMenuKey(null);
-                      setSelectedFolderKey(null);
-                      if (openFolder) {
-                        setOpenFolderKey(null);
-                      } else {
-                        setOpenCategoryId(null);
-                      }
-                    }}
-                  >
-                    ←
-                  </button>
-                )}
-                <h1 id="documents-title">
-                  {openFolder
-                    ? isJustDocument(openFolder.category)
-                      ? "General documents"
-                      : openFolder.msn
-                    : openCategory?.category.name ?? "My Documents"}
-                </h1>
+        <div className={`documents-workspace ${session ? "has-document-navigation" : ""}`}>
+          {session && <aside className="documents-sidebar" aria-label="Documents sidebar">{folderNavigation}</aside>}
+          <section className="documents-view" aria-labelledby="documents-title" aria-busy={documentsLoading || folderActionBusy}>
+            <nav className="folder-breadcrumbs" aria-label="Folder path">
+              <ol>
+                <li>{openCategory
+                  ? <button type="button" onClick={() => navigateDocuments(null, null)}>My Documents</button>
+                  : <span aria-current="page">My Documents</span>}</li>
+                {openCategory && <li>{openFolder
+                  ? <button type="button" onClick={() => navigateDocuments(openCategory.category.id, null)}>{openCategory.category.name}</button>
+                  : <span aria-current="page">{openCategory.category.name}</span>}</li>}
+                {openFolder && <li><span aria-current="page" title={folderLabel(openFolder)}>{folderLabel(openFolder)}</span></li>}
+              </ol>
+            </nav>
+            <div className="app-section-heading">
+              <div className="documents-heading-main">
+                <div className="documents-title-row">
+                  {openCategory && <button className="folder-back-button" type="button"
+                    aria-label={`Back to ${openFolder ? openCategory.category.name : "My Documents"}`}
+                    onClick={() => navigateDocuments(openFolder ? openCategory.category.id : null, null)}>
+                    <DocumentIcon name="back" />
+                  </button>}
+                  <h1 id="documents-title" ref={documentsHeading} tabIndex={-1}>
+                    {openFolder ? folderLabel(openFolder) : openCategory?.category.name ?? "My Documents"}
+                  </h1>
+                  {currentFolderItem && <FolderActions folder={currentFolderItem} busy={folderActionBusy}
+                    onAction={(action, folder) => void performFolderAction(action, folder)} />}
+                </div>
+                {session && <p className="documents-summary">{documentCount(currentFolderItem?.documents.length ?? documents.filter((document) => document.status !== "DELETED").length)}</p>}
               </div>
+              <button className="button button-primary" onClick={showUploadView}>Upload document</button>
             </div>
-            <button className="button button-primary" onClick={showUploadView}>
-              Upload document
-            </button>
-          </div>
-
-          {!session ? (
-            <div className="empty-app-state">
-              <h2>Log in to view your documents</h2>
-              <p>My Documents is available after you sign in.</p>
-              <button className="button button-primary" onClick={openAuth}>
-                Log in
-              </button>
-            </div>
-          ) : documents.length ? (
-            <div
-              className="documents-library desktop-documents-library"
-              onClick={() => setFolderMenuKey(null)}
-            >
-              {openFolder ? (
-                <section
-                  className="folder-contents"
-                  aria-label={
-                    isJustDocument(openFolder.category)
-                      ? openFolder.category.name
-                      : `${openFolder.category.name} ${identifierField(openFolder.category).label} ${openFolder.msn}`
-                  }
-                >
-                  <div className="folder-contents-heading">
-                    <div>
-                      <p className="eyebrow">{openFolder.category.name}</p>
-                      <h2>
-                        {isJustDocument(openFolder.category)
-                          ? "General documents"
-                          : `${identifierField(openFolder.category).label} ${openFolder.msn}`}
-                      </h2>
-                    </div>
-                  </div>
-                  <div className="document-table">
-                    {openFolder.documents.map((document) => (
-                      <article className="document-item" key={document.id}>
-                        <span className="file-mark" aria-hidden="true" />
-                        <div className="document-name">
-                          <strong>{document.filename}</strong>
-                          <span>{formatBytes(document.sizeBytes)}</span>
-                        </div>
-                        <span className={`document-status status-${document.status.toLowerCase()}`}>
-                          <i aria-hidden="true" />
-                          {statusLabel(document.status)}
-                        </span>
-                        <div className="document-actions">
-                          {document.shareUrl && (
-                            <button onClick={() => void copyShareLink(document.shareUrl!)}>
-                              Copy link
-                            </button>
-                          )}
-                          <button
-                            className="danger-action"
-                            onClick={() => void deleteDocument(document.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ) : (
-                <>
-                  {selectedFolder && (
-                    <div className="folder-selection-toolbar" role="toolbar" aria-label={`${selectedFolder.label} actions`}>
-                      <strong>{selectedFolder.label}</strong>
-                      <div>
-                        <button type="button" aria-label="Copy folder links" onClick={() => void copyFolderLinks(selectedFolder.documents)}>↗</button>
-                        <button type="button" aria-label="Download folder" onClick={() => void downloadFolderDocuments(selectedFolder.documents)}>↓</button>
-                        <button type="button" aria-label="Delete all folder documents" onClick={() => void deleteFolderDocuments(selectedFolder.documents)}>⌫</button>
-                        <button type="button" aria-label="Close folder actions" onClick={() => setSelectedFolderKey(null)}>×</button>
-                      </div>
-                    </div>
-                  )}
-                  <div className="document-folder-grid">
-                    {visibleFolderItems.map((folder) => {
-                      const isSelected = folder.key === selectedFolderKey;
-                      const menuOpen = folder.key === folderMenuKey;
-
-                      return (
-                        <article
-                          className={`document-folder-tile ${isSelected || menuOpen ? "folder-selected" : ""}`}
-                          key={folder.key}
-                          onContextMenu={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setFolderMenuKey(folder.key);
-                            setSelectedFolderKey(null);
-                          }}
-                        >
-                          <button
-                            className="document-folder-button"
-                            type="button"
-                            aria-haspopup="menu"
-                            aria-expanded={menuOpen}
-                            onPointerDown={() => startFolderLongPress(folder.key)}
-                            onPointerUp={cancelFolderLongPress}
-                            onPointerCancel={cancelFolderLongPress}
-                            onPointerLeave={cancelFolderLongPress}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openFolderItem(folder);
-                            }}
-                          >
-                            <span className="folder-art" aria-hidden="true" />
-                            <strong className="folder-tile-label">{folder.label}</strong>
-                            <span className="folder-tile-meta">{folder.description}</span>
-                          </button>
-                          <button
-                            className="folder-more-button"
-                            type="button"
-                            aria-label={`Show actions for ${folder.label}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedFolderKey(folder.key);
-                              setFolderMenuKey(null);
-                            }}
-                          >
-                            ⋮
-                          </button>
-                          {menuOpen && (
-                            <div className="folder-context-menu" role="menu" onClick={(event) => event.stopPropagation()}>
-                              <button type="button" role="menuitem" onClick={() => void copyFolderLinks(folder.documents)}>↗ <span>Copy link</span></button>
-                              <button type="button" role="menuitem" onClick={() => void downloadFolderDocuments(folder.documents)}>↓ <span>Download</span></button>
-                              <button className="danger-action" type="button" role="menuitem" onClick={() => void deleteFolderDocuments(folder.documents)}>⌫ <span>Delete all</span></button>
-                            </div>
-                          )}
+            {documentNotice && <p className={`documents-notice ${documentNotice.error ? "is-error" : ""}`}
+              role={documentNotice.error ? "alert" : "status"}>{documentNotice.message}</p>}
+            {session && documentsLoadError && <div className="documents-notice is-error" role="alert">
+              <span>{documentsLoadError}</span>
+              <button type="button" onClick={() => void loadDocuments(session)}>Try again</button>
+            </div>}
+            {!session ? (
+              <div className="empty-app-state">
+                <h2>Log in to view your documents</h2>
+                <p>My Documents is available after you sign in.</p>
+                <button className="button button-primary" onClick={openAuth}>Log in</button>
+              </div>
+            ) : documentsLoading && !documents.length ? (
+              <div className="empty-app-state" role="status">Loading documents…</div>
+            ) : categoryFolders.length ? (
+              <div className="documents-library desktop-documents-library">
+                {openFolder ? (
+                  <section className="folder-contents" aria-label={`${openFolder.category.name} ${folderLabel(openFolder)}`}>
+                    <div className="document-table">
+                      {openFolder.documents.map((document) => (
+                        <article className="document-item" key={document.id}>
+                          <DocumentIcon name="file" />
+                          <div className="document-name">
+                            <strong title={document.filename}>{document.filename}</strong>
+                            <span>{formatBytes(document.sizeBytes)}</span>
+                          </div>
+                          <span className={`document-status status-${document.status.toLowerCase()}`}>
+                            <i aria-hidden="true" />{statusLabel(document.status)}
+                          </span>
+                          <div className="document-actions">
+                            {document.shareUrl && <button onClick={() => void copyShareLink(document.shareUrl!)}>Copy link</button>}
+                            <button className="danger-action" disabled={folderActionBusy} onClick={() => void deleteDocument(document.id)}>Delete</button>
+                          </div>
                         </article>
-                      );
-                    })}
+                      ))}
+                    </div>
+                  </section>
+                ) : (
+                  <div className="document-folder-grid">
+                    {visibleFolderItems.map((folder) => <FolderCard key={folder.key} folder={folder} busy={folderActionBusy}
+                      onOpen={(item) => navigateDocuments(item.categoryId, item.folderKey)}
+                      onAction={(action, item) => void performFolderAction(action, item)} />)}
                   </div>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="empty-app-state empty-documents-state">
-              <strong>No documents yet</strong>
-            </div>
-          )}
-        </section>
+                )}
+              </div>
+            ) : !documentsLoadError && (
+              <div className="empty-app-state empty-documents-state"><strong>No documents yet</strong></div>
+            )}
+          </section>
+        </div>
       ) : (
         <section className="upload-workspace" aria-labelledby="upload-title">
           <aside className="desktop-category-sidebar" aria-label="Document details">
