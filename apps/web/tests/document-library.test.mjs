@@ -22,6 +22,7 @@ mock.module("next/link", { defaultExport: (props) => {
 } });
 const { default: Home } = await import("../app/page.tsx");
 const { FolderCard } = await import("../app/components/Folder.tsx");
+const { ShareDocumentClient } = await import("../app/share/[token]/ShareDocumentClient.tsx");
 
 const aircraft = { id: "aircraft", code: "AIRCRAFT", name: "Aircraft" };
 const engine = { id: "engine", code: "ENGINE", name: "Engine" };
@@ -83,7 +84,7 @@ beforeEach(() => {
   }));
   global("fetch", async (input, options = {}) => {
     const path = new URL(input).pathname.replace("/api/v1", "");
-    requests.push({ path, method: options.method ?? "GET" });
+    requests.push({ path, method: options.method ?? "GET", authorization: new Headers(options.headers).get("Authorization") });
     if (path === "/categories") return Response.json([aircraft, engine, general]);
     if (path === "/documents") return Response.json(records);
     if (path.startsWith("/documents/") && options.method === "DELETE") {
@@ -92,7 +93,7 @@ beforeEach(() => {
       records = records.filter((item) => item.id !== id);
       return new Response(null, { status: 204 });
     }
-    if (path.startsWith("/shares/")) return Response.json({ downloadUrl: `https://download.example.com/${path.split("/").at(-1)}.pdf` });
+    if (path.startsWith("/shares/")) return Response.json({ filename: "shared.pdf", category: "Aircraft", msn: "123", sizeBytes: 2048, downloadUrl: `https://download.example.com/${path.split("/").at(-1)}.pdf` });
     throw new Error(`Unexpected request ${path}`);
   });
   container = window.document.getElementById("root");
@@ -209,7 +210,28 @@ test("copy and download include approved documents only, and report success", as
   await click(button("Actions for Aircraft"));
   await click(button("Download files", menu()));
   assert.deepEqual(downloads, ["https://download.example.com/a.pdf", "https://download.example.com/b.pdf"]);
+  assert.deepEqual(requests.filter(({ path }) => path.startsWith("/shares/")).map(({ authorization }) => authorization), ["Bearer test-only-token", "Bearer test-only-token"]);
 });
+
+test("share page identifies a logged-in visitor only to the backend", async () => {
+  window.history.replaceState({}, "", "/share/test-share-token");
+  await mount(React.createElement(ShareDocumentClient));
+  assert.equal(heading(), "shared.pdf");
+  assert.deepEqual(requests, [{ path: "/shares/test-share-token", method: "GET", authorization: "Bearer test-only-token" }]);
+  assert.equal(container.querySelector(".shared-card a").href, "https://download.example.com/test-share-token.pdf");
+  assert.doesNotMatch(container.innerHTML, /test-only-token/);
+});
+
+for (const stored of [null, "invalid json", JSON.stringify({ accessToken: "expired", expiresAt: "2000-01-01T00:00:00Z" })]) {
+  test(`share page remains public with unavailable session: ${stored}`, async () => {
+    window.history.replaceState({}, "", "/share/test-share-token");
+    if (stored === null) window.sessionStorage.removeItem("flyae:session");
+    else window.sessionStorage.setItem("flyae:session", stored);
+    await mount(React.createElement(ShareDocumentClient));
+    assert.equal(heading(), "shared.pdf");
+    assert.equal(requests[0].authorization, null);
+  });
+}
 
 test("unapproved folder actions are explained and disabled", async () => {
   records = [makeDocument("pending", aircraft, "123", "PENDING")];

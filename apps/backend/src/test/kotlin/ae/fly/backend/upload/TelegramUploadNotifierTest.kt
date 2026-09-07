@@ -43,11 +43,12 @@ class TelegramUploadNotifierTest {
         )
         val notifier = TelegramUploadNotifier(properties(chatId = 123L), bot, users)
 
-        notifier.completed(owner, document)
+        notifier.completed(owner, document, "2001:db8::1")
 
         assertEquals(123L, bot.chatId)
         assertEquals("pilot@example.com ($userId)", bot.notification?.uploader)
         assertEquals("engine-report.pdf", bot.notification?.filename)
+        assertEquals("2001:db8::1", bot.notification?.ipAddress)
     }
 
     @Test

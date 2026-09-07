@@ -1,6 +1,8 @@
 package ae.fly.backend.upload
 
 import ae.fly.backend.config.StorageProperties
+import ae.fly.backend.activity.DocumentActivityRecorder
+import ae.fly.backend.domain.DocumentActivityType
 import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.FlyPrincipal
 import ae.fly.backend.domain.Category
@@ -18,6 +20,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import java.net.URI
 import java.time.Duration
@@ -42,6 +46,7 @@ class UploadServiceTest {
     private val storage = FakeObjectStorage()
     private val queue = CapturingQueue()
     private val notifier = CapturingUploadNotifier()
+    private val activities = mock(DocumentActivityRecorder::class.java)
     private val clock = MutableClock(Instant.parse("2026-07-26T12:00:00Z"))
     private val service = UploadService(
         documents,
@@ -56,6 +61,7 @@ class UploadServiceTest {
             uploadSignatureTtl = Duration.ofHours(1),
         ),
         clock,
+        activities,
     )
 
     init {
@@ -76,11 +82,14 @@ class UploadServiceTest {
             documentId,
             session.uploadId,
             CompleteMultipartRequest(listOf(CompletedPartRequest(1, "\"etag\""))),
+            "203.0.113.10",
         )
 
         assertEquals(DocumentStatus.PENDING, result.status)
         assertEquals(documentId, queue.documentId)
         assertEquals(documentId, notifier.documentId)
+        assertEquals("203.0.113.10", notifier.ipAddress)
+        verify(activities).record(documentId, DocumentActivityType.UPLOAD_COMPLETED, owner, "203.0.113.10")
         assertTrue(storage.completed)
     }
 
@@ -140,6 +149,7 @@ class UploadServiceTest {
         assertTrue(storage.deleted)
         assertEquals(null, queue.documentId)
         assertEquals(null, notifier.documentId)
+        verifyNoInteractions(activities)
     }
 
     private class CapturingQueue : JobQueue {
@@ -152,9 +162,11 @@ class UploadServiceTest {
 
     private class CapturingUploadNotifier : UploadNotifier {
         var documentId: UUID? = null
+        var ipAddress: String? = null
 
-        override fun completed(owner: FlyPrincipal, document: Document) {
+        override fun completed(owner: FlyPrincipal, document: Document, ipAddress: String?) {
             documentId = document.id
+            this.ipAddress = ipAddress
         }
     }
 

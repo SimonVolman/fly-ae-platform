@@ -1,5 +1,6 @@
 package ae.fly.backend.upload
 
+import ae.fly.backend.activity.DocumentActivityRecorder
 import ae.fly.backend.api.ApiProblem
 import ae.fly.backend.auth.AuthenticatedGuest
 import ae.fly.backend.auth.AuthenticatedUser
@@ -8,6 +9,7 @@ import ae.fly.backend.config.StorageProperties
 import ae.fly.backend.document.DocumentResponse
 import ae.fly.backend.document.hasValidUploadSignature
 import ae.fly.backend.domain.Document
+import ae.fly.backend.domain.DocumentActivityType
 import ae.fly.backend.domain.DocumentStatus
 import ae.fly.backend.ports.CompletedPart
 import ae.fly.backend.ports.JobQueue
@@ -27,6 +29,7 @@ class UploadService(
     private val notifier: UploadNotifier,
     private val storageProperties: StorageProperties,
     private val clock: Clock,
+    private val activities: DocumentActivityRecorder,
 ) {
     @Transactional
     fun start(owner: FlyPrincipal, documentId: UUID): MultipartSessionResponse {
@@ -70,6 +73,7 @@ class UploadService(
         documentId: UUID,
         uploadId: String,
         request: CompleteMultipartRequest,
+        ipAddress: String? = null,
     ): DocumentResponse {
         val document = requireUploading(owner, documentId, uploadId)
         val uniqueParts = request.parts.map(CompletedPartRequest::partNumber).toSet()
@@ -104,7 +108,8 @@ class UploadService(
         document.failureReason = null
         documents.save(document)
         queue.enqueue(document.id)
-        notifier.completed(owner, document)
+        activities.record(document.id, DocumentActivityType.UPLOAD_COMPLETED, owner, ipAddress)
+        notifier.completed(owner, document, ipAddress)
         return DocumentResponse.from(document)
     }
 

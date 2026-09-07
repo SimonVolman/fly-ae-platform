@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Brand } from "../../components/Brand";
+import { sessionHeaders } from "../../session-headers";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
@@ -29,7 +30,8 @@ export function ShareDocumentClient() {
     if (!token || token === "__token__") {
       return;
     }
-    void fetch(`${API_URL}/shares/${encodeURIComponent(decodeURIComponent(token))}`)
+    const headers = sessionHeaders({ getItem: (key) => window.sessionStorage.getItem(key) });
+    void fetch(`${API_URL}/shares/${encodeURIComponent(decodeURIComponent(token))}`, { headers })
       .then(async (response) => {
         if (!response.ok) {
           const problem = (await response.json().catch(() => ({}))) as {

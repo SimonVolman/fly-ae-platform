@@ -13,6 +13,8 @@ import ae.fly.backend.domain.TermsAcceptance
 import ae.fly.backend.domain.TelegramLoginRequest
 import ae.fly.backend.domain.User
 import ae.fly.backend.persistence.dynamodb.DynamoCategoryRepository
+import ae.fly.backend.persistence.dynamodb.DynamoDocumentActivityRepository
+import ae.fly.backend.support.assertDocumentActivityContract
 import ae.fly.backend.persistence.dynamodb.DynamoDbConfig
 import ae.fly.backend.persistence.dynamodb.DynamoDocumentRepository
 import ae.fly.backend.persistence.dynamodb.DynamoGuestSessionRepository
@@ -67,6 +69,11 @@ class DynamoRepositoryIntegrationTest {
         )
         client.createTable(DynamoDbConfig().createTableRequest(tableName))
         client.waiter().waitUntilTableExists { it.tableName(tableName) }
+    }
+
+    @Test
+    fun `document activities persist users guests IPs and chronological history`() {
+        assertDocumentActivityContract(DynamoDocumentActivityRepository(client, properties))
     }
 
     @Test

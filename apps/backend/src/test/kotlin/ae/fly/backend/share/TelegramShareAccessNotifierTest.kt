@@ -1,6 +1,7 @@
 package ae.fly.backend.share
 
 import ae.fly.backend.auth.TelegramBotClient
+import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.TelegramUploadNotification
 import ae.fly.backend.auth.TelegramUrlButton
 import ae.fly.backend.config.TelegramProperties
@@ -47,14 +48,22 @@ class TelegramShareAccessNotifierTest {
             clock = clock,
         )
 
-        notifier.accessed(document)
+        val visitor = User(id = UUID.randomUUID(), email = "visitor@example.com")
+        `when`(users.findById(visitor.id)).thenReturn(visitor)
+        notifier.accessed(document, AuthenticatedUser(visitor.id), "203.0.113.10")
 
         assertTrue(bot.text.contains("SHARE-ССЫЛКА ИСПОЛЬЗОВАНА"))
-        assertTrue(bot.text.contains("owner@example.com"))
+        assertTrue(bot.text.contains("Владелец: owner@example.com (${user.id})"))
+        assertTrue(bot.text.contains("Посетитель: visitor@example.com (${visitor.id})"))
         assertTrue(bot.text.contains("engine-report.pdf"))
         assertTrue(bot.text.contains(document.id.toString()))
-        assertFalse(bot.text.contains("203.0.113.10"))
+        assertTrue(bot.text.contains("IP: 203.0.113.10"))
         assertFalse(bot.text.contains("share-token"))
+
+        notifier.accessed(document, null, "2001:db8::1")
+        assertTrue(bot.text.contains("Посетитель: Гость\n"))
+        assertTrue(bot.text.contains("IP: 2001:db8::1"))
+        assertFalse(bot.text.contains("visitor@example.com"))
     }
 
     private class CapturingTelegramBotClient : TelegramBotClient {

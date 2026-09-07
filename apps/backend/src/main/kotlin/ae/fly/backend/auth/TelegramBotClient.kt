@@ -22,6 +22,7 @@ data class TelegramUploadNotification(
     val sizeBytes: Long,
     val documentId: UUID,
     val uploadedAt: Instant,
+    val ipAddress: String? = null,
 )
 
 data class TelegramUrlButton(
@@ -51,6 +52,7 @@ class HttpTelegramBotClient(
             withEnvironmentHeader(
                 "📄 Новый файл загружен на fly.ae\n\n" +
                     "Пользователь: ${singleLine(notification.uploader)}\n" +
+                    "IP: ${notification.ipAddress ?: "не определён"}\n" +
                     "Файл: ${singleLine(notification.filename)}\n" +
                     "Размер: ${formatFileSize(notification.sizeBytes)}\n" +
                     "Время (UTC): ${notification.uploadedAt}\n" +

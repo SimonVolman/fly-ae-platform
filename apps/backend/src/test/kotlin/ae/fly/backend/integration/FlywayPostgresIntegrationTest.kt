@@ -17,7 +17,7 @@ class FlywayPostgresIntegrationTest {
             .load()
             .migrate()
 
-        assertEquals("10", result.targetSchemaVersion)
+        assertEquals("11", result.targetSchemaVersion)
 
         DriverManager.getConnection(
             postgres.jdbcUrl,
@@ -30,10 +30,10 @@ class FlywayPostgresIntegrationTest {
                         "where table_schema = 'public' and table_name in " +
                         "('users', 'otp_codes', 'terms_acceptances', 'categories', " +
                         "'documents', 'processing_jobs', 'share_tokens', 'guest_sessions', " +
-                        "'telegram_login_requests')",
+                        "'telegram_login_requests', 'document_activities')",
                 ).use { rows ->
                     rows.next()
-                    assertEquals(9, rows.getInt(1))
+                    assertEquals(10, rows.getInt(1))
                 }
 
                 statement.executeQuery("select count(*) from categories").use { rows ->

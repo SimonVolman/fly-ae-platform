@@ -1,10 +1,11 @@
 package ae.fly.backend.upload
 
 import ae.fly.backend.api.ApiProblem
-import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.FlyPrincipal
 import ae.fly.backend.document.DocumentResponse
 import ae.fly.backend.security.RateLimiter
+import ae.fly.backend.security.clientIpAddress
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -60,8 +61,9 @@ class UploadController(
         @PathVariable documentId: UUID,
         @PathVariable uploadId: String,
         @Valid @RequestBody request: CompleteMultipartRequest,
+        servletRequest: HttpServletRequest,
     ): DocumentResponse =
-        uploads.complete(authentication.flyPrincipal(), documentId, uploadId, request)
+        uploads.complete(authentication.flyPrincipal(), documentId, uploadId, request, clientIpAddress(servletRequest))
 
     @DeleteMapping("/{uploadId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

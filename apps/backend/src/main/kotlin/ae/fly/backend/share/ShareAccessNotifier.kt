@@ -1,6 +1,10 @@
 package ae.fly.backend.share
 
 import ae.fly.backend.auth.TelegramBotClient
+import ae.fly.backend.auth.AuthenticatedGuest
+import ae.fly.backend.auth.AuthenticatedUser
+import ae.fly.backend.auth.FlyPrincipal
+import ae.fly.backend.auth.principalIdentity
 import ae.fly.backend.config.TelegramProperties
 import ae.fly.backend.domain.Document
 import ae.fly.backend.repository.UserRepository
@@ -10,7 +14,7 @@ import java.time.Clock
 import java.util.Locale
 
 interface ShareAccessNotifier {
-    fun accessed(document: Document)
+    fun accessed(document: Document, visitor: FlyPrincipal? = null, ipAddress: String? = null)
 }
 
 @Component
@@ -22,7 +26,7 @@ class TelegramShareAccessNotifier(
 ) : ShareAccessNotifier {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    override fun accessed(document: Document) {
+    override fun accessed(document: Document, visitor: FlyPrincipal?, ipAddress: String?) {
         val chatId = telegram.adminChatId
             .takeIf { telegram.enabled && it > 0 }
             ?: return
@@ -32,6 +36,8 @@ class TelegramShareAccessNotifier(
                 chatId,
                 "🔗 SHARE-ССЫЛКА ИСПОЛЬЗОВАНА\n\n" +
                     "Владелец: ${ownerIdentity(document)}\n" +
+                    "Посетитель: ${users.principalIdentity(visitor)}\n" +
+                    "IP: ${ipAddress ?: "не определён"}\n" +
                     "Файл: ${singleLine(document.originalFilename)}\n" +
                     "Категория: ${singleLine(document.category.name)}\n" +
                     "MSN / S/N: ${singleLine(document.msn)}\n" +
@@ -50,15 +56,9 @@ class TelegramShareAccessNotifier(
     }
 
     private fun ownerIdentity(document: Document): String {
-        val userId = document.user?.id
-        if (userId != null) {
-            val user = users.findById(userId)
-            val identity = user?.email?.takeIf(String::isNotBlank)
-                ?: user?.telegramUsername?.takeIf(String::isNotBlank)?.let { "@$it" }
-                ?: "User"
-            return "$identity ($userId)"
-        }
-        return "Guest (${document.guestSession?.id ?: "unknown"})"
+        val owner = document.user?.id?.let(::AuthenticatedUser)
+            ?: document.guestSession?.id?.let(::AuthenticatedGuest)
+        return users.principalIdentity(owner)
     }
 
     private fun singleLine(value: String): String =

@@ -1,8 +1,7 @@
 package ae.fly.backend.upload
 
-import ae.fly.backend.auth.AuthenticatedGuest
-import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.FlyPrincipal
+import ae.fly.backend.auth.principalIdentity
 import ae.fly.backend.auth.TelegramBotClient
 import ae.fly.backend.auth.TelegramUploadNotification
 import ae.fly.backend.config.TelegramProperties
@@ -12,7 +11,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 interface UploadNotifier {
-    fun completed(owner: FlyPrincipal, document: Document)
+    fun completed(owner: FlyPrincipal, document: Document, ipAddress: String? = null)
 }
 
 @Component
@@ -23,7 +22,7 @@ class TelegramUploadNotifier(
 ) : UploadNotifier {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    override fun completed(owner: FlyPrincipal, document: Document) {
+    override fun completed(owner: FlyPrincipal, document: Document, ipAddress: String?) {
         val chatId = telegram.adminChatId
             .takeIf { telegram.enabled && it > 0 }
             ?: return
@@ -32,11 +31,12 @@ class TelegramUploadNotifier(
             botClient.sendUploadNotification(
                 chatId,
                 TelegramUploadNotification(
-                    uploader = uploader(owner),
+                    uploader = users.principalIdentity(owner),
                     filename = document.originalFilename,
                     sizeBytes = document.sizeBytes,
                     documentId = document.id,
                     uploadedAt = document.updatedAt,
+                    ipAddress = ipAddress,
                 ),
             )
         } catch (exception: RuntimeException) {
@@ -47,16 +47,5 @@ class TelegramUploadNotifier(
                 exception,
             )
         }
-    }
-
-    private fun uploader(owner: FlyPrincipal): String = when (owner) {
-        is AuthenticatedUser -> {
-            val user = users.findById(owner.id)
-            val identity = user?.email?.takeIf(String::isNotBlank)
-                ?: user?.telegramUsername?.takeIf(String::isNotBlank)?.let { "@$it" }
-                ?: "User"
-            "$identity (${owner.id})"
-        }
-        is AuthenticatedGuest -> "Guest (${owner.id})"
     }
 }

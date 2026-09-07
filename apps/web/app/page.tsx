@@ -878,7 +878,7 @@ function HomeContent() {
         const downloads = await Promise.all(available.map(async (document) => {
           const token = new URL(document.shareUrl!, window.location.origin).pathname.split("/").filter(Boolean).at(-1);
           if (!token) throw new Error("The document share link is invalid.");
-          return api<{ downloadUrl: string }>(`/shares/${encodeURIComponent(decodeURIComponent(token))}`);
+          return api<{ downloadUrl: string }>(`/shares/${encodeURIComponent(decodeURIComponent(token))}`, {}, session.accessToken);
         }));
         downloads.forEach(({ downloadUrl }) => {
           const link = document.createElement("a");

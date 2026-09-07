@@ -1,6 +1,9 @@
 package ae.fly.backend.share
 
 import ae.fly.backend.api.ApiProblem
+import ae.fly.backend.activity.DocumentActivityRecorder
+import ae.fly.backend.auth.AuthenticatedUser
+import ae.fly.backend.domain.DocumentActivityType
 import ae.fly.backend.config.StorageProperties
 import ae.fly.backend.domain.Category
 import ae.fly.backend.domain.Document
@@ -19,12 +22,14 @@ import org.mockito.Mockito.`when`
 import java.net.URI
 import java.util.UUID
 import org.springframework.http.HttpStatus
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 
 class ShareControllerTest {
     private val shareTokens = mock(ShareTokenService::class.java)
     private val storage = mock(ObjectStorage::class.java)
     private val rateLimiter = mock(RateLimiter::class.java)
     private val notifier = mock(ShareAccessNotifier::class.java)
+    private val activities = mock(DocumentActivityRecorder::class.java)
     private val storageProperties = StorageProperties(bucket = "documents")
     private val controller = ShareController(
         shareTokens = shareTokens,
@@ -32,6 +37,7 @@ class ShareControllerTest {
         storageProperties = storageProperties,
         rateLimiter = rateLimiter,
         accessNotifier = notifier,
+        activities = activities,
     )
 
     @Test
@@ -55,7 +61,13 @@ class ShareControllerTest {
         val response = controller.resolve("valid-token", request)
 
         assertEquals("engine-report.pdf", response.filename)
-        verify(notifier).accessed(document)
+        verify(notifier).accessed(document, null, "203.0.113.10")
+        verify(activities).record(document.id, DocumentActivityType.SHARE_ACCESSED, null, "203.0.113.10")
+
+        val visitor = AuthenticatedUser(UUID.randomUUID())
+        controller.resolve("valid-token", request, UsernamePasswordAuthenticationToken(visitor, null, emptyList()))
+        verify(notifier).accessed(document, visitor, "203.0.113.10")
+        verify(activities).record(document.id, DocumentActivityType.SHARE_ACCESSED, visitor, "203.0.113.10")
     }
 
     @Test
@@ -69,6 +81,6 @@ class ShareControllerTest {
             controller.resolve("invalid-token", request)
         }
 
-        verifyNoInteractions(notifier)
+        verifyNoInteractions(notifier, activities)
     }
 }
