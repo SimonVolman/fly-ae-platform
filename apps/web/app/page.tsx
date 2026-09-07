@@ -1624,6 +1624,7 @@ function HomeContent() {
                   <select
                     aria-label="Category"
                     value={categoryId}
+                    disabled={categories.length === 0}
                     onChange={(event) => {
                       const nextCategory = categories.find(
                         (category) => category.id === event.target.value,
@@ -1632,9 +1633,6 @@ function HomeContent() {
                       if (isJustDocument(nextCategory)) setMsn("");
                     }}
                   >
-                    <option value="" disabled>
-                      {categories.length ? "Select category" : "Loading categories…"}
-                    </option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}
