@@ -2,6 +2,7 @@ package ae.fly.backend.auth
 
 import ae.fly.backend.config.TelegramProperties
 import ae.fly.backend.config.WebProperties
+import ae.fly.backend.security.numericIpAddress
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
@@ -79,13 +80,16 @@ class HttpTelegramBotClient(
     ) {
         if (!properties.enabled) throw TelegramDeliveryException()
         val uri = "${properties.apiBaseUrl.trimEnd('/')}/bot${properties.botToken}/sendMessage"
+        val messageText = withMaintenanceBanner(text, webProperties.maintenanceMode)
+        val ipLinks = ipAddressLinkEntities(messageText)
         try {
             restClient.post()
                 .uri(uri)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(buildMap<String, Any> {
                     put("chat_id", chatId)
-                    put("text", withMaintenanceBanner(text, webProperties.maintenanceMode))
+                    put("text", messageText)
+                    if (ipLinks.isNotEmpty()) put("entities", ipLinks)
                     put("protect_content", protectContent)
                     put("link_preview_options", mapOf("is_disabled" to true))
                     if (buttons.isNotEmpty()) {
@@ -124,6 +128,19 @@ class HttpTelegramBotClient(
         else -> "$bytes B"
     }
 }
+
+internal fun ipAddressLinkEntities(text: String): List<Map<String, Any>> =
+    Regex("(?m)^IP: ([^\\r\\n]+)$").findAll(text).mapNotNull { match ->
+        val address = requireNotNull(match.groups[1])
+        val ip = numericIpAddress(address.value) ?: return@mapNotNull null
+        mapOf(
+            "type" to "text_link",
+            // Kotlin String indices use the UTF-16 offsets required by Telegram, including emoji.
+            "offset" to address.range.first,
+            "length" to ip.length,
+            "url" to "https://proxycheck.io/lookup/$ip",
+        )
+    }.toList()
 
 internal fun withMaintenanceBanner(text: String, maintenanceMode: Boolean): String {
     if (!maintenanceMode) return text

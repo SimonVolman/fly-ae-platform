@@ -18,7 +18,7 @@ fun clientIpAddress(request: HttpServletRequest): String? {
     return numericIpAddress(original.remoteAddr)
 }
 
-private fun numericIpAddress(value: String?): String? {
+internal fun numericIpAddress(value: String?): String? {
     if (value.isNullOrBlank() || value.length > 45) return null
     if (':' in value) {
         if (!value.matches(Regex("[0-9a-fA-F:.]+"))) return null

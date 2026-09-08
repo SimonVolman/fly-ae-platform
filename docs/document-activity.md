@@ -18,6 +18,12 @@ guess identity. Public share pages optionally send the existing, unexpired sessi
 token to the backend; session storage is per tab and no additional sign-in is
 required. Download links to S3 never receive the application session token.
 
+In Telegram, the IP text links directly to `https://proxycheck.io/lookup/<IP>` for
+both upload and share notifications, including IPv6. Unknown IPs remain plain
+text. Links use Telegram `text_link` entities calculated after environment and
+maintenance prefixes; the rest of the message remains plain text. Link previews
+are disabled, and the backend does not make requests to proxycheck.io.
+
 PostgreSQL migration V11 creates `document_activities`. DynamoDB stores events in
 the existing table under `pk=DOCUMENT_ACTIVITY#<documentId>` and
 `sk=EVENT#<sortable epoch milliseconds>#<eventId>`. Both adapters support retrieving
