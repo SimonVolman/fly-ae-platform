@@ -31,6 +31,11 @@ not sign-in. It requires the
 Both `dev.fly.ae` and `fly.ae` are managed in Route 53 hosted zone
 `Z10483352SBZ9U6ULG9OH`.
 
+The DEV frontend previews future privacy wording with
+`NEXT_PUBLIC_FUTURE_PRIVACY_COPY=true`. This changes copy only, not AI processing
+or file encryption. PROD builds omit the flag and retain the factual access
+notice. The Privacy Policy page always describes current capabilities.
+
 ## PROD maintenance release
 
 The PROD maintenance workflow deploys the backend as on-demand AWS Lambda

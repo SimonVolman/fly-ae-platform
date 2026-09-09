@@ -79,7 +79,7 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /Continue to file upload/);
   assert.match(html, /<h2>File upload<\/h2>/);
   assert.match(html, /PDF, image, video, or archive/);
-  assert.match(html, /First upload up to 100 MB—no email required/);
+  assert.match(html, /Up to 100 MB per file/);
   assert.match(html, /Our mission/);
   assert.doesNotMatch(html, /<img[^>]+src="\/mission-aircraft/);
   assert.match(html, /My Documents/);
@@ -165,7 +165,7 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /PCE-RB1234/);
   assert.match(page, /NLG \| LH_MLG \| RH_MLG \| SHIPSET/);
   assert.doesNotMatch(page, /role="radiogroup"/);
-  assert.match(page, /Anything unrelated will be/);
+  assert.match(page, /Unrelated materials may be/);
   assert.match(page, /sessionStorage/);
   assert.match(page, /APPROVED/);
   assert.match(layout, /title:\s*"fly\.ae/);

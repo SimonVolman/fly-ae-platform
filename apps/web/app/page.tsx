@@ -18,6 +18,7 @@ import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { Mission } from "./components/Mission";
+import { FilePrivacy } from "./components/FilePrivacy";
 import { DocumentsNavigation } from "./components/DocumentsNavigation";
 import { DocumentIcon, FolderActions, FolderCard, type FolderAction } from "./components/Folder";
 import {
@@ -1302,8 +1303,8 @@ function HomeContent() {
               <p className="eyebrow">Secure document transfer</p>
               <h1 id="upload-title">Upload an aviation file</h1>
               <p>
-                Upload a PDF, image, video, or archive up to 3 GB. First upload up to 100 MB—no
-                email required.
+                Upload a PDF, image, video, or archive up to 3 GB after signing in.
+                Guest uploads: up to 100 MB per file, no email required.
               </p>
             </div>
 
@@ -1397,8 +1398,8 @@ function HomeContent() {
                     <strong>No identifier required</strong>
                     <p>
                       You can upload a purchase order, invoice, or general data,
-                      but it must be aviation-related. Anything unrelated will be
-                      deleted.
+                      but it must be aviation-related. Unrelated materials may be
+                      removed.
                     </p>
                   </div>
                 ) : (
@@ -1452,11 +1453,19 @@ function HomeContent() {
                   <div>
                     <h2>File upload</h2>
                     <p>
-                      PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · maximum{" "}
-                      {session ? "3 GB" : "100 MB as guest"} per file · multiple files allowed.
+                      PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · multiple files allowed.
                     </p>
                   </div>
                 </div>
+
+                <p className="upload-limit" id="upload-limit" aria-live="polite">
+                  <strong>{session ? "Up to 3 GB per file" : "Up to 100 MB per file"}</strong>
+                  {!session && (
+                    <button type="button" onClick={openAuth}>
+                      Log in for up to 3 GB
+                    </button>
+                  )}
+                </p>
 
                 <input
                   ref={fileInput}
@@ -1472,6 +1481,7 @@ function HomeContent() {
                     className={`app-drop-zone ${selectedFiles.length ? "file-selected" : ""}`}
                     disabled={uploadBusy}
                     onClick={() => fileInput.current?.click()}
+                    aria-describedby="upload-limit"
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={dropFile}
                   >
@@ -1484,16 +1494,20 @@ function HomeContent() {
                     <span>
                       <strong>Choose files or drag &amp; drop them here</strong>
                       <small>
-                        {session ? "Maximum 3 GB per file" : "Maximum 100 MB per file"}
+                        {session
+                          ? "Maximum 3 GB per file"
+                          : "Up to 100 MB per file as a guest. Log in to upload up to 3 GB per file."}
                       </small>
                     </span>
                   </button>
 
                   <div className="aviation-notice">
                     Please upload only materials related to aviation components.
-                    Every file is subject to verification.
+                    Automatic checks verify file format and size.
                   </div>
                 </div>
+
+                <FilePrivacy />
 
                 {selectedFiles.length > 0 && (
                   <div className="selected-upload-list" aria-label="Selected files">
@@ -1618,7 +1632,12 @@ function HomeContent() {
                       ? "Your secure link is ready"
                       : "Your secure links are ready"}
                   </h2>
-                  <p>Recipients can use these links to access the approved files.</p>
+                  <p>
+                    Anyone with a link can view and download that file without
+                    signing in. Share links only with people you trust. Deleting a
+                    file disables its link; copies already downloaded remain with
+                    recipients.
+                  </p>
                 </div>
                 <div className="share-result-actions">
                   <div className="share-link-list">

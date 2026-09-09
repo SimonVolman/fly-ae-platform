@@ -1411,6 +1411,74 @@ footer a {
   max-width: 720px;
 }
 
+.upload-limit {
+  align-items: baseline;
+  color: var(--color-ink);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 1rem;
+  gap: 8px 20px;
+  line-height: 1.5;
+  margin: 12px 0 16px;
+}
+
+.upload-limit button {
+  background: none;
+  border: 0;
+  color: var(--color-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 4px 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.file-privacy {
+  background: var(--color-info);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  color: var(--color-ink);
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 14px 18px;
+}
+
+.file-privacy p {
+  margin: 0;
+}
+
+.file-privacy-future {
+  display: grid;
+  gap: 8px;
+}
+
+.upload-panel > .file-privacy {
+  margin-top: 16px;
+}
+
+.file-privacy summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-top: 6px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.file-privacy-details {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  max-width: 72ch;
+}
+
+.upload-limit button:focus-visible,
+.file-privacy summary:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 4px;
+}
+
 .workspace-intro h1,
 .app-section-heading h1,
 .legal-page h1 {
@@ -1765,7 +1833,7 @@ footer a {
 
 .app-drop-zone small {
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: 0.875rem;
 }
 
 .aviation-notice {

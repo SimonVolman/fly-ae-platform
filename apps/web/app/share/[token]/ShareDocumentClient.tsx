@@ -79,8 +79,9 @@ export function ShareDocumentClient() {
             Download file
           </a>
           <p className="message message-info">
-            The download URL is short-lived. Open this page again to obtain a fresh
-            protected URL.
+            Anyone with this share link can view and download the file without
+            signing in. Forward it only to people the owner intends to share with.
+            If the download expires, reopen this page for a fresh download.
           </p>
         </section>
       ) : error ? (

@@ -92,7 +92,7 @@ export function Mission() {
         </p>
         <p>
           One warning: anything unrelated to flying machines—including personal
-          files, entertainment videos, or pornographic content—will be deleted, and
+          files, entertainment videos, or pornographic content—may be removed, and
           the associated account may be blocked. fly.ae is exclusively for aviation
           data. For everything else, please find another box—or another way to
           transfer it. Don’t overstay your welcome.
