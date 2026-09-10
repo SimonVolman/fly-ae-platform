@@ -42,7 +42,12 @@ class ShareTokenServiceTest {
         val formatted = temporary.code.chunked(4).joinToString("-")
         assertSame(share, service.resolve(formatted.lowercase()))
 
-        clock.advance(Duration.ofMinutes(15))
+        clock.advance(Duration.ofMinutes(5))
+        val repeated = service.createTemporaryCode(document)
+        assertEquals(temporary.code, repeated.code)
+        assertEquals(temporary.expiresAt, repeated.expiresAt)
+
+        clock.advance(Duration.ofMinutes(10))
         val expired = assertThrows(ApiProblem::class.java) { service.resolve(formatted) }
         assertEquals(HttpStatus.NOT_FOUND, expired.status)
     }

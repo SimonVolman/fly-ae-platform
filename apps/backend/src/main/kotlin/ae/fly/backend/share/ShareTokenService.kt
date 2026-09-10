@@ -72,9 +72,15 @@ class ShareTokenService(
         }
         val share = tokens.findByDocumentIdAndRevokedAtIsNull(document.id)
             ?: throw ApiProblem(HttpStatus.NOT_FOUND, "Share link not found.")
+        val now = clock.instant()
+        val activeCode = share.shortCodeCiphertext
+        val activeCodeExpiresAt = share.shortCodeExpiresAt
+        if (activeCode != null && activeCodeExpiresAt?.isAfter(now) == true) {
+            return TemporaryCode(cipher.decrypt(activeCode), activeCodeExpiresAt)
+        }
         val code = generateSequence(::randomTemporaryCode)
             .first { !tokens.shortCodeHashExists(hash.hex(it)) }
-        val expiresAt = clock.instant().plus(shortShareTtl)
+        val expiresAt = now.plus(shortShareTtl)
         share.shortCodeHash = hash.hex(code)
         share.shortCodeCiphertext = cipher.encrypt(code)
         share.shortCodeExpiresAt = expiresAt
