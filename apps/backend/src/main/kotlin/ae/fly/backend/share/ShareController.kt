@@ -40,7 +40,12 @@ class ShareController(
         authentication: Authentication? = null,
     ): SharedDocumentResponse {
         val ipAddress = clientIpAddress(request)
-        rateLimiter.check("share:${ipAddress ?: "unknown"}", 60, Duration.ofMinutes(1))
+        val temporaryCode = shareTokens.isTemporaryCode(token)
+        rateLimiter.check(
+            if (temporaryCode) "temporary-share:${ipAddress ?: "unknown"}" else "share:${ipAddress ?: "unknown"}",
+            if (temporaryCode) 10 else 60,
+            Duration.ofMinutes(1),
+        )
         val share = shareTokens.resolve(token)
         val document = share.document
         val download = storage.signDownload(

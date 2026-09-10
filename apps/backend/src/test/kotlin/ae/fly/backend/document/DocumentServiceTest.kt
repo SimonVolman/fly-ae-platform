@@ -2,6 +2,7 @@ package ae.fly.backend.document
 
 import ae.fly.backend.api.ApiProblem
 import ae.fly.backend.auth.AuthenticatedGuest
+import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.GuestSessionTokenService
 import ae.fly.backend.config.SecurityProperties
 import ae.fly.backend.config.DocumentProperties
@@ -196,6 +197,32 @@ class DocumentServiceTest {
         }
 
         assertEquals(HttpStatus.NOT_FOUND, error.status)
+    }
+
+    @Test
+    fun `owner can create a temporary short share link for an approved document`() {
+        val user = User(id = UUID.randomUUID(), email = "owner@example.com")
+        val document = Document(
+            id = UUID.randomUUID(),
+            user = user,
+            category = category,
+            msn = "34567",
+            originalFilename = "engine.pdf",
+            objectKey = "users/${user.id}/documents/engine.pdf",
+            mimeType = "application/pdf",
+            sizeBytes = 2_048,
+            status = DocumentStatus.APPROVED,
+        )
+        val expiresAt = clock.instant().plusSeconds(900)
+        `when`(documents.findByIdAndUserIdAndDeletedAtIsNull(document.id, user.id)).thenReturn(document)
+        `when`(shares.createTemporaryCode(document))
+            .thenReturn(ShareTokenService.TemporaryCode("7K9DP4QX", expiresAt))
+
+        val result = service.createTemporaryShare(AuthenticatedUser(user.id), document.id)
+
+        assertEquals("7K9D-P4QX", result.code)
+        assertEquals("http://localhost:3000/s/7K9D-P4QX", result.shortUrl)
+        assertEquals(expiresAt, result.expiresAt)
     }
 
     @Test

@@ -218,6 +218,26 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /documents/{documentId}/temporary-share:
+    parameters:
+      - $ref: "#/components/parameters/DocumentId"
+    post:
+      tags: [Sharing]
+      operationId: createTemporaryShare
+      description: Creates a new eight-character share code that expires after 15 minutes. Available only when enabled for the environment.
+      responses:
+        "200":
+          description: Temporary code and short URL created. Any previous temporary code for this document is replaced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemporaryShare"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /documents/{documentId}/multipart:
     parameters:
       - $ref: "#/components/parameters/DocumentId"
@@ -293,8 +313,9 @@ paths:
         required: true
         schema:
           type: string
-          minLength: 43
+          minLength: 8
           maxLength: 128
+        description: Permanent share token or an enabled eight-character temporary code, optionally formatted with a hyphen.
     get:
       tags: [Sharing]
       operationId: resolveShare
@@ -664,6 +685,20 @@ components:
         downloadUrl:
           type: string
           format: uri
+    TemporaryShare:
+      type: object
+      additionalProperties: false
+      required: [code, shortUrl, expiresAt]
+      properties:
+        code:
+          type: string
+          pattern: "^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}$"
+        shortUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
     Problem:
       type: object
       required: [type, title, status]

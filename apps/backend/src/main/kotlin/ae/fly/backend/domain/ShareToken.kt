@@ -29,6 +29,15 @@ class ShareToken(
     @Column(name = "token_ciphertext", nullable = false)
     var tokenCiphertext: String = "",
 
+    @Column(name = "short_code_hash", unique = true, length = 64)
+    var shortCodeHash: String? = null,
+
+    @Column(name = "short_code_ciphertext")
+    var shortCodeCiphertext: String? = null,
+
+    @Column(name = "short_code_expires_at")
+    var shortCodeExpiresAt: Instant? = null,
+
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
 

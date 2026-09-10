@@ -105,6 +105,7 @@ jobs:
               FrontendCertificateArn="${{ steps.bootstrap.outputs.certificate_arn }}" \
               DeploymentRevision="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
               MaintenanceMode="false" \
+              EnableTemporaryShare="true" \
               EnableTelegramOtp="$ENABLE_TELEGRAM_OTP" \
               TelegramBotUsername="FlyAeOtpBot" \
               TelegramAdminChatId="$TELEGRAM_ADMIN_CHAT_ID" \
@@ -134,6 +135,7 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.application.outputs.api_url }}/api/v1
           NEXT_PUBLIC_MAINTENANCE_MODE: "false"
+          NEXT_PUBLIC_TEMPORARY_SHARE_ENABLED: "true"
           NEXT_PUBLIC_FUTURE_PRIVACY_COPY: "true"
         run: npm run build:aws --workspace @fly-ae/web
 

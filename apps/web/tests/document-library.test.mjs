@@ -87,6 +87,15 @@ beforeEach(() => {
     requests.push({ path, method: options.method ?? "GET", authorization: new Headers(options.headers).get("Authorization") });
     if (path === "/categories") return Response.json([aircraft, engine, general]);
     if (path === "/documents") return Response.json(records);
+    if (path.match(/^\/documents\/[^/]+\/temporary-share$/) && options.method === "POST") {
+      const id = path.split("/")[2];
+      return Response.json({
+        code: "7K9D-P4QX",
+        shortUrl: `http://localhost:3000/s/7K9D-P4QX`,
+        expiresAt: "2099-01-01T00:15:00Z",
+        documentId: id,
+      });
+    }
     if (path.startsWith("/documents/") && options.method === "DELETE") {
       const id = path.split("/").at(-1);
       if (rejectDeletes.has(id)) return Response.json({ detail: "Temporary failure" }, { status: 503 });
@@ -213,6 +222,26 @@ test("copy and download include approved documents only, and report success", as
   assert.deepEqual(requests.filter(({ path }) => path.startsWith("/shares/")).map(({ authorization }) => authorization), ["Bearer test-only-token", "Bearer test-only-token"]);
 });
 
+test("approved document creates a temporary code and local QR without exposing the session", async () => {
+  await openLibrary();
+  await click(button("Open Aircraft, 2 documents"));
+  await click(button("Open 123, 2 documents"));
+  await click(button("QR & code", container.querySelector(".document-item")));
+
+  const dialog = container.querySelector(".temporary-share-dialog");
+  assert.ok(dialog);
+  assert.match(dialog.textContent, /7K9D-P4QX/);
+  assert.ok(dialog.querySelector("svg"));
+  assert.doesNotMatch(dialog.innerHTML, /test-only-token/);
+  assert.deepEqual(
+    requests.filter(({ path }) => path.endsWith("/temporary-share")),
+    [{ path: "/documents/a/temporary-share", method: "POST", authorization: "Bearer test-only-token" }],
+  );
+
+  await click(button("Copy short link", dialog));
+  assert.deepEqual(copied, ["http://localhost:3000/s/7K9D-P4QX"]);
+});
+
 test("share page identifies a logged-in visitor only to the backend", async () => {
   window.history.replaceState({}, "", "/share/test-share-token");
   await mount(React.createElement(ShareDocumentClient));
@@ -220,6 +249,17 @@ test("share page identifies a logged-in visitor only to the backend", async () =
   assert.deepEqual(requests, [{ path: "/shares/test-share-token", method: "GET", authorization: "Bearer test-only-token" }]);
   assert.equal(container.querySelector(".shared-card a").href, "https://download.example.com/test-share-token.pdf");
   assert.doesNotMatch(container.innerHTML, /test-only-token/);
+});
+
+test("short share route resolves the formatted temporary code", async () => {
+  window.history.replaceState({}, "", "/s/7K9D-P4QX");
+  await mount(React.createElement(ShareDocumentClient));
+  assert.equal(heading(), "shared.pdf");
+  assert.deepEqual(requests, [{
+    path: "/shares/7K9D-P4QX",
+    method: "GET",
+    authorization: "Bearer test-only-token",
+  }]);
 });
 
 for (const stored of [null, "invalid json", JSON.stringify({ accessToken: "expired", expiresAt: "2000-01-01T00:00:00Z" })]) {

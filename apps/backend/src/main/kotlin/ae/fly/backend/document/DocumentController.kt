@@ -43,6 +43,13 @@ class DocumentController(
         @PathVariable documentId: UUID,
     ): DocumentResponse = documentService.get(authentication.flyPrincipal(), documentId)
 
+    @PostMapping("/{documentId}/temporary-share")
+    fun createTemporaryShare(
+        authentication: Authentication,
+        @PathVariable documentId: UUID,
+    ): DocumentService.TemporaryShareResponse =
+        documentService.createTemporaryShare(authentication.flyPrincipal(), documentId)
+
     @PostMapping("/{documentId}/claim")
     fun claimGuestDocument(
         authentication: Authentication,

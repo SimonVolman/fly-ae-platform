@@ -4,6 +4,7 @@ import type { AwsS3Part } from "@uppy/aws-s3";
 import type Uppy from "@uppy/core";
 import Image from "next/image";
 import Link from "next/link";
+import { QRCodeSVG } from "qrcode.react";
 import {
   ChangeEvent,
   DragEvent,
@@ -34,6 +35,20 @@ const AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
 const GUEST_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const GENERAL_DOCUMENT_MSN = "GENERAL";
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
+const TEMPORARY_SHARE_ENABLED =
+  process.env.NODE_ENV === "development" ||
+  process.env.NEXT_PUBLIC_TEMPORARY_SHARE_ENABLED === "true";
+
+type TemporaryShare = {
+  documentId: string;
+  filename: string;
+  accessToken: string;
+  code: string;
+  shortUrl: string;
+  expiresAt: string;
+};
+
+type TemporaryShareDocument = Pick<FlyDocument, "id" | "filename">;
 
 type IdentifierField = {
   label: string;
@@ -292,6 +307,9 @@ function HomeContent() {
   const [documentsLoadError, setDocumentsLoadError] = useState("");
   const [folderActionBusy, setFolderActionBusy] = useState(false);
   const [documentNotice, setDocumentNotice] = useState<{ error: boolean; message: string } | null>(null);
+  const [temporaryShare, setTemporaryShare] = useState<TemporaryShare | null>(null);
+  const [temporaryShareBusyDocumentId, setTemporaryShareBusyDocumentId] = useState<string | null>(null);
+  const [temporaryShareNow, setTemporaryShareNow] = useState(() => Date.now());
   const documentsHeading = useRef<HTMLHeadingElement>(null);
   const documentRequest = useRef(0);
   const folderActionInFlight = useRef(false);
@@ -344,6 +362,12 @@ function HomeContent() {
 
     return () => window.clearTimeout(sessionTimer);
   }, [loadDocuments]);
+
+  useEffect(() => {
+    if (!temporaryShare) return;
+    const timer = window.setInterval(() => setTemporaryShareNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [temporaryShare]);
 
   function continueToUpload() {
     setError("");
@@ -808,6 +832,54 @@ function HomeContent() {
     }
   }
 
+  async function openTemporaryShare(
+    document: TemporaryShareDocument,
+    accessToken: string,
+  ) {
+    setTemporaryShareBusyDocumentId(document.id);
+    setError("");
+    setDocumentNotice(null);
+    try {
+      const result = await api<Omit<TemporaryShare, "documentId" | "filename" | "accessToken">>(
+        `/documents/${document.id}/temporary-share`,
+        { method: "POST" },
+        accessToken,
+      );
+      setTemporaryShareNow(Date.now());
+      setTemporaryShare({
+        ...result,
+        documentId: document.id,
+        filename: document.filename,
+        accessToken,
+      });
+    } catch (requestError) {
+      const message = (requestError as Error).message;
+      if (showDocuments) setDocumentNotice({ error: true, message });
+      else setError(message);
+    } finally {
+      setTemporaryShareBusyDocumentId(null);
+    }
+  }
+
+  async function shareTemporaryLink() {
+    if (!temporaryShare) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: temporaryShare.filename,
+          text: `Open with code ${temporaryShare.code}. The link expires in 15 minutes.`,
+          url: temporaryShare.shortUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(temporaryShare.shortUrl);
+      }
+    } catch (shareError) {
+      if ((shareError as DOMException).name !== "AbortError") {
+        setError("Share failed. Copy the short link instead.");
+      }
+    }
+  }
+
   async function claimGuestDocument(
     claim: GuestDocumentClaim,
     currentSession: Session,
@@ -1225,6 +1297,14 @@ function HomeContent() {
                           </span>
                           <div className="document-actions">
                             {document.shareUrl && <button onClick={() => void copyShareLink(document.shareUrl!)}>Copy link</button>}
+                            {TEMPORARY_SHARE_ENABLED && document.shareUrl && (
+                              <button
+                                disabled={temporaryShareBusyDocumentId === document.id}
+                                onClick={() => void openTemporaryShare(document, session.accessToken)}
+                              >
+                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & code"}
+                              </button>
+                            )}
                             <button className="danger-action" disabled={folderActionBusy} onClick={() => void deleteDocument(document.id)}>Delete</button>
                           </div>
                         </article>
@@ -1655,6 +1735,15 @@ function HomeContent() {
                             >
                               Copy link
                             </button>
+                            {TEMPORARY_SHARE_ENABLED && (
+                              <button
+                                className="button button-primary"
+                                disabled={temporaryShareBusyDocumentId === document.id}
+                                onClick={() => void openTemporaryShare(document, upload.accessToken)}
+                              >
+                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & code"}
+                              </button>
+                            )}
                             {isGuestDocument && (
                               <button
                                 className="button button-primary"
@@ -1705,6 +1794,92 @@ function HomeContent() {
           <Link href="/privacy" prefetch={false}>Privacy</Link>
         </nav>
       </footer>
+
+      {temporaryShare && (() => {
+        const secondsRemaining = Math.max(
+          0,
+          Math.ceil((new Date(temporaryShare.expiresAt).getTime() - temporaryShareNow) / 1_000),
+        );
+        const minutes = Math.floor(secondsRemaining / 60);
+        const seconds = String(secondsRemaining % 60).padStart(2, "0");
+        const expired = secondsRemaining === 0;
+        return (
+          <div
+            className="overlay"
+            role="presentation"
+            onMouseDown={() => setTemporaryShare(null)}
+          >
+            <section
+              className="dialog temporary-share-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="temporary-share-title"
+              onMouseDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setTemporaryShare(null);
+              }}
+            >
+              <div className="dialog-top">
+                <div>
+                  <p className="eyebrow">Temporary access · DEV</p>
+                  <h2 id="temporary-share-title">Scan or enter the code</h2>
+                </div>
+                <button className="close" onClick={() => setTemporaryShare(null)} aria-label="Close">
+                  ×
+                </button>
+              </div>
+              <div className={`temporary-share-content ${expired ? "is-expired" : ""}`}>
+                <div className="temporary-share-qr" aria-label="QR code for temporary share link">
+                  <QRCodeSVG
+                    value={temporaryShare.shortUrl}
+                    size={220}
+                    level="M"
+                    marginSize={2}
+                    title={`Open ${temporaryShare.filename}`}
+                  />
+                </div>
+                <div className="temporary-share-details">
+                  <strong className="temporary-share-code">{temporaryShare.code}</strong>
+                  <code>{temporaryShare.shortUrl}</code>
+                  <p className="temporary-share-timer" role="timer">
+                    {expired ? "This code has expired" : `Expires in ${minutes}:${seconds}`}
+                  </p>
+                  <p>Anyone with this code can download the file until it expires.</p>
+                  <div className="temporary-share-actions">
+                    {expired ? (
+                      <button
+                        className="button button-primary"
+                        disabled={temporaryShareBusyDocumentId === temporaryShare.documentId}
+                        onClick={() => void openTemporaryShare(
+                          { id: temporaryShare.documentId, filename: temporaryShare.filename },
+                          temporaryShare.accessToken,
+                        )}
+                      >
+                        Generate new code
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="button button-primary"
+                          onClick={() => void shareTemporaryLink()}
+                        >
+                          Share
+                        </button>
+                        <button
+                          className="button button-secondary"
+                          onClick={() => void copyShareLink(temporaryShare.shortUrl)}
+                        >
+                          Copy short link
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        );
+      })()}
 
       {authOpen && (
         <div className="overlay" role="presentation" onMouseDown={closeAuth}>

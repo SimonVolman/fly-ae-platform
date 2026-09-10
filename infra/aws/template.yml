@@ -45,6 +45,12 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
+  EnableTemporaryShare:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
   TelegramBotUsername:
     Type: String
     Default: FlyAeOtpBot
@@ -257,6 +263,8 @@ Resources:
           FLY_PUBLIC_BASE_URL: !Sub https://${FrontendDomainName}
           FLY_ALLOWED_ORIGINS: !Sub https://${FrontendDomainName}
           FLY_MAINTENANCE_MODE: !Ref MaintenanceMode
+          FLY_SHORT_SHARE_ENABLED: !Ref EnableTemporaryShare
+          FLY_SHORT_SHARE_TTL: 15m
           FLY_EMAIL_FROM: !Sub no-reply@${FrontendDomainName}
           FLY_EMAIL_REGION: !Ref AWS::Region
           FLY_TELEGRAM_ENABLED: !Ref EnableTelegramOtp
@@ -432,6 +440,8 @@ Resources:
           var uri = request.uri;
           if (uri.indexOf('/share/') === 0 && uri.indexOf('.') === -1) {
             request.uri = '/share/__token__/index.html';
+          } else if (uri.indexOf('/s/') === 0 && uri.indexOf('.') === -1) {
+            request.uri = '/s/__code__/index.html';
           } else if (uri === '/') {
             request.uri = '/index.html';
           } else if (uri.endsWith('/')) {

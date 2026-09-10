@@ -3,6 +3,7 @@ fly:
     session-secret: ${FLY_SESSION_SECRET:local-session-secret-change-before-production-32}
     otp-pepper: ${FLY_OTP_PEPPER:local-otp-pepper-change-before-production-32}
     share-encryption-secret: ${FLY_SHARE_ENCRYPTION_SECRET:local-share-encryption-change-before-production}
+    short-share-enabled: ${FLY_SHORT_SHARE_ENABLED:true}
   storage:
     endpoint: ${FLY_S3_ENDPOINT:http://localhost:9000}
     access-key: ${FLY_S3_ACCESS_KEY:flyae}

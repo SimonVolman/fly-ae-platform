@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -34,6 +35,11 @@ class DocumentService(
     private val documentProperties: DocumentProperties,
     private val clock: Clock,
 ) {
+    data class TemporaryShareResponse(
+        val code: String,
+        val shortUrl: String,
+        val expiresAt: Instant,
+    )
     @Transactional
     fun create(owner: FlyPrincipal, request: CreateDocumentRequest): DocumentResponse {
         if (!isSupportedUpload(request.filename, request.mimeType)) {
@@ -104,6 +110,21 @@ class DocumentService(
     @Transactional(readOnly = true)
     fun get(owner: FlyPrincipal, documentId: UUID): DocumentResponse =
         response(requireOwned(owner, documentId))
+
+    @Transactional
+    fun createTemporaryShare(owner: FlyPrincipal, documentId: UUID): TemporaryShareResponse {
+        val document = requireOwned(owner, documentId)
+        if (document.status != DocumentStatus.APPROVED) {
+            throw ApiProblem(HttpStatus.CONFLICT, "The document is not ready to share.")
+        }
+        val temporaryCode = shareTokens.createTemporaryCode(document)
+        val formattedCode = temporaryCode.code.chunked(4).joinToString("-")
+        return TemporaryShareResponse(
+            code = formattedCode,
+            shortUrl = "${webProperties.publicBaseUrl.trimEnd('/')}/s/$formattedCode",
+            expiresAt = temporaryCode.expiresAt,
+        )
+    }
 
     @Transactional
     fun claimGuestDocument(

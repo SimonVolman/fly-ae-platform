@@ -53,6 +53,8 @@ fly:
     guest-session-ttl: ${FLY_GUEST_SESSION_TTL:12h}
     otp-ttl: 10m
     otp-max-attempts: 5
+    short-share-enabled: ${FLY_SHORT_SHARE_ENABLED:false}
+    short-share-ttl: ${FLY_SHORT_SHARE_TTL:15m}
   documents:
     authenticated-max-file-size-bytes: ${FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES:3221225472}
     guest-max-file-size-bytes: ${FLY_GUEST_MAX_FILE_SIZE_BYTES:104857600}

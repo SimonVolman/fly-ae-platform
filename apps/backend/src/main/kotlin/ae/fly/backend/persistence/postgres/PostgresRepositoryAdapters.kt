@@ -75,6 +75,12 @@ interface JpaShareTokenRepository : JpaRepository<ShareToken, UUID> {
     @EntityGraph(attributePaths = ["document", "document.category"])
     fun findByTokenHashAndRevokedAtIsNull(tokenHash: String): ShareToken?
     fun findByDocumentIdAndRevokedAtIsNull(documentId: UUID): ShareToken?
+    @EntityGraph(attributePaths = ["document", "document.category"])
+    fun findByShortCodeHashAndRevokedAtIsNullAndShortCodeExpiresAtAfter(
+        shortCodeHash: String,
+        instant: Instant,
+    ): ShareToken?
+    fun existsByShortCodeHash(shortCodeHash: String): Boolean
 }
 
 @Repository
@@ -202,6 +208,17 @@ class PostgresShareTokenRepository(
 
     override fun findByDocumentIdAndRevokedAtIsNull(documentId: UUID): ShareToken? =
         delegate.findByDocumentIdAndRevokedAtIsNull(documentId)
+
+    override fun findByShortCodeHashAndRevokedAtIsNullAndShortCodeExpiresAtAfter(
+        shortCodeHash: String,
+        instant: Instant,
+    ): ShareToken? = delegate.findByShortCodeHashAndRevokedAtIsNullAndShortCodeExpiresAtAfter(
+        shortCodeHash,
+        instant,
+    )
+
+    override fun shortCodeHashExists(shortCodeHash: String): Boolean =
+        delegate.existsByShortCodeHash(shortCodeHash)
 
     override fun save(shareToken: ShareToken): ShareToken = delegate.save(shareToken)
 }

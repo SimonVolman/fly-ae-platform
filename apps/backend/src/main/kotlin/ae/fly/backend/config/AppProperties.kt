@@ -12,6 +12,8 @@ data class SecurityProperties(
     val guestSessionTtl: Duration = Duration.ofHours(12),
     val otpTtl: Duration = Duration.ofMinutes(10),
     val otpMaxAttempts: Int = 5,
+    val shortShareEnabled: Boolean = false,
+    val shortShareTtl: Duration = Duration.ofMinutes(15),
 )
 
 @ConfigurationProperties("fly.documents")

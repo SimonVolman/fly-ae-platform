@@ -27,7 +27,7 @@ export function ShareDocumentClient() {
 
   useEffect(() => {
     const token = window.location.pathname.split("/").filter(Boolean).at(-1);
-    if (!token || token === "__token__") {
+    if (!token || token === "__token__" || token === "__code__") {
       return;
     }
     const headers = sessionHeaders({ getItem: (key) => window.sessionStorage.getItem(key) });

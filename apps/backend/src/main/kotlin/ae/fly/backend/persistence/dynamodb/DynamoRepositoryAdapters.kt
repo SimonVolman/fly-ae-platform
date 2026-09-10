@@ -24,6 +24,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Repository
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.Put
+import software.amazon.awssdk.services.dynamodb.model.Delete
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest
 import java.time.Instant
@@ -554,10 +555,24 @@ class DynamoShareTokenRepository(
         return findByTokenHashAndRevokedAtIsNull(lookup.string("tokenHash"))
     }
 
+    override fun findByShortCodeHashAndRevokedAtIsNullAndShortCodeExpiresAtAfter(
+        shortCodeHash: String,
+        instant: Instant,
+    ): ShareToken? {
+        val lookup = client.get(table, "SHORT_SHARE_CODE#$shortCodeHash", "CODE") ?: return null
+        if (!lookup.instant("expiresAt").isAfter(instant)) return null
+        return findByTokenHashAndRevokedAtIsNull(lookup.string("tokenHash"))
+    }
+
+    override fun shortCodeHashExists(shortCodeHash: String): Boolean =
+        client.get(table, "SHORT_SHARE_CODE#$shortCodeHash", "CODE") != null
+
     override fun save(shareToken: ShareToken): ShareToken {
         val documentId = shareToken.document.id
         val lookupKey = dynamoKey("DOCUMENT#$documentId", "SHARE")
         val existingLookup = client.get(table, "DOCUMENT#$documentId", "SHARE")
+        val existingToken = client.get(table, "SHARE_TOKEN#${shareToken.tokenHash}", "TOKEN")
+        val previousShortCodeHash = existingToken?.optionalString("shortCodeHash")
         if (existingLookup != null && existingLookup.string("tokenHash") != shareToken.tokenHash) {
             error("A share token already exists for this document")
         }
@@ -571,6 +586,9 @@ class DynamoShareTokenRepository(
             put("tokenHash", text(shareToken.tokenHash))
             put("tokenPrefix", text(shareToken.tokenPrefix))
             put("tokenCiphertext", text(shareToken.tokenCiphertext))
+            putOptional("shortCodeHash", shareToken.shortCodeHash)
+            putOptional("shortCodeCiphertext", shareToken.shortCodeCiphertext)
+            putOptional("shortCodeExpiresAt", shareToken.shortCodeExpiresAt?.toString())
             put("createdAt", text(shareToken.createdAt.toString()))
             putOptional("revokedAt", shareToken.revokedAt?.toString())
         }
@@ -579,18 +597,38 @@ class DynamoShareTokenRepository(
             "tokenHash" to text(shareToken.tokenHash),
         )
         val lookupCondition = if (existingLookup == null) "attribute_not_exists(#pk)" else null
-        client.transactWriteItems(
-            TransactWriteItemsRequest.builder()
-                .transactItems(
-                    transactPut(table, tokenItem),
-                    transactPut(
-                        table,
-                        lookupItem,
-                        lookupCondition,
-                        lookupCondition?.let { mapOf("#pk" to DYNAMO_PK) } ?: emptyMap(),
+        val writes = mutableListOf(
+            transactPut(table, tokenItem),
+            transactPut(
+                table,
+                lookupItem,
+                lookupCondition,
+                lookupCondition?.let { mapOf("#pk" to DYNAMO_PK) } ?: emptyMap(),
+            ),
+        )
+        if (previousShortCodeHash != shareToken.shortCodeHash) {
+            previousShortCodeHash?.let {
+                writes += transactDelete(table, dynamoKey("SHORT_SHARE_CODE#$it", "CODE"))
+            }
+            shareToken.shortCodeHash?.let { shortCodeHash ->
+                val expiresAt = requireNotNull(shareToken.shortCodeExpiresAt)
+                writes += transactPut(
+                    table,
+                    mapOf(
+                        DYNAMO_PK to text("SHORT_SHARE_CODE#$shortCodeHash"),
+                        DYNAMO_SK to text("CODE"),
+                        "type" to text("SHORT_SHARE_CODE"),
+                        "tokenHash" to text(shareToken.tokenHash),
+                        "expiresAt" to text(expiresAt.toString()),
+                        "ttlEpochSeconds" to number(expiresAt.epochSecond),
                     ),
+                    "attribute_not_exists(#pk)",
+                    mapOf("#pk" to DYNAMO_PK),
                 )
-                .build(),
+            }
+        }
+        client.transactWriteItems(
+            TransactWriteItemsRequest.builder().transactItems(writes).build(),
         )
         return shareToken
     }
@@ -603,11 +641,19 @@ class DynamoShareTokenRepository(
             tokenHash = string("tokenHash"),
             tokenPrefix = string("tokenPrefix"),
             tokenCiphertext = string("tokenCiphertext"),
+            shortCodeHash = optionalString("shortCodeHash"),
+            shortCodeCiphertext = optionalString("shortCodeCiphertext"),
+            shortCodeExpiresAt = optionalInstant("shortCodeExpiresAt"),
             createdAt = instant("createdAt"),
             revokedAt = optionalInstant("revokedAt"),
         )
     }
 }
+
+private fun transactDelete(tableName: String, key: DynamoItem): TransactWriteItem =
+    TransactWriteItem.builder()
+        .delete(Delete.builder().tableName(tableName).key(key).build())
+        .build()
 
 private fun transactPut(
     tableName: String,

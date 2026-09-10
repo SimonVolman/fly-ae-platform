@@ -83,4 +83,19 @@ class ShareControllerTest {
 
         verifyNoInteractions(notifier, activities)
     }
+
+    @Test
+    fun `temporary codes use a stricter rate limit`() {
+        val request = mock(HttpServletRequest::class.java)
+        `when`(request.remoteAddr).thenReturn("203.0.113.10")
+        `when`(shareTokens.isTemporaryCode("7K9D-P4QX")).thenReturn(true)
+        `when`(shareTokens.resolve("7K9D-P4QX"))
+            .thenThrow(ApiProblem(HttpStatus.NOT_FOUND, "Share link not found."))
+
+        assertThrows(ApiProblem::class.java) {
+            controller.resolve("7K9D-P4QX", request)
+        }
+
+        verify(rateLimiter).check("temporary-share:203.0.113.10", 10, java.time.Duration.ofMinutes(1))
+    }
 }
