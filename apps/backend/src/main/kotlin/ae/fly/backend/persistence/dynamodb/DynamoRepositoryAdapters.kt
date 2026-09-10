@@ -24,7 +24,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Repository
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.Put
-import software.amazon.awssdk.services.dynamodb.model.Delete
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest
 import java.time.Instant
@@ -607,9 +606,6 @@ class DynamoShareTokenRepository(
             ),
         )
         if (previousShortCodeHash != shareToken.shortCodeHash) {
-            previousShortCodeHash?.let {
-                writes += transactDelete(table, dynamoKey("SHORT_SHARE_CODE#$it", "CODE"))
-            }
             shareToken.shortCodeHash?.let { shortCodeHash ->
                 val expiresAt = requireNotNull(shareToken.shortCodeExpiresAt)
                 writes += transactPut(
@@ -649,11 +645,6 @@ class DynamoShareTokenRepository(
         )
     }
 }
-
-private fun transactDelete(tableName: String, key: DynamoItem): TransactWriteItem =
-    TransactWriteItem.builder()
-        .delete(Delete.builder().tableName(tableName).key(key).build())
-        .build()
 
 private fun transactPut(
     tableName: String,

@@ -288,7 +288,13 @@ class DynamoRepositoryIntegrationTest {
         share.shortCodeExpiresAt = null
         shares.save(share)
         assertNull(shares.findByTokenHashAndRevokedAtIsNull(share.tokenHash))
-        assertEquals(false, shares.shortCodeHashExists(previousShortCodeHash))
+        assertTrue(shares.shortCodeHashExists(previousShortCodeHash))
+        assertNull(
+            shares.findByShortCodeHashAndRevokedAtIsNullAndShortCodeExpiresAtAfter(
+                previousShortCodeHash,
+                now,
+            ),
+        )
     }
 
     companion object {

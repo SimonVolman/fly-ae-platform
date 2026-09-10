@@ -50,6 +50,10 @@ class ShareTokenServiceTest {
         clock.advance(Duration.ofMinutes(10))
         val expired = assertThrows(ApiProblem::class.java) { service.resolve(formatted) }
         assertEquals(HttpStatus.NOT_FOUND, expired.status)
+
+        val renewed = service.createTemporaryCode(document)
+        assertEquals(false, renewed.code == temporary.code)
+        assertEquals(clock.instant().plus(Duration.ofMinutes(15)), renewed.expiresAt)
     }
 
     @Test
