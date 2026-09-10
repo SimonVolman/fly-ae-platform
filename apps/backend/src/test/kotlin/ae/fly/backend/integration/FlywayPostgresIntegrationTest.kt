@@ -17,7 +17,7 @@ class FlywayPostgresIntegrationTest {
             .load()
             .migrate()
 
-        assertEquals("11", result.targetSchemaVersion)
+        assertEquals("12", result.targetSchemaVersion)
 
         DriverManager.getConnection(
             postgres.jdbcUrl,
@@ -47,6 +47,15 @@ class FlywayPostgresIntegrationTest {
                 ).use { rows ->
                     rows.next()
                     assertEquals(0, rows.getInt(1))
+                }
+
+                statement.executeQuery(
+                    "select count(*) from information_schema.columns " +
+                        "where table_schema = 'public' and table_name = 'share_tokens' " +
+                        "and column_name in ('short_code_hash', 'short_code_ciphertext', 'short_code_expires_at')",
+                ).use { rows ->
+                    rows.next()
+                    assertEquals(3, rows.getInt(1))
                 }
             }
         }

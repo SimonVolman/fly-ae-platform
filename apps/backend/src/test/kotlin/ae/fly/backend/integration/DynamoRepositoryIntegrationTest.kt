@@ -263,9 +263,32 @@ class DynamoRepositoryIntegrationTest {
         )
         assertEquals(share.id, shares.findByTokenHashAndRevokedAtIsNull(share.tokenHash)?.id)
         assertEquals(share.id, shares.findByDocumentIdAndRevokedAtIsNull(userDocument.id)?.id)
+        share.shortCodeHash = "e".repeat(64)
+        share.shortCodeCiphertext = "short-code-ciphertext"
+        share.shortCodeExpiresAt = now.plusSeconds(900)
+        shares.save(share)
+        assertTrue(shares.shortCodeHashExists(requireNotNull(share.shortCodeHash)))
+        assertEquals(
+            share.id,
+            shares.findByShortCodeHashAndRevokedAtIsNullAndShortCodeExpiresAtAfter(
+                requireNotNull(share.shortCodeHash),
+                now,
+            )?.id,
+        )
+        assertNull(
+            shares.findByShortCodeHashAndRevokedAtIsNullAndShortCodeExpiresAtAfter(
+                requireNotNull(share.shortCodeHash),
+                now.plusSeconds(900),
+            ),
+        )
+        val previousShortCodeHash = requireNotNull(share.shortCodeHash)
         share.revokedAt = now.plusSeconds(2)
+        share.shortCodeHash = null
+        share.shortCodeCiphertext = null
+        share.shortCodeExpiresAt = null
         shares.save(share)
         assertNull(shares.findByTokenHashAndRevokedAtIsNull(share.tokenHash))
+        assertEquals(false, shares.shortCodeHashExists(previousShortCodeHash))
     }
 
     companion object {
