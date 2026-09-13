@@ -152,7 +152,8 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /Save to My Documents/);
   assert.match(page, /guestAccessToken/);
   assert.match(page, /GUEST_MAX_FILE_SIZE = 100 \* 1024 \* 1024/);
-  assert.match(page, /AUTHENTICATED_MAX_FILE_SIZE = 3 \* 1024 \* 1024 \* 1024/);
+  assert.match(page, /DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 \* 1024 \* 1024 \* 1024/);
+  assert.match(page, /NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES/);
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
   assert.match(page, /JUST_DOCUMENT/);

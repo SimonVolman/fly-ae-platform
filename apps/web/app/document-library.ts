@@ -107,3 +107,15 @@ export function resolveFolderLocation(
 export function shareableDocuments(documents: FlyDocument[]) {
   return documents.filter((document) => document.status === "APPROVED" && document.shareUrl);
 }
+
+export function folderShareText(folder: Pick<FolderViewItem, "label" | "documents">) {
+  const documents = shareableDocuments(folder.documents);
+  return [
+    `${folder.label} — ${documentCount(documents.length)}`,
+    ...documents.flatMap((document, index) => [
+      "",
+      `${index + 1}. ${document.filename}`,
+      document.shareUrl!.trim(),
+    ]),
+  ].join("\n");
+}

@@ -584,7 +584,7 @@ components:
         sizeBytes:
           type: integer
           minimum: 1
-          maximum: 3221225472
+          maximum: 16106127360
     ClaimGuestDocument:
       type: object
       additionalProperties: false

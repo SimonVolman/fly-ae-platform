@@ -213,9 +213,12 @@ test("copy and download include approved documents only, and report success", as
   records.push({ ...makeDocument("pending", aircraft, "123", "PROCESSING"), shareUrl: "https://fly.ae/s/pending" });
   await openLibrary();
   await click(button("Actions for Aircraft"));
+  assert.match(menu().textContent, /links include file names, with one link per approved document/);
   await click(button("Copy links", menu()));
-  assert.deepEqual(copied, ["https://fly.ae/s/a\nhttps://fly.ae/s/b"]);
-  assert.match(container.querySelector('[role="status"]').textContent, /Copied 2 links/);
+  assert.deepEqual(copied, [
+    "Aircraft — 2 documents\n\n1. a.pdf\nhttps://fly.ae/s/a\n\n2. b.pdf\nhttps://fly.ae/s/b",
+  ]);
+  assert.match(container.querySelector('[role="status"]').textContent, /Copied 2 labeled document links from “Aircraft”/);
   await click(button("Actions for Aircraft"));
   await click(button("Download files", menu()));
   assert.deepEqual(downloads, ["https://download.example.com/a.pdf", "https://download.example.com/b.pdf"]);

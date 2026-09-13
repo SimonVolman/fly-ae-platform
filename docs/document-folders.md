@@ -6,7 +6,7 @@ The desktop sidebar and mobile navigation share their expanded categories and cu
 
 Folder actions are available from the ellipsis button, right-click, Shift+F10, or a touch long press. The menu stays inside the viewport, supports arrow keys, Home/End, Escape, Tab and outside dismissal, and returns focus to its trigger. Moving or scrolling cancels a pending long press.
 
-- Copy links copies the approved documents' individual URLs, separated by newlines.
+- Copy links copies a labeled list: the folder name and document count, followed by each approved document's filename and its individual URL. Each URL stays on its own line so chat and email clients do not combine multiple links into one ambiguous link.
 - Download files requests each approved document's existing download URL. Browsers may require permission for multiple downloads; this does not create a ZIP archive or a group share URL.
 - Delete all documents names the selected folder and file count in a confirmation. Partial failures retain the failed items and display the result. Stale list requests cannot restore deleted items in the interface.
 

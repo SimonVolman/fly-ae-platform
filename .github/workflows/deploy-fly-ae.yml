@@ -142,6 +142,7 @@ jobs:
               HostedZoneId="$HOSTED_ZONE_ID" \
               FrontendCertificateArn="${{ steps.bootstrap.outputs.certificate_arn }}" \
               DeploymentRevision="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+              AuthenticatedMaxFileSizeBytes="16106127360" \
               MaintenanceMode="$MAINTENANCE_MODE" \
               EnableTemporaryShare="false" \
               SessionSecretParameter="$SECRET_PATH_PREFIX/session-secret" \
@@ -183,6 +184,7 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.application.outputs.api_url }}/api/v1
           NEXT_PUBLIC_MAINTENANCE_MODE: ${{ env.MAINTENANCE_MODE }}
+          NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES: "16106127360"
           NEXT_PUBLIC_TEMPORARY_SHARE_ENABLED: "false"
           NEXT_PUBLIC_FUTURE_PRIVACY_COPY: "true"
         run: npm run build:aws --workspace @fly-ae/web

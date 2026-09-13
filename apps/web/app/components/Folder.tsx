@@ -120,6 +120,9 @@ export function FolderActions({ folder, busy, onAction, ref, onOpenChange }: Act
             onClick={() => choose("copy")}><DocumentIcon name="link" /><span>Copy links</span></button>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
             onClick={() => choose("download")}><DocumentIcon name="download" /><span>Download files</span></button>
+          {available > 0 && <p className="folder-menu-hint" role="presentation">
+            Copied links include file names, with one link per approved document.
+          </p>}
           {!available && <p className="folder-menu-hint" role="presentation">Links and downloads are available after approval.</p>}
           <div className="folder-menu-separator" role="separator" />
           <button className="danger-action" type="button" role="menuitem" tabIndex={-1} disabled={busy}

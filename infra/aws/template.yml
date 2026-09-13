@@ -68,6 +68,10 @@ Parameters:
   DeploymentRevision:
     Type: String
     Default: local
+  AuthenticatedMaxFileSizeBytes:
+    Type: Number
+    Default: 3221225472
+    MinValue: 104857600
 
 Conditions:
   CustomDomainEnabled: !Equals [!Ref EnableCustomDomain, "true"]
@@ -263,6 +267,7 @@ Resources:
           FLY_PUBLIC_BASE_URL: !Sub https://${FrontendDomainName}
           FLY_ALLOWED_ORIGINS: !Sub https://${FrontendDomainName}
           FLY_MAINTENANCE_MODE: !Ref MaintenanceMode
+          FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES: !Ref AuthenticatedMaxFileSizeBytes
           FLY_SHORT_SHARE_ENABLED: !Ref EnableTemporaryShare
           FLY_SHORT_SHARE_TTL: 15m
           FLY_EMAIL_FROM: !Sub no-reply@${FrontendDomainName}

@@ -67,10 +67,9 @@ class DocumentService(
             is AuthenticatedGuest -> documentProperties.guestMaxFileSizeBytes
         }
         if (request.sizeBytes > maxFileSize) {
-            val limitMb = maxFileSize / (1024 * 1024)
             throw ApiProblem(
                 HttpStatus.PAYLOAD_TOO_LARGE,
-                "This upload is limited to $limitMb MB.",
+                "This upload is limited to ${fileSizeLimitLabel(maxFileSize)}.",
             )
         }
         val category = categories.findByIdAndActiveTrue(request.categoryId)
@@ -100,6 +99,15 @@ class DocumentService(
             ),
         )
         return DocumentResponse.from(document)
+    }
+
+    private fun fileSizeLimitLabel(bytes: Long): String {
+        val gibibyte = 1024L * 1024 * 1024
+        return if (bytes % gibibyte == 0L) {
+            "${bytes / gibibyte} GB"
+        } else {
+            "${bytes / (1024 * 1024)} MB"
+        }
     }
 
     @Transactional(readOnly = true)

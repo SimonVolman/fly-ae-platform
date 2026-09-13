@@ -24,14 +24,25 @@ import { DocumentsNavigation } from "./components/DocumentsNavigation";
 import { DocumentIcon, FolderActions, FolderCard, type FolderAction } from "./components/Folder";
 import {
   categoryItem, documentCount, folderItem, folderLabel, groupDocumentsIntoFolders,
-  groupFoldersIntoCategories, resolveFolderLocation, shareableDocuments,
+  groupFoldersIntoCategories, resolveFolderLocation, shareableDocuments, folderShareText,
   type Category, type DocumentStatus, type FlyDocument, type FolderViewItem,
 } from "./document-library";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-const AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
+const DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
+const configuredAuthenticatedMaxFileSize = Number(
+  process.env.NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES,
+);
+const AUTHENTICATED_MAX_FILE_SIZE =
+  Number.isSafeInteger(configuredAuthenticatedMaxFileSize) &&
+  configuredAuthenticatedMaxFileSize > 0
+    ? configuredAuthenticatedMaxFileSize
+    : DEFAULT_AUTHENTICATED_MAX_FILE_SIZE;
+const AUTHENTICATED_MAX_FILE_SIZE_LABEL = `${
+  AUTHENTICATED_MAX_FILE_SIZE / (1024 * 1024 * 1024)
+} GB`;
 const GUEST_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const GENERAL_DOCUMENT_MSN = "GENERAL";
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
@@ -462,8 +473,8 @@ function HomeContent() {
     if (oversizedFile) {
       setError(
         session
-          ? `${oversizedFile.name} is larger than the 3 GB per-file limit.`
-          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to 3 GB.`,
+          ? `${oversizedFile.name} is larger than the ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per-file limit.`
+          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`,
       );
       return;
     }
@@ -545,8 +556,8 @@ function HomeContent() {
     if (oversizedFile) {
       setError(
         session
-          ? `${oversizedFile.name} is larger than the 3 GB per-file limit.`
-          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to 3 GB.`,
+          ? `${oversizedFile.name} is larger than the ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per-file limit.`
+          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`,
       );
       return;
     }
@@ -944,8 +955,11 @@ function HomeContent() {
       const available = shareableDocuments(folder.documents);
       if (action === "copy") {
         if (!available.length) throw new Error("No approved share links are available yet.");
-        await navigator.clipboard.writeText(available.map((document) => document.shareUrl).join("\n"));
-        setDocumentNotice({ error: false, message: `Copied ${available.length} ${available.length === 1 ? "link" : "links"}.` });
+        await navigator.clipboard.writeText(folderShareText(folder));
+        setDocumentNotice({
+          error: false,
+          message: `Copied ${available.length} labeled document ${available.length === 1 ? "link" : "links"} from “${folder.label}”.`,
+        });
       } else if (action === "download") {
         if (!available.length) throw new Error("No approved documents are available to download yet.");
         const downloads = await Promise.all(available.map(async (document) => {
@@ -1383,7 +1397,7 @@ function HomeContent() {
               <p className="eyebrow">Secure document transfer</p>
               <h1 id="upload-title">Upload an aviation file</h1>
               <p>
-                Upload a PDF, image, video, or archive up to 3 GB after signing in.
+                Upload a PDF, image, video, or archive up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL} after signing in.
                 Guest uploads: up to 100 MB per file, no email required.
               </p>
             </div>
@@ -1539,10 +1553,10 @@ function HomeContent() {
                 </div>
 
                 <p className="upload-limit" id="upload-limit" aria-live="polite">
-                  <strong>{session ? "Up to 3 GB per file" : "Up to 100 MB per file"}</strong>
+                  <strong>{session ? `Up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file` : "Up to 100 MB per file"}</strong>
                   {!session && (
                     <button type="button" onClick={openAuth}>
-                      Log in for up to 3 GB
+                      Log in for up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL}
                     </button>
                   )}
                 </p>
@@ -1575,8 +1589,8 @@ function HomeContent() {
                       <strong>Choose files or drag &amp; drop them here</strong>
                       <small>
                         {session
-                          ? "Maximum 3 GB per file"
-                          : "Up to 100 MB per file as a guest. Log in to upload up to 3 GB per file."}
+                          ? `Maximum ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file`
+                          : `Up to 100 MB per file as a guest. Log in to upload up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file.`}
                       </small>
                     </span>
                   </button>
@@ -1647,7 +1661,7 @@ function HomeContent() {
                         openAuth();
                       }}
                     >
-                      Log in to upload up to 3 GB and use My Documents
+                      Log in to upload up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL} and use My Documents
                     </button>
                   </div>
                 )}
@@ -1914,7 +1928,7 @@ function HomeContent() {
                 <p className="info-box">
                   {pendingGuestClaim
                     ? "Verify your email to add this guest document to My Documents without uploading it again."
-                    : "Log in with your email to keep a My Documents history and upload files up to 3 GB."}
+                    : `Log in with your email to keep a My Documents history and upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`}
                 </p>
                 <label>
                   Email

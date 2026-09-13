@@ -153,6 +153,34 @@ class DocumentServiceTest {
     }
 
     @Test
+    fun `authenticated upload limit is reported in gigabytes`() {
+        val user = User(id = UUID.randomUUID(), email = "owner@example.com")
+        `when`(users.findById(user.id)).thenReturn(user)
+        val configuredService = DocumentService(
+            documents = documents,
+            categories = categories,
+            users = users,
+            guestSessions = guests,
+            guestSessionTokens = guestTokens,
+            objectStorage = storage,
+            shareTokens = shares,
+            webProperties = WebProperties(),
+            documentProperties = DocumentProperties(authenticatedMaxFileSizeBytes = 15L * 1024 * 1024 * 1024),
+            clock = clock,
+        )
+
+        val error = assertThrows(ApiProblem::class.java) {
+            configuredService.create(
+                AuthenticatedUser(user.id),
+                request(sizeBytes = 15L * 1024 * 1024 * 1024 + 1),
+            )
+        }
+
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, error.status)
+        assertEquals("This upload is limited to 15 GB.", error.message)
+    }
+
+    @Test
     fun `authenticated user can claim a guest document without changing its share link`() {
         val user = User(id = UUID.randomUUID(), email = "owner@example.com")
         val document = Document(
