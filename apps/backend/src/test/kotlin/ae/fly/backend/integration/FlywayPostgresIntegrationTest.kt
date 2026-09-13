@@ -17,7 +17,7 @@ class FlywayPostgresIntegrationTest {
             .load()
             .migrate()
 
-        assertEquals("12", result.targetSchemaVersion)
+        assertEquals("13", result.targetSchemaVersion)
 
         DriverManager.getConnection(
             postgres.jdbcUrl,
