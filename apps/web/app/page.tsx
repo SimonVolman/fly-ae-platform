@@ -19,7 +19,6 @@ import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { Mission } from "./components/Mission";
-import { FilePrivacy } from "./components/FilePrivacy";
 import { DocumentsNavigation } from "./components/DocumentsNavigation";
 import { DocumentIcon, FolderActions, FolderCard, type FolderAction } from "./components/Folder";
 import {
@@ -97,6 +96,14 @@ const CATEGORY_CARD_IMAGES: Record<string, string> = {
   ENGINE: "/category-engine.svg",
   LANDING_GEAR: "/category-landing-gear.svg",
   JUST_DOCUMENT: "/category-just-document.svg",
+};
+
+const CATEGORY_CARD_SELECTED_IMAGES: Record<string, string> = {
+  AIRCRAFT: "/category-aircraft-active.svg",
+  APU: "/category-apu-active.svg",
+  ENGINE: "/category-engine-active.svg",
+  LANDING_GEAR: "/category-landing-gear-active.svg",
+  JUST_DOCUMENT: "/category-just-document-active.svg",
 };
 
 const CATEGORY_CARD_CATALOG = [
@@ -517,6 +524,18 @@ function HomeContent() {
     });
     setUploadProgress(0);
     setActiveUploads([]);
+    setError("");
+  }
+
+  function clearSelectedFiles() {
+    if (uploadBusy) return;
+    setSelectedFiles([]);
+    setUploadState("idle");
+    setUploadProgress(0);
+    setActiveUploads([]);
+    setAcceptedGuestLegal(false);
+    setWorkflowStep(2);
+    setTemporaryShare(null);
     setError("");
   }
 
@@ -1112,7 +1131,7 @@ function HomeContent() {
     <main className="product-app">
       <header className="topbar product-topbar" aria-label="Primary">
         <button className="brand-button" onClick={showUploadView}>
-          <Brand />
+          <Brand figmaTopbar />
         </button>
         <nav className="primary-nav" aria-label="Product">
           <button
@@ -1348,10 +1367,9 @@ function HomeContent() {
                 const isSelected = category
                   ? category.id === categoryId
                   : card.code === "AIRCRAFT" && !categoryId;
-                const imageSource =
-                  card.code === "AIRCRAFT" && isSelected
-                    ? "/category-aircraft-selected.svg"
-                    : CATEGORY_CARD_IMAGES[card.code];
+                const imageSource = isSelected
+                  ? CATEGORY_CARD_SELECTED_IMAGES[card.code]
+                  : CATEGORY_CARD_IMAGES[card.code];
 
                 if (!imageSource) return null;
 
@@ -1379,8 +1397,15 @@ function HomeContent() {
                       aria-hidden="true"
                       priority={card.code === "AIRCRAFT"}
                     />
-                    {isSelected && card.code !== "AIRCRAFT" && (
-                      <span className="desktop-category-check" aria-hidden="true">✓</span>
+                    {isSelected && (
+                      <Image
+                        src="/circle-check.svg"
+                        alt=""
+                        width={24}
+                        height={24}
+                        className="desktop-category-check"
+                        aria-hidden="true"
+                      />
                     )}
                   </button>
                 );
@@ -1550,16 +1575,18 @@ function HomeContent() {
                       PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · multiple files allowed.
                     </p>
                   </div>
-                </div>
-
-                <p className="upload-limit" id="upload-limit" aria-live="polite">
-                  <strong>{session ? `Up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file` : "Up to 100 MB per file"}</strong>
-                  {!session && (
-                    <button type="button" onClick={openAuth}>
-                      Log in for up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL}
+                  {selectedFiles.length > 0 && (
+                    <button
+                      type="button"
+                      className="clear-upload"
+                      onClick={clearSelectedFiles}
+                      disabled={uploadBusy}
+                    >
+                      <Image src="/arrow-reload.svg" alt="" width={24} height={24} aria-hidden="true" />
+                      <span>Clear</span>
                     </button>
                   )}
-                </p>
+                </div>
 
                 <input
                   ref={fileInput}
@@ -1575,33 +1602,37 @@ function HomeContent() {
                     className={`app-drop-zone ${selectedFiles.length ? "file-selected" : ""}`}
                     disabled={uploadBusy}
                     onClick={() => fileInput.current?.click()}
-                    aria-describedby="upload-limit"
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={dropFile}
                   >
                     <span className="upload-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M7 3.5h7l3 3v14H7z" />
-                        <path d="M14 3.5v3h3M12 16v-6m-3 3 3-3 3 3" />
-                      </svg>
+                      <Image src="/upload-streamline.svg" alt="" width={24} height={24} />
                     </span>
                     <span>
                       <strong>Choose files or drag &amp; drop them here</strong>
                       <small>
                         {session
                           ? `Maximum ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file`
-                          : `Up to 100 MB per file as a guest. Log in to upload up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file.`}
+                          : "Maximum 100 MB per file"}
                       </small>
                     </span>
                   </button>
 
-                  <div className="aviation-notice">
-                    Please upload only materials related to aviation components.
-                    Automatic checks verify file format and size.
-                  </div>
+                  <aside className="upload-security-notice" aria-label="File privacy and access">
+                    <Image
+                      className="upload-security-icon"
+                      src="/security-shield.svg"
+                      alt=""
+                      width={38}
+                      height={38}
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p>Your files are protected with end-to-end encryption and automatically checked by AI.</p>
+                      <p>Only you and those you share the private link with can access your files. Your file contents are not accessible to unauthorized parties.</p>
+                    </div>
+                  </aside>
                 </div>
-
-                <FilePrivacy />
 
                 {selectedFiles.length > 0 && (
                   <div className="selected-upload-list" aria-label="Selected files">
@@ -1610,8 +1641,8 @@ function HomeContent() {
                         className="selected-upload-row"
                         key={`${file.name}:${file.size}:${file.lastModified}`}
                       >
-                        <span className="selected-check" aria-hidden="true">✓</span>
-                        <span className="selected-file-icon" aria-hidden="true" />
+                        <Image className="selected-check" src="/check-circle.svg" alt="" width={30} height={30} aria-hidden="true" />
+                        <Image className="selected-file-icon" src="/file-icon.svg" alt="" width={24} height={24} aria-hidden="true" />
                         <div>
                           <strong>{file.name}</strong>
                           <small>{formatBytes(file.size)}</small>
@@ -1623,7 +1654,7 @@ function HomeContent() {
                             onClick={() => removeSelectedFile(index)}
                             aria-label={`Remove ${file.name}`}
                           >
-                            <i aria-hidden="true" />
+                            <Image src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
                           </button>
                         )}
                       </div>
@@ -1632,11 +1663,21 @@ function HomeContent() {
                 )}
 
                 {!session && selectedFiles.length > 0 && !uploadBusy && (
-                  <div className="guest-upload-options">
-                    <p>
-                      Upload these files as a guest. My Documents requires sign-in.
-                    </p>
-                    <label className="legal-check">
+                  <div className={`guest-upload-options ${acceptedGuestLegal ? "is-accepted" : ""}`}>
+                    <Image
+                      className="guest-upload-illustration"
+                      src="/guest-engine.svg"
+                      alt=""
+                      width={752}
+                      height={658}
+                      aria-hidden="true"
+                    />
+                    <div className="guest-upload-content">
+                      <div className="guest-upload-copy">
+                        <h3>Upload as a guest.</h3>
+                        <p>This temporary access is limited to this document.</p>
+                      </div>
+                      <label className="legal-check">
                       <input
                         type="checkbox"
                         checked={acceptedGuestLegal}
@@ -1653,21 +1694,21 @@ function HomeContent() {
                         </Link>
                         .
                       </span>
-                    </label>
-                    <button
-                      type="button"
-                      className="guest-login-link"
-                      onClick={() => {
-                        openAuth();
-                      }}
-                    >
-                      Log in to upload up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL} and use My Documents
-                    </button>
+                      </label>
+                    </div>
                   </div>
                 )}
 
                 {uploadBusy && (
                   <div className="upload-progress" aria-live="polite">
+                    <Image
+                      className="upload-progress-illustration"
+                      src="/guest-engine.svg"
+                      alt=""
+                      width={752}
+                      height={658}
+                      aria-hidden="true"
+                    />
                     <div>
                       <strong>
                         {uploadState === "preparing" && "Preparing secure upload"}

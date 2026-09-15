@@ -79,7 +79,7 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /Continue to file upload/);
   assert.match(html, /<h2>File upload<\/h2>/);
   assert.match(html, /PDF, image, video, or archive/);
-  assert.match(html, /Up to 100 MB per file/);
+  assert.match(html, /Maximum 100 MB per file/);
   assert.match(html, /Our mission/);
   assert.doesNotMatch(html, /<img[^>]+src="\/mission-aircraft/);
   assert.match(html, /My Documents/);
