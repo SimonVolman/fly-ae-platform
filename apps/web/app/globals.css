@@ -796,7 +796,7 @@ footer a {
 
 .button-success {
   background: var(--color-success);
-  border: 1px solid var(--color-success);
+  border: 1px solid #56DD93;
   color: var(--color-ink);
 }
 
@@ -2976,41 +2976,45 @@ footer a {
     width: 100%;
   }
 
+  .desktop-category-card > img:not(.desktop-category-check) {
+    position: relative;
+    z-index: 1;
+  }
+
   .desktop-category-card:focus-visible {
     outline: 3px solid color-mix(in srgb, var(--color-success) 38%, transparent);
     outline-offset: 2px;
   }
 
-  .desktop-category-card.is-selected:not(.is-aircraft) {
-    box-shadow: inset 0 0 0 1.5px var(--color-success);
-  }
-
-  .desktop-category-card.is-selected:not(.is-aircraft)::after {
-    background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  .desktop-category-card.is-selected::before {
+    border: 1px solid #56DD93;
     border-radius: 8px;
+    box-sizing: border-box;
     content: "";
     inset: 0;
     pointer-events: none;
     position: absolute;
+    z-index: 2;
   }
 
-  .desktop-category-check {
-    align-items: center;
-    background: var(--color-success);
-    border-radius: 50%;
-    color: white;
-    display: flex;
-    font-family: var(--font-sans);
-    font-size: 17px;
-    font-weight: 800;
+  .desktop-category-card.is-selected::after {
+    background: #E8F7F2;
+    border-radius: 7px;
+    content: "";
+    inset: 1px;
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  .desktop-category-card .desktop-category-check {
+    display: block;
     height: 24px;
-    justify-content: center;
-    line-height: 1;
     position: absolute;
     right: 6px;
     top: 6px;
     width: 24px;
-    z-index: 1;
+    z-index: 3;
   }
 
   .desktop-category-legal {
@@ -3045,6 +3049,10 @@ footer a {
     grid-template-columns: minmax(0, 1fr);
     margin: 0;
     max-width: none;
+  }
+
+  .wizard-flow.just-document-flow {
+    gap: 0;
   }
 
   .describe-panel {

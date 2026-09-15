@@ -80,6 +80,14 @@ const CATEGORY_CARD_IMAGES: Record<string, string> = {
   JUST_DOCUMENT: "/category-just-document.svg",
 };
 
+const CATEGORY_CARD_SELECTED_IMAGES: Record<string, string> = {
+  AIRCRAFT: "/category-aircraft-active.svg",
+  APU: "/category-apu-active.svg",
+  ENGINE: "/category-engine-active.svg",
+  LANDING_GEAR: "/category-landing-gear-active.svg",
+  JUST_DOCUMENT: "/category-just-document-active.svg",
+};
+
 const CATEGORY_CARD_CATALOG = [
   {
     id: "7b42604e-d3f8-4bb5-9480-36c451c8f141",
@@ -1502,10 +1510,9 @@ function HomeContent() {
                 const isSelected = category
                   ? category.id === categoryId
                   : card.code === "AIRCRAFT" && !categoryId;
-                const imageSource =
-                  card.code === "AIRCRAFT" && isSelected
-                    ? "/category-aircraft-selected.svg"
-                    : CATEGORY_CARD_IMAGES[card.code];
+                const imageSource = isSelected
+                  ? CATEGORY_CARD_SELECTED_IMAGES[card.code]
+                  : CATEGORY_CARD_IMAGES[card.code];
 
                 if (!imageSource) return null;
 
@@ -1533,8 +1540,15 @@ function HomeContent() {
                       aria-hidden="true"
                       priority={card.code === "AIRCRAFT"}
                     />
-                    {isSelected && card.code !== "AIRCRAFT" && (
-                      <span className="desktop-category-check" aria-hidden="true">✓</span>
+                    {isSelected && (
+                      <Image
+                        className="desktop-category-check"
+                        src="/circle-check.svg"
+                        alt=""
+                        width={24}
+                        height={24}
+                        aria-hidden="true"
+                      />
                     )}
                   </button>
                 );
@@ -1586,7 +1600,7 @@ function HomeContent() {
             </li>
           </ol>
 
-          <div className="upload-layout wizard-flow">
+          <div className={"upload-layout wizard-flow" + (isJustDocument(selectedCategory) ? " just-document-flow" : "")}>
             {workflowStep > 2 && (
               <article className="step-summary" aria-label="Document details completed">
                 <span className="step-summary-number" aria-hidden="true">✓</span>
