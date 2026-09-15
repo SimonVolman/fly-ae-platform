@@ -241,8 +241,9 @@ test("approved document creates a temporary code and local QR without exposing t
     [{ path: "/documents/a/temporary-share", method: "POST", authorization: "Bearer test-only-token" }],
   );
 
-  await click(button("Copy short link", dialog));
-  assert.deepEqual(copied, ["http://localhost:3000/s/7K9D-P4QX"]);
+  await click(button("Copy link", dialog));
+  await click(button("Copy secret code", dialog));
+  assert.deepEqual(copied, ["http://localhost:3000/s/7K9D-P4QX", "7K9D-P4QX"]);
 });
 
 test("share page identifies a logged-in visitor only to the backend", async () => {

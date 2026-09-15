@@ -79,7 +79,7 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /Continue to file upload/);
   assert.match(html, /<h2>File upload<\/h2>/);
   assert.match(html, /PDF, image, video, or archive/);
-  assert.match(html, /Up to 100 MB per file/);
+  assert.match(html, /Maximum 100 MB per file/);
   assert.match(html, /Our mission/);
   assert.doesNotMatch(html, /<img[^>]+src="\/mission-aircraft/);
   assert.match(html, /My Documents/);
@@ -156,6 +156,9 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES/);
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
+  assert.match(page, /className="sharing-ready"/);
+  assert.match(page, /className="button sharing-ready-button"/);
+  assert.doesNotMatch(page, /className="share-result wizard-share-result"/);
   assert.match(page, /JUST_DOCUMENT/);
   assert.match(page, /No identifier required/);
   assert.match(page, /label: "MSN"/);
