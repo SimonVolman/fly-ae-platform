@@ -23,18 +23,20 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 const AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
 const GUEST_MAX_FILE_SIZE = 100 * 1024 * 1024;
-
-function browserUploadUrl(signedUrl: string) {
-  const apiUrl = new URL(API_URL);
-  return apiUrl.hostname === "localhost"
-    ? apiUrl.origin + "/__s3_proxy?url=" + encodeURIComponent(signedUrl)
-    : signedUrl;
-}
 const GENERAL_DOCUMENT_MSN = "GENERAL";
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
-const TEMPORARY_SHARE_ENABLED = true;
+const TEMPORARY_SHARE_ENABLED =
+  process.env.NODE_ENV === "development" ||
+  process.env.NEXT_PUBLIC_TEMPORARY_SHARE_ENABLED === "true";
 
-type TemporaryShare = { documentId: string; filename: string; accessToken: string; code: string; shortUrl: string; expiresAt: string };
+type TemporaryShare = {
+  filename: string;
+  documentId: string;
+  accessToken: string;
+  code: string;
+  shortUrl: string;
+  expiresAt: string;
+};
 
 type Category = {
   id: string;
@@ -479,6 +481,7 @@ function HomeContent() {
       return;
     }
     setUploadState(selectedFiles.length ? "ready" : "idle");
+    setWorkflowStep(2);
     if (!window.matchMedia("(min-width: 1100px)").matches) {
       window.setTimeout(() => stepTwo.current?.scrollIntoView({ block: "nearest" }), 0);
     }
@@ -620,6 +623,8 @@ function HomeContent() {
     setUploadProgress(0);
     setActiveUploads([]);
     setAcceptedGuestLegal(false);
+    setWorkflowStep(2);
+    setTemporaryShare(null);
     setError("");
   }
 
@@ -745,7 +750,7 @@ function HomeContent() {
           );
           return {
             method: "PUT" as const,
-            url: browserUploadUrl(signed.url),
+            url: signed.url,
             headers: signed.headers,
           };
         },
@@ -892,38 +897,6 @@ function HomeContent() {
     }
   }
 
-  async function deleteActiveDocument(documentId: string) {
-    const activeUpload = activeUploads.find(
-      (upload) => upload.document.id === documentId,
-    );
-    if (
-      !activeUpload ||
-      !window.confirm("Delete this item and its uploaded file?")
-    ) {
-      return;
-    }
-    setError("");
-    try {
-      await api<void>(
-        `/documents/${documentId}`,
-        { method: "DELETE" },
-        activeUpload.accessToken,
-      );
-      const remainingUploads = activeUploads.filter(
-        (upload) => upload.document.id !== documentId,
-      );
-      setActiveUploads(remainingUploads);
-      if (!remainingUploads.length) {
-        setSelectedFiles([]);
-        setUploadState("idle");
-        setWorkflowStep(1);
-      }
-      if (session) await loadDocuments(session);
-    } catch (requestError) {
-      setError((requestError as Error).message);
-    }
-  }
-
   async function copyShareLink(link: string, notice?: string) {
     try {
       await navigator.clipboard.writeText(link);
@@ -936,12 +909,26 @@ function HomeContent() {
     }
   }
 
-  async function openTemporaryShare(document: Pick<FlyDocument, "id" | "filename">, accessToken: string) {
+  async function openTemporaryShare(
+    document: Pick<FlyDocument, "id" | "filename">,
+    accessToken: string,
+  ) {
     setTemporaryShareBusyDocumentId(document.id);
     setError("");
     try {
-      const result = await api<Omit<TemporaryShare, "documentId" | "filename" | "accessToken">>(`/documents/${document.id}/temporary-share`, { method: "POST" }, accessToken);
-      setTemporaryShare({ ...result, documentId: document.id, filename: document.filename, accessToken });
+      const result = await api<
+        Omit<TemporaryShare, "documentId" | "filename" | "accessToken">
+      >(
+        `/documents/${document.id}/temporary-share`,
+        { method: "POST" },
+        accessToken,
+      );
+      setTemporaryShare({
+        ...result,
+        documentId: document.id,
+        filename: document.filename,
+        accessToken,
+      });
     } catch (requestError) {
       setError((requestError as Error).message);
     } finally {
@@ -1064,17 +1051,6 @@ function HomeContent() {
       return;
     }
     setOpenCategoryId(item.categoryId);
-  }
-
-  function resetUploadFlow() {
-    setMsn("");
-    setSelectedFiles([]);
-    setUploadState("idle");
-    setUploadProgress(0);
-    setActiveUploads([]);
-    setAcceptedGuestLegal(false);
-    setError("");
-    setWorkflowStep(1);
   }
 
   function showUploadView() {
@@ -1865,14 +1841,30 @@ function HomeContent() {
 
                 {workflowStep === 3 && approvedUploads.length > 0 && (
                   <section className="sharing-ready" aria-live="polite" ref={stepThree}>
-                    <strong>Your secure link is ready</strong>
-                    <button
-                      className="button sharing-ready-button"
-                      disabled={temporaryShareBusyDocumentId === approvedUploads[0].document.id}
-                      onClick={() => void openTemporaryShare(approvedUploads[0].document, approvedUploads[0].accessToken)}
-                    >
-                      {temporaryShareBusyDocumentId === approvedUploads[0].document.id ? "Creating…" : "Share"}
-                    </button>
+                    <strong>
+                      {approvedUploads.length === 1
+                        ? "Your secure link is ready"
+                        : "Your secure links are ready"}
+                    </strong>
+                    <div className="sharing-ready-actions">
+                      {approvedUploads.map(({ document, accessToken }) => (
+                        <button
+                          className="button sharing-ready-button"
+                          key={document.id}
+                          disabled={
+                            !TEMPORARY_SHARE_ENABLED ||
+                            temporaryShareBusyDocumentId === document.id
+                          }
+                          onClick={() =>
+                            void openTemporaryShare(document, accessToken)
+                          }
+                        >
+                          {temporaryShareBusyDocumentId === document.id
+                            ? "Creating…"
+                            : `Share ${document.filename}`}
+                        </button>
+                      ))}
+                    </div>
                   </section>
                 )}
 
@@ -1993,13 +1985,10 @@ function HomeContent() {
               <div className="temporary-share-qr"><QRCodeSVG value={temporaryShare.shortUrl} size={220} level="M" marginSize={2} title={`Open ${temporaryShare.filename}`} /></div>
               <div className="temporary-share-details">
                 <div className="share-field">
-                  <strong>Attention! The link is single-use and valid for 24 hours.</strong>
+                  <strong>Secret code</strong>
+                  <div><code>{temporaryShare.code}</code><button type="button" onClick={() => void copyShareLink(temporaryShare.code, "Code copied")} aria-label="Copy code"><Image src="/copy.svg" alt="" width={24} height={24} /></button></div>
                   <div><code>{temporaryShare.shortUrl}</code><button type="button" onClick={() => void copyShareLink(temporaryShare.shortUrl, "Link copied")} aria-label="Copy link"><Image src="/copy.svg" alt="" width={24} height={24} /></button></div>
-                </div>
-                <div className="share-field">
-                  <div className="secret-code-label"><strong>Secret code</strong><span>expire on {new Date(temporaryShare.expiresAt).toLocaleTimeString()}</span></div>
-                  <div><code>{"fly.ae/" + temporaryShare.code}</code><button type="button" onClick={() => void copyShareLink("fly.ae/" + temporaryShare.code, "Secret code copied")} aria-label="Copy secret code"><Image src="/copy.svg" alt="" width={24} height={24} /></button></div>
-                  <p>Anyone with this code can download the file until it expires.</p>
+                  <p>Valid for 15 minutes, until {new Date(temporaryShare.expiresAt).toLocaleTimeString()}.</p>
                 </div>
               </div>
             </div>

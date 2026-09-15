@@ -157,7 +157,7 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
   assert.match(page, /JUST_DOCUMENT/);
-  assert.match(page, /No identifier required/);
+  assert.match(page, /general aviation-related document without an identifier/);
   assert.match(page, /label: "MSN"/);
   assert.match(page, /label: "S\/N"/);
   assert.match(page, /label: "ESN"/);
@@ -167,6 +167,10 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /NLG \| LH_MLG \| RH_MLG \| SHIPSET/);
   assert.doesNotMatch(page, /role="radiogroup"/);
   assert.match(page, /Unrelated materials may be/);
+  assert.match(page, /setWorkflowStep\(2\)/);
+  assert.match(page, /QRCodeSVG/);
+  assert.match(page, /\/documents\/\$\{document\.id\}\/temporary-share/);
+  assert.doesNotMatch(page, /__s3_proxy/);
   assert.match(page, /sessionStorage/);
   assert.match(page, /APPROVED/);
   assert.match(layout, /title:\s*"fly\.ae/);

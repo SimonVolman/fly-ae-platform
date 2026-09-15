@@ -4155,8 +4155,9 @@ footer a {
 /* Figma sharing-ready state. */
 @media (min-width: 1100px) {
   .step-summary { display: none; }
-  .sharing-ready { align-items: center; background: #fff; border: 3px solid #1dc328; border-radius: 12px; box-sizing: border-box; display: flex; gap: 24px; height: 88px; justify-content: space-between; padding: 24px; width: 100%; }
+  .sharing-ready { align-items: center; background: #fff; border: 3px solid #1dc328; border-radius: 12px; box-sizing: border-box; display: flex; gap: 24px; justify-content: space-between; min-height: 88px; padding: 24px; width: 100%; }
   .sharing-ready strong { color: #090f1b; flex: 1 0 0; font-family: var(--font-sans); font-size: 20px; font-weight: 700; letter-spacing: .05px; line-height: normal; }
+  .sharing-ready-actions { display: grid; gap: 8px; max-width: 398px; width: 100%; }
   .sharing-ready-button { background: #1dc328; border: 0; border-radius: 8px; color: #fff; font-family: var(--font-sans); font-size: 16px; font-weight: 600; min-height: 40px; padding: 8px 20px; width: 398px; }
   .temporary-share-dialog { border: 3px solid #fbfcff; border-radius: 20px; box-sizing: border-box; padding: 24px; width: 504px; }
   .temporary-share-dialog .dialog-top { align-items: center; margin: 0; }
