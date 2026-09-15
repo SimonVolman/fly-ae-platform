@@ -305,7 +305,6 @@ function HomeContent() {
   const [activeUploads, setActiveUploads] = useState<ActiveUpload[]>([]);
   const [pendingGuestClaim, setPendingGuestClaim] =
     useState<GuestDocumentClaim | null>(null);
-  const [claimBusyDocumentId, setClaimBusyDocumentId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
@@ -823,38 +822,6 @@ function HomeContent() {
     }
   }
 
-  async function deleteActiveDocument(documentId: string) {
-    const activeUpload = activeUploads.find(
-      (upload) => upload.document.id === documentId,
-    );
-    if (
-      !activeUpload ||
-      !window.confirm("Delete this item and its uploaded file?")
-    ) {
-      return;
-    }
-    setError("");
-    try {
-      await api<void>(
-        `/documents/${documentId}`,
-        { method: "DELETE" },
-        activeUpload.accessToken,
-      );
-      const remainingUploads = activeUploads.filter(
-        (upload) => upload.document.id !== documentId,
-      );
-      setActiveUploads(remainingUploads);
-      if (!remainingUploads.length) {
-        setSelectedFiles([]);
-        setUploadState("idle");
-        setWorkflowStep(1);
-      }
-      if (session) await loadDocuments(session);
-    } catch (requestError) {
-      setError((requestError as Error).message);
-    }
-  }
-
   async function copyShareLink(link: string, notice?: string) {
     try {
       await navigator.clipboard.writeText(link);
@@ -880,7 +847,7 @@ function HomeContent() {
         { method: "POST" },
         accessToken,
       );
-      setTemporaryShareNow(Date.now());
+      setTemporaryShareNow(() => Date.now());
       setTemporaryShare({
         ...result,
         documentId: document.id,
@@ -918,30 +885,6 @@ function HomeContent() {
           : upload,
       ),
     );
-  }
-
-  async function saveGuestUpload(upload: ActiveUpload) {
-    const claim = {
-      documentId: upload.document.id,
-      guestAccessToken: upload.accessToken,
-    };
-    if (!session) {
-      setPendingGuestClaim(claim);
-      prepareAuthDialog();
-      return;
-    }
-
-    setClaimBusyDocumentId(upload.document.id);
-    setError("");
-    try {
-      const claimed = await claimGuestDocument(claim, session);
-      replaceClaimedUpload(claimed, session.accessToken);
-      await loadDocuments(session);
-    } catch (claimError) {
-      setError((claimError as Error).message);
-    } finally {
-      setClaimBusyDocumentId(null);
-    }
   }
 
   async function performFolderAction(action: FolderAction, folder: FolderViewItem) {
@@ -1022,17 +965,6 @@ function HomeContent() {
       ? current.filter((item) => item !== id) : [...current, id]);
   }
 
-  function resetUploadFlow() {
-    setMsn("");
-    setSelectedFiles([]);
-    setUploadState("idle");
-    setUploadProgress(0);
-    setActiveUploads([]);
-    setAcceptedGuestLegal(false);
-    setError("");
-    setWorkflowStep(1);
-  }
-
   function showUploadView() {
     setShowDocuments(false);
     setMobileMenuOpen(false);
@@ -1055,7 +987,17 @@ function HomeContent() {
   }
 
   function openAuth() {
-    setPendingGuestClaim(null);
+    const guestUpload = activeUploads.find((upload) =>
+      upload.accessToken.startsWith("gst_"),
+    );
+    setPendingGuestClaim(
+      guestUpload
+        ? {
+            documentId: guestUpload.document.id,
+            guestAccessToken: guestUpload.accessToken,
+          }
+        : null,
+    );
     prepareAuthDialog();
   }
 
@@ -1740,77 +1682,24 @@ function HomeContent() {
             )}
 
             {workflowStep === 3 && approvedUploads.length > 0 && (
-              <section
-                className="share-result wizard-share-result"
-                aria-live="polite"
-                ref={stepThree}
-              >
-                <div className="success-mark" aria-hidden="true">✓</div>
-                <div>
-                  <p className="eyebrow">Step 03 · Approved</p>
-                  <h2>
-                    {approvedUploads.length === 1
-                      ? "Your secure link is ready"
-                      : "Your secure links are ready"}
-                  </h2>
-                  <p>
-                    Anyone with a link can view and download that file without
-                    signing in. Share links only with people you trust. Deleting a
-                    file disables its link; copies already downloaded remain with
-                    recipients.
-                  </p>
-                </div>
-                <div className="share-result-actions">
-                  <div className="share-link-list">
-                    {approvedUploads.map((upload) => {
-                      const { document } = upload;
-                      const isGuestDocument = upload.accessToken.startsWith("gst_");
-                      return (
-                        <div className="share-link-item" key={document.id}>
-                          <strong>{document.filename}</strong>
-                          <code>{document.shareUrl}</code>
-                          <div className="share-link-buttons">
-                            <button
-                              className="button button-success"
-                              onClick={() => void copyShareLink(document.shareUrl!)}
-                            >
-                              Copy link
-                            </button>
-                            {TEMPORARY_SHARE_ENABLED && (
-                              <button
-                                className="button button-primary"
-                                disabled={temporaryShareBusyDocumentId === document.id}
-                                onClick={() => void openTemporaryShare(document, upload.accessToken)}
-                              >
-                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & code"}
-                              </button>
-                            )}
-                            {isGuestDocument && (
-                              <button
-                                className="button button-primary"
-                                disabled={claimBusyDocumentId === document.id}
-                                onClick={() => void saveGuestUpload(upload)}
-                              >
-                                {claimBusyDocumentId === document.id
-                                  ? "Saving…"
-                                  : "Save to My Documents"}
-                              </button>
-                            )}
-                            <button
-                              className="button button-secondary"
-                              onClick={() => void deleteActiveDocument(document.id)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <button className="button button-secondary" onClick={resetUploadFlow}>
-                    Upload more files
-                  </button>
-                </div>
+              <section className="sharing-ready" aria-live="polite" ref={stepThree}>
+                <strong>Your secure link is ready</strong>
+                <button
+                  className="button sharing-ready-button"
+                  disabled={
+                    temporaryShareBusyDocumentId === approvedUploads[0].document.id
+                  }
+                  onClick={() =>
+                    void openTemporaryShare(
+                      approvedUploads[0].document,
+                      approvedUploads[0].accessToken,
+                    )
+                  }
+                >
+                  {temporaryShareBusyDocumentId === approvedUploads[0].document.id
+                    ? "Creating…"
+                    : "Share"}
+                </button>
               </section>
             )}
           </div>
