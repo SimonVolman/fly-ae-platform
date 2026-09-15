@@ -328,6 +328,7 @@ function HomeContent() {
   const [temporaryShare, setTemporaryShare] = useState<TemporaryShare | null>(null);
   const [temporaryShareBusyDocumentId, setTemporaryShareBusyDocumentId] = useState<string | null>(null);
   const [temporaryShareNow, setTemporaryShareNow] = useState(() => Date.now());
+  const [copyNotice, setCopyNotice] = useState("");
   const documentsHeading = useRef<HTMLHeadingElement>(null);
   const documentRequest = useRef(0);
   const folderActionInFlight = useRef(false);
@@ -854,9 +855,13 @@ function HomeContent() {
     }
   }
 
-  async function copyShareLink(link: string) {
+  async function copyShareLink(link: string, notice?: string) {
     try {
       await navigator.clipboard.writeText(link);
+      if (notice) {
+        setCopyNotice(notice);
+        window.setTimeout(() => setCopyNotice(""), 1_800);
+      }
     } catch {
       setError("Copy failed. Select the link manually.");
     }
@@ -888,25 +893,6 @@ function HomeContent() {
       else setError(message);
     } finally {
       setTemporaryShareBusyDocumentId(null);
-    }
-  }
-
-  async function shareTemporaryLink() {
-    if (!temporaryShare) return;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: temporaryShare.filename,
-          text: `Open with code ${temporaryShare.code}. The link expires in 15 minutes.`,
-          url: temporaryShare.shortUrl,
-        });
-      } else {
-        await navigator.clipboard.writeText(temporaryShare.shortUrl);
-      }
-    } catch (shareError) {
-      if ((shareError as DOMException).name !== "AbortError") {
-        setError("Share failed. Copy the short link instead.");
-      }
     }
   }
 
@@ -1855,8 +1841,6 @@ function HomeContent() {
           0,
           Math.ceil((new Date(temporaryShare.expiresAt).getTime() - temporaryShareNow) / 1_000),
         );
-        const minutes = Math.floor(secondsRemaining / 60);
-        const seconds = String(secondsRemaining % 60).padStart(2, "0");
         const expired = secondsRemaining === 0;
         return (
           <div
@@ -1875,14 +1859,12 @@ function HomeContent() {
               }}
             >
               <div className="dialog-top">
-                <div>
-                  <p className="eyebrow">Temporary access · DEV</p>
-                  <h2 id="temporary-share-title">Scan or enter the code</h2>
-                </div>
+                <h2 id="temporary-share-title">Share</h2>
                 <button className="close" onClick={() => setTemporaryShare(null)} aria-label="Close">
-                  ×
+                  <Image src="/close.svg" alt="" width={24} height={24} />
                 </button>
               </div>
+              {copyNotice && <div className="copy-toast" role="status">{copyNotice}</div>}
               <div className={`temporary-share-content ${expired ? "is-expired" : ""}`}>
                 <div className="temporary-share-qr" aria-label="QR code for temporary share link">
                   <QRCodeSVG
@@ -1894,40 +1876,57 @@ function HomeContent() {
                   />
                 </div>
                 <div className="temporary-share-details">
-                  <strong className="temporary-share-code">{temporaryShare.code}</strong>
-                  <code>{temporaryShare.shortUrl}</code>
-                  <p className="temporary-share-timer" role="timer">
-                    {expired ? "This code has expired" : `Expires in ${minutes}:${seconds}`}
-                  </p>
-                  <p>Anyone with this code can download the file until it expires.</p>
-                  <div className="temporary-share-actions">
-                    {expired ? (
+                  <div className="share-field">
+                    <strong>
+                      {expired
+                        ? "Attention! This link has expired."
+                        : "Attention! The link is valid for 15 minutes."}
+                    </strong>
+                    <div>
+                      <code>{temporaryShare.shortUrl}</code>
                       <button
-                        className="button button-primary"
-                        disabled={temporaryShareBusyDocumentId === temporaryShare.documentId}
-                        onClick={() => void openTemporaryShare(
-                          { id: temporaryShare.documentId, filename: temporaryShare.filename },
-                          temporaryShare.accessToken,
-                        )}
+                        type="button"
+                        onClick={() => void copyShareLink(temporaryShare.shortUrl, "Link copied")}
+                        aria-label="Copy link"
                       >
-                        Generate new code
+                        <Image src="/copy.svg" alt="" width={24} height={24} />
                       </button>
-                    ) : (
-                      <>
+                    </div>
+                  </div>
+                  <div className="share-field">
+                    <div className="secret-code-label">
+                      <strong>Secret code</strong>
+                      <span>
+                        {expired
+                          ? "expired"
+                          : `expires at ${new Date(temporaryShare.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                      </span>
+                    </div>
+                    <div>
+                      <code>{temporaryShare.code}</code>
+                      {expired ? (
                         <button
-                          className="button button-primary"
-                          onClick={() => void shareTemporaryLink()}
+                          type="button"
+                          disabled={temporaryShareBusyDocumentId === temporaryShare.documentId}
+                          onClick={() => void openTemporaryShare(
+                            { id: temporaryShare.documentId, filename: temporaryShare.filename },
+                            temporaryShare.accessToken,
+                          )}
+                          aria-label="Generate new code"
                         >
-                          Share
+                          <Image src="/arrow-reload.svg" alt="" width={24} height={24} />
                         </button>
+                      ) : (
                         <button
-                          className="button button-secondary"
-                          onClick={() => void copyShareLink(temporaryShare.shortUrl)}
+                          type="button"
+                          onClick={() => void copyShareLink(temporaryShare.code, "Secret code copied")}
+                          aria-label="Copy secret code"
                         >
-                          Copy short link
+                          <Image src="/copy.svg" alt="" width={24} height={24} />
                         </button>
-                      </>
-                    )}
+                      )}
+                    </div>
+                    <p>Anyone with this code can download the file until it expires.</p>
                   </div>
                 </div>
               </div>
