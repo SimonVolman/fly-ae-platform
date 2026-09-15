@@ -1,7 +1,7 @@
 "use client";
 
-import type { AwsS3Part } from "@uppy/aws-s3";
-import type Uppy from "@uppy/core";
+import AwsS3, { type AwsS3Part } from "@uppy/aws-s3";
+import Uppy from "@uppy/core";
 import Image from "next/image";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
@@ -11,55 +11,36 @@ import {
   FormEvent,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
-import { Mission } from "./components/Mission";
-import { FilePrivacy } from "./components/FilePrivacy";
-import { DocumentsNavigation } from "./components/DocumentsNavigation";
-import { DocumentIcon, FolderActions, FolderCard, type FolderAction } from "./components/Folder";
-import {
-  categoryItem, documentCount, folderItem, folderLabel, groupDocumentsIntoFolders,
-  groupFoldersIntoCategories, resolveFolderLocation, shareableDocuments, folderShareText,
-  type Category, type DocumentStatus, type FlyDocument, type FolderViewItem,
-} from "./document-library";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-const DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
-const configuredAuthenticatedMaxFileSize = Number(
-  process.env.NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES,
-);
-const AUTHENTICATED_MAX_FILE_SIZE =
-  Number.isSafeInteger(configuredAuthenticatedMaxFileSize) &&
-  configuredAuthenticatedMaxFileSize > 0
-    ? configuredAuthenticatedMaxFileSize
-    : DEFAULT_AUTHENTICATED_MAX_FILE_SIZE;
-const AUTHENTICATED_MAX_FILE_SIZE_LABEL = `${
-  AUTHENTICATED_MAX_FILE_SIZE / (1024 * 1024 * 1024)
-} GB`;
+const AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
 const GUEST_MAX_FILE_SIZE = 100 * 1024 * 1024;
+
+function browserUploadUrl(signedUrl: string) {
+  const apiUrl = new URL(API_URL);
+  return apiUrl.hostname === "localhost"
+    ? apiUrl.origin + "/__s3_proxy?url=" + encodeURIComponent(signedUrl)
+    : signedUrl;
+}
 const GENERAL_DOCUMENT_MSN = "GENERAL";
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
-const TEMPORARY_SHARE_ENABLED =
-  process.env.NODE_ENV === "development" ||
-  process.env.NEXT_PUBLIC_TEMPORARY_SHARE_ENABLED === "true";
+const TEMPORARY_SHARE_ENABLED = true;
 
-type TemporaryShare = {
-  documentId: string;
-  filename: string;
-  accessToken: string;
+type TemporaryShare = { documentId: string; filename: string; accessToken: string; code: string; shortUrl: string; expiresAt: string };
+
+type Category = {
+  id: string;
   code: string;
-  shortUrl: string;
-  expiresAt: string;
+  name: string;
 };
-
-type TemporaryShareDocument = Pick<FlyDocument, "id" | "filename">;
 
 type IdentifierField = {
   label: string;
@@ -182,6 +163,28 @@ function supportedUploadMimeType(file: File): string | null {
   );
 }
 
+type DocumentStatus =
+  | "CREATED"
+  | "UPLOADING"
+  | "PENDING"
+  | "PROCESSING"
+  | "APPROVED"
+  | "REJECTED"
+  | "FAILED"
+  | "DELETED";
+
+type FlyDocument = {
+  id: string;
+  category: Category;
+  msn: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: DocumentStatus;
+  shareUrl: string | null;
+  createdAt: string;
+};
+
 type Session = {
   accessToken: string;
   expiresAt: string;
@@ -192,6 +195,19 @@ type Session = {
     displayName: string;
     authenticationMethod: "EMAIL" | "TELEGRAM";
   };
+};
+
+type AuthenticationMethod = "EMAIL" | "TELEGRAM";
+
+type OtpDeliveryOptions = {
+  emailEnabled: boolean;
+  telegramEnabled: boolean;
+};
+
+type TelegramLoginAccepted = {
+  requestId: string;
+  telegramStartUrl: string;
+  expiresAt: string;
 };
 
 type GuestSession = {
@@ -213,11 +229,6 @@ type ActiveUpload = {
   accessToken: string;
 };
 
-type GuestDocumentClaim = {
-  documentId: string;
-  guestAccessToken: string;
-};
-
 type UploadState =
   | "idle"
   | "ready"
@@ -228,6 +239,29 @@ type UploadState =
   | "failed";
 
 type WorkflowStep = 1 | 2 | 3;
+
+type DocumentFolder = {
+  key: string;
+  category: Category;
+  msn: string;
+  documents: FlyDocument[];
+};
+
+type CategoryFolder = {
+  key: string;
+  category: Category;
+  folders: DocumentFolder[];
+  documents: FlyDocument[];
+};
+
+type FolderViewItem = {
+  key: string;
+  label: string;
+  description: string;
+  documents: FlyDocument[];
+  categoryId: string;
+  folderKey: string | null;
+};
 
 async function api<T>(
   path: string,
@@ -281,6 +315,60 @@ function identifierField(category?: Category) {
   return IDENTIFIER_FIELDS[category?.code ?? ""] ?? IDENTIFIER_FIELDS.AIRCRAFT;
 }
 
+function groupDocumentsIntoFolders(documents: FlyDocument[]) {
+  const folders = new Map<string, DocumentFolder>();
+
+  documents.forEach((document) => {
+    const key = `${document.category.id}:${document.msn}`;
+    const folder = folders.get(key);
+
+    if (folder) {
+      folder.documents.push(document);
+      return;
+    }
+
+    folders.set(key, {
+      key,
+      category: document.category,
+      msn: document.msn,
+      documents: [document],
+    });
+  });
+
+  return Array.from(folders.values());
+}
+
+function groupFoldersIntoCategories(folders: DocumentFolder[]) {
+  const categories = new Map<string, CategoryFolder>();
+
+  folders.forEach((folder) => {
+    const categoryFolder = categories.get(folder.category.id);
+
+    if (categoryFolder) {
+      categoryFolder.folders.push(folder);
+      categoryFolder.documents.push(...folder.documents);
+      return;
+    }
+
+    categories.set(folder.category.id, {
+      key: `category:${folder.category.id}`,
+      category: folder.category,
+      folders: [folder],
+      documents: [...folder.documents],
+    });
+  });
+
+  return Array.from(categories.values()).sort((left, right) => {
+    const leftIndex = CATEGORY_CARD_CATALOG.findIndex(
+      (category) => category.code === left.category.code,
+    );
+    const rightIndex = CATEGORY_CARD_CATALOG.findIndex(
+      (category) => category.code === right.category.code,
+    );
+    return leftIndex - rightIndex;
+  });
+}
+
 function HomeContent() {
   const [categories, setCategories] = useState<Category[]>(() => [
     ...CATEGORY_CARD_CATALOG,
@@ -296,15 +384,17 @@ function HomeContent() {
   const [workflowStep, setWorkflowStep] = useState<WorkflowStep>(1);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeUploads, setActiveUploads] = useState<ActiveUpload[]>([]);
-  const [pendingGuestClaim, setPendingGuestClaim] =
-    useState<GuestDocumentClaim | null>(null);
-  const [claimBusyDocumentId, setClaimBusyDocumentId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
-  const [authStep, setAuthStep] = useState<"email" | "code">("email");
+  const [authStep, setAuthStep] = useState<"method" | "code">("method");
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [authenticationMethod, setAuthenticationMethod] =
+    useState<AuthenticationMethod>("EMAIL");
+  const [telegramEnabled, setTelegramEnabled] = useState(false);
+  const [telegramRequestId, setTelegramRequestId] = useState("");
+  const [telegramStartUrl, setTelegramStartUrl] = useState("");
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [acceptedGuestLegal, setAcceptedGuestLegal] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
@@ -313,33 +403,27 @@ function HomeContent() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
   const [openFolderKey, setOpenFolderKey] = useState<string | null>(null);
-  const [expandedDocumentCategories, setExpandedDocumentCategories] = useState<string[]>(["root"]);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsLoadError, setDocumentsLoadError] = useState("");
-  const [folderActionBusy, setFolderActionBusy] = useState(false);
-  const [documentNotice, setDocumentNotice] = useState<{ error: boolean; message: string } | null>(null);
+  const [folderMenuKey, setFolderMenuKey] = useState<string | null>(null);
+  const [selectedFolderKey, setSelectedFolderKey] = useState<string | null>(null);
   const [temporaryShare, setTemporaryShare] = useState<TemporaryShare | null>(null);
   const [temporaryShareBusyDocumentId, setTemporaryShareBusyDocumentId] = useState<string | null>(null);
-  const [temporaryShareNow, setTemporaryShareNow] = useState(() => Date.now());
-  const documentsHeading = useRef<HTMLHeadingElement>(null);
-  const documentRequest = useRef(0);
-  const folderActionInFlight = useRef(false);
+  const [copyNotice, setCopyNotice] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const stepTwo = useRef<HTMLElement>(null);
   const stepThree = useRef<HTMLElement>(null);
+  const folderLongPressTimer = useRef<number | null>(null);
+  const folderLongPressActivated = useRef(false);
 
   const loadDocuments = useCallback(async (currentSession: Session) => {
-    if (folderActionInFlight.current) return;
-    const request = ++documentRequest.current;
-    setDocumentsLoading(true);
-    setDocumentsLoadError("");
     try {
-      const result = await api<FlyDocument[]>("/documents", {}, currentSession.accessToken);
-      if (request === documentRequest.current) setDocuments(result);
+      const result = await api<FlyDocument[]>(
+        "/documents",
+        {},
+        currentSession.accessToken,
+      );
+      setDocuments(result);
     } catch (requestError) {
-      if (request === documentRequest.current) setDocumentsLoadError((requestError as Error).message);
-    } finally {
-      if (request === documentRequest.current) setDocumentsLoading(false);
+      setError((requestError as Error).message);
     }
   }, []);
 
@@ -354,6 +438,10 @@ function HomeContent() {
         );
       })
       .catch((requestError: Error) => setError(requestError.message));
+
+    void api<OtpDeliveryOptions>("/auth/otp/options")
+      .then((options) => setTelegramEnabled(options.telegramEnabled))
+      .catch(() => setTelegramEnabled(false));
 
     const sessionTimer = window.setTimeout(() => {
       const stored = window.sessionStorage.getItem("flyae:session");
@@ -374,12 +462,6 @@ function HomeContent() {
     return () => window.clearTimeout(sessionTimer);
   }, [loadDocuments]);
 
-  useEffect(() => {
-    if (!temporaryShare) return;
-    const timer = window.setInterval(() => setTemporaryShareNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
-  }, [temporaryShare]);
-
   function continueToUpload() {
     setError("");
     if (!categoryId || (!isJustDocument(selectedCategory) && !msn.trim())) {
@@ -389,7 +471,6 @@ function HomeContent() {
       return;
     }
     setUploadState(selectedFiles.length ? "ready" : "idle");
-    setWorkflowStep(2);
     if (!window.matchMedia("(min-width: 1100px)").matches) {
       window.setTimeout(() => stepTwo.current?.scrollIntoView({ block: "nearest" }), 0);
     }
@@ -400,10 +481,19 @@ function HomeContent() {
     setAuthBusy(true);
     setAuthError("");
     try {
-      await api<void>("/auth/otp/request", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
+      if (authenticationMethod === "TELEGRAM") {
+        const accepted = await api<TelegramLoginAccepted>(
+          "/auth/telegram/request",
+          { method: "POST" },
+        );
+        setTelegramRequestId(accepted.requestId);
+        setTelegramStartUrl(accepted.telegramStartUrl);
+      } else {
+        await api<void>("/auth/otp/request", {
+          method: "POST",
+          body: JSON.stringify({ email }),
+        });
+      }
       setOtpCode("");
       setAuthStep("code");
     } catch (requestError) {
@@ -419,10 +509,18 @@ function HomeContent() {
     setAuthBusy(true);
     setAuthError("");
     try {
-      const nextSession = await api<Session>("/auth/otp/verify", {
+      const verificationPath =
+        authenticationMethod === "TELEGRAM"
+          ? "/auth/telegram/verify"
+          : "/auth/otp/verify";
+      const verificationIdentity =
+        authenticationMethod === "TELEGRAM"
+          ? { requestId: telegramRequestId }
+          : { email };
+      const nextSession = await api<Session>(verificationPath, {
         method: "POST",
         body: JSON.stringify({
-          email,
+          ...verificationIdentity,
           code: otpCode,
           acceptedLegal,
           termsVersion: TERMS_VERSION,
@@ -431,23 +529,10 @@ function HomeContent() {
       });
       setSession(nextSession);
       window.sessionStorage.setItem("flyae:session", JSON.stringify(nextSession));
-      if (pendingGuestClaim) {
-        try {
-          const claimed = await claimGuestDocument(pendingGuestClaim, nextSession);
-          replaceClaimedUpload(claimed, nextSession.accessToken);
-        } catch (claimError) {
-          setError(
-            `You are signed in, but the document could not be saved: ${(claimError as Error).message}`,
-          );
-        }
-        setPendingGuestClaim(null);
-      }
       setAuthOpen(false);
       setMobileMenuOpen(false);
       setAccountMenuOpen(false);
-      setUploadState(
-        pendingGuestClaim ? "approved" : selectedFiles.length ? "ready" : "idle",
-      );
+      setUploadState(selectedFiles.length ? "ready" : "idle");
       await loadDocuments(nextSession);
     } catch (requestError) {
       setAuthError((requestError as Error).message);
@@ -473,8 +558,8 @@ function HomeContent() {
     if (oversizedFile) {
       setError(
         session
-          ? `${oversizedFile.name} is larger than the ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per-file limit.`
-          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`,
+          ? `${oversizedFile.name} is larger than the 3 GB per-file limit.`
+          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to 3 GB.`,
       );
       return;
     }
@@ -520,6 +605,16 @@ function HomeContent() {
     setError("");
   }
 
+  function clearSelectedFiles() {
+    if (uploadBusy && workflowStep !== 3) return;
+    setSelectedFiles([]);
+    setUploadState("idle");
+    setUploadProgress(0);
+    setActiveUploads([]);
+    setAcceptedGuestLegal(false);
+    setError("");
+  }
+
   async function pollUntilProcessed(
     documentId: string,
     accessToken: string,
@@ -556,8 +651,8 @@ function HomeContent() {
     if (oversizedFile) {
       setError(
         session
-          ? `${oversizedFile.name} is larger than the ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per-file limit.`
-          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`,
+          ? `${oversizedFile.name} is larger than the 3 GB per-file limit.`
+          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to 3 GB.`,
       );
       return;
     }
@@ -576,12 +671,6 @@ function HomeContent() {
     let uppy: Uppy<UploadMeta, UploadBody> | null = null;
     let uploadFinished = false;
     try {
-      // Load the upload engine only when a validated upload is started.
-      // Resolve it before creating server records so a chunk failure is retryable.
-      const [{ default: Uppy }, { default: AwsS3 }] = await Promise.all([
-        import("@uppy/core"),
-        import("@uppy/aws-s3"),
-      ]);
       const currentGuestSession = currentSession
         ? null
         : await api<GuestSession>("/guest/sessions", {
@@ -648,7 +737,7 @@ function HomeContent() {
           );
           return {
             method: "PUT" as const,
-            url: signed.url,
+            url: browserUploadUrl(signed.url),
             headers: signed.headers,
           };
         },
@@ -776,14 +865,10 @@ function HomeContent() {
   }
 
   async function deleteDocument(documentId: string) {
-    if (!session || folderActionInFlight.current || !window.confirm("Delete this item and its uploaded file?")) {
+    if (!session || !window.confirm("Delete this item and its uploaded file?")) {
       return;
     }
-    folderActionInFlight.current = true;
-    setFolderActionBusy(true);
-    documentRequest.current += 1;
-    setDocumentsLoading(false);
-    setDocumentNotice(null);
+    setError("");
     try {
       await api<void>(
         `/documents/${documentId}`,
@@ -793,13 +878,9 @@ function HomeContent() {
       setActiveUploads((currentUploads) =>
         currentUploads.filter((upload) => upload.document.id !== documentId),
       );
-      setDocuments((current) => current.filter((document) => document.id !== documentId));
-      setDocumentNotice({ error: false, message: "Document deleted." });
+      await loadDocuments(session);
     } catch (requestError) {
-      setDocumentNotice({ error: true, message: (requestError as Error).message });
-    } finally {
-      folderActionInFlight.current = false;
-      setFolderActionBusy(false);
+      setError((requestError as Error).message);
     }
   }
 
@@ -835,186 +916,146 @@ function HomeContent() {
     }
   }
 
-  async function copyShareLink(link: string) {
+  async function copyShareLink(link: string, notice?: string) {
     try {
       await navigator.clipboard.writeText(link);
+      if (notice) {
+        setCopyNotice(notice);
+        window.setTimeout(() => setCopyNotice(""), 1800);
+      }
     } catch {
       setError("Copy failed. Select the link manually.");
     }
   }
 
-  async function openTemporaryShare(
-    document: TemporaryShareDocument,
-    accessToken: string,
-  ) {
+  async function openTemporaryShare(document: Pick<FlyDocument, "id" | "filename">, accessToken: string) {
     setTemporaryShareBusyDocumentId(document.id);
     setError("");
-    setDocumentNotice(null);
     try {
-      const result = await api<Omit<TemporaryShare, "documentId" | "filename" | "accessToken">>(
-        `/documents/${document.id}/temporary-share`,
-        { method: "POST" },
-        accessToken,
-      );
-      setTemporaryShareNow(Date.now());
-      setTemporaryShare({
-        ...result,
-        documentId: document.id,
-        filename: document.filename,
-        accessToken,
-      });
+      const result = await api<Omit<TemporaryShare, "documentId" | "filename" | "accessToken">>(`/documents/${document.id}/temporary-share`, { method: "POST" }, accessToken);
+      setTemporaryShare({ ...result, documentId: document.id, filename: document.filename, accessToken });
     } catch (requestError) {
-      const message = (requestError as Error).message;
-      if (showDocuments) setDocumentNotice({ error: true, message });
-      else setError(message);
+      setError((requestError as Error).message);
     } finally {
       setTemporaryShareBusyDocumentId(null);
     }
   }
 
-  async function shareTemporaryLink() {
-    if (!temporaryShare) return;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: temporaryShare.filename,
-          text: `Open with code ${temporaryShare.code}. The link expires in 15 minutes.`,
-          url: temporaryShare.shortUrl,
-        });
-      } else {
-        await navigator.clipboard.writeText(temporaryShare.shortUrl);
-      }
-    } catch (shareError) {
-      if ((shareError as DOMException).name !== "AbortError") {
-        setError("Share failed. Copy the short link instead.");
-      }
+  async function copyFolderLinks(folderDocuments: FlyDocument[]) {
+    const links = folderDocuments.flatMap((document) =>
+      document.shareUrl ? [document.shareUrl] : [],
+    );
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
+    if (!links.length) {
+      setError("This folder does not have any approved share links yet.");
+      return;
     }
+    await copyShareLink(links.join("\n"));
   }
 
-  async function claimGuestDocument(
-    claim: GuestDocumentClaim,
-    currentSession: Session,
-  ): Promise<FlyDocument> {
-    return api<FlyDocument>(
-      `/documents/${claim.documentId}/claim`,
-      {
-        method: "POST",
-        body: JSON.stringify({ guestAccessToken: claim.guestAccessToken }),
-      },
-      currentSession.accessToken,
+  async function downloadFolderDocuments(folderDocuments: FlyDocument[]) {
+    const links = folderDocuments.flatMap((document) =>
+      document.shareUrl ? [document.shareUrl] : [],
     );
-  }
-
-  function replaceClaimedUpload(document: FlyDocument, accessToken: string) {
-    setActiveUploads((currentUploads) =>
-      currentUploads.map((upload) =>
-        upload.document.id === document.id
-          ? { document, accessToken }
-          : upload,
-      ),
-    );
-  }
-
-  async function saveGuestUpload(upload: ActiveUpload) {
-    const claim = {
-      documentId: upload.document.id,
-      guestAccessToken: upload.accessToken,
-    };
-    if (!session) {
-      setPendingGuestClaim(claim);
-      prepareAuthDialog();
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
+    if (!links.length) {
+      setError("This folder does not have any approved documents to download yet.");
       return;
     }
 
-    setClaimBusyDocumentId(upload.document.id);
     setError("");
     try {
-      const claimed = await claimGuestDocument(claim, session);
-      replaceClaimedUpload(claimed, session.accessToken);
-      await loadDocuments(session);
-    } catch (claimError) {
-      setError((claimError as Error).message);
-    } finally {
-      setClaimBusyDocumentId(null);
-    }
-  }
-
-  async function performFolderAction(action: FolderAction, folder: FolderViewItem) {
-    if (!session || folderActionInFlight.current) return;
-    if (action === "delete" && !window.confirm(
-      `Delete all ${documentCount(folder.documents.length)} in “${folder.label}” and their uploaded files? This cannot be undone.`,
-    )) return;
-    folderActionInFlight.current = true;
-    setFolderActionBusy(true);
-    if (action === "delete") {
-      documentRequest.current += 1;
-      setDocumentsLoading(false);
-    }
-    setDocumentNotice(null);
-    try {
-      const available = shareableDocuments(folder.documents);
-      if (action === "copy") {
-        if (!available.length) throw new Error("No approved share links are available yet.");
-        await navigator.clipboard.writeText(folderShareText(folder));
-        setDocumentNotice({
-          error: false,
-          message: `Copied ${available.length} labeled document ${available.length === 1 ? "link" : "links"} from “${folder.label}”.`,
-        });
-      } else if (action === "download") {
-        if (!available.length) throw new Error("No approved documents are available to download yet.");
-        const downloads = await Promise.all(available.map(async (document) => {
-          const token = new URL(document.shareUrl!, window.location.origin).pathname.split("/").filter(Boolean).at(-1);
+      const downloads = await Promise.all(
+        links.map(async (link) => {
+          const token = new URL(link, window.location.origin).pathname
+            .split("/")
+            .filter(Boolean)
+            .at(-1);
           if (!token) throw new Error("The document share link is invalid.");
-          return api<{ downloadUrl: string }>(`/shares/${encodeURIComponent(decodeURIComponent(token))}`, {}, session.accessToken);
-        }));
-        downloads.forEach(({ downloadUrl }) => {
-          const link = document.createElement("a");
-          link.href = downloadUrl;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-        });
-        setDocumentNotice({ error: false, message: `Requested downloads for ${documentCount(downloads.length)}. Allow multiple downloads if your browser asks.` });
-      } else {
-        const results = await Promise.allSettled(folder.documents.map((document) =>
-          api<void>(`/documents/${document.id}`, { method: "DELETE" }, session.accessToken),
-        ));
-        const deletedIds = new Set(folder.documents.filter((_, index) => results[index].status === "fulfilled").map((document) => document.id));
-        setDocuments((current) => current.filter((document) => !deletedIds.has(document.id)));
-        setActiveUploads((current) => current.filter((upload) => !deletedIds.has(upload.document.id)));
-        const failed = results.length - deletedIds.size;
-        setDocumentNotice({
-          error: failed > 0,
-          message: failed
-            ? `Deleted ${documentCount(deletedIds.size)}. ${failed} could not be deleted. Please try again.`
-            : `Deleted ${documentCount(deletedIds.size)} from “${folder.label}”.`,
-        });
-      }
+          return api<{ downloadUrl: string }>(
+            `/shares/${encodeURIComponent(decodeURIComponent(token))}`,
+          );
+        }),
+      );
+
+      downloads.forEach(({ downloadUrl }) => {
+        const downloadLink = document.createElement("a");
+        downloadLink.href = downloadUrl;
+        downloadLink.target = "_blank";
+        downloadLink.rel = "noopener noreferrer";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+      });
     } catch (requestError) {
-      setDocumentNotice({ error: true, message: action === "copy"
-        ? "The links could not be copied. Please allow clipboard access and try again."
-        : (requestError as Error).message });
-    } finally {
-      folderActionInFlight.current = false;
-      setFolderActionBusy(false);
+      setError((requestError as Error).message);
     }
   }
 
-  function navigateDocuments(category: string | null, folder: string | null) {
-    setOpenCategoryId(category);
-    setOpenFolderKey(folder);
-    setShowDocuments(true);
-    setMobileMenuOpen(false);
-    setAccountMenuOpen(false);
-    setDocumentNotice(null);
-    setExpandedDocumentCategories((current) => Array.from(new Set([...current, "root", ...(category ? [category] : [])])));
+  async function deleteFolderDocuments(folderDocuments: FlyDocument[]) {
+    if (
+      !session ||
+      !window.confirm(
+        `Delete all ${folderDocuments.length} ${folderDocuments.length === 1 ? "document" : "documents"} in this folder?`,
+      )
+    ) {
+      return;
+    }
+
+    setError("");
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
+    try {
+      await Promise.all(
+        folderDocuments.map((document) =>
+          api<void>(
+            `/documents/${document.id}`,
+            { method: "DELETE" },
+            session.accessToken,
+          ),
+        ),
+      );
+      setOpenFolderKey(null);
+      await loadDocuments(session);
+    } catch (requestError) {
+      setError((requestError as Error).message);
+    }
   }
 
-  function toggleDocumentCategory(id: string) {
-    setExpandedDocumentCategories((current) => current.includes(id)
-      ? current.filter((item) => item !== id) : [...current, id]);
+  function startFolderLongPress(folderKey: string) {
+    if (!window.matchMedia("(max-width: 820px)").matches) return;
+    if (folderLongPressTimer.current !== null) {
+      window.clearTimeout(folderLongPressTimer.current);
+    }
+    folderLongPressActivated.current = false;
+    folderLongPressTimer.current = window.setTimeout(() => {
+      folderLongPressActivated.current = true;
+      setSelectedFolderKey(folderKey);
+      setFolderMenuKey(null);
+    }, 550);
+  }
+
+  function cancelFolderLongPress() {
+    if (folderLongPressTimer.current !== null) {
+      window.clearTimeout(folderLongPressTimer.current);
+      folderLongPressTimer.current = null;
+    }
+  }
+
+  function openFolderItem(item: FolderViewItem) {
+    if (folderLongPressActivated.current) {
+      folderLongPressActivated.current = false;
+      return;
+    }
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
+    if (item.folderKey) {
+      setOpenFolderKey(item.folderKey);
+      return;
+    }
+    setOpenCategoryId(item.categoryId);
   }
 
   function resetUploadFlow() {
@@ -1032,40 +1073,36 @@ function HomeContent() {
     setShowDocuments(false);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
   }
 
   function showDocumentsView() {
     setShowDocuments(true);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
     if (session) void loadDocuments(session);
   }
 
-  function prepareAuthDialog() {
-    setAuthStep("email");
+  function openAuth() {
+    setAuthStep("method");
     setAuthError("");
+    setAuthenticationMethod("EMAIL");
     setOtpCode("");
+    setTelegramRequestId("");
+    setTelegramStartUrl("");
     setAcceptedLegal(false);
     setAuthOpen(true);
-  }
-
-  function openAuth() {
-    setPendingGuestClaim(null);
-    prepareAuthDialog();
   }
 
   function closeAuth() {
     setAuthOpen(false);
     setAuthError("");
-    setPendingGuestClaim(null);
   }
 
   function logOut() {
-    documentRequest.current += 1;
-    setDocumentsLoading(false);
-    setDocumentsLoadError("");
-    setDocumentNotice(null);
-    setExpandedDocumentCategories(["root"]);
     window.sessionStorage.removeItem("flyae:session");
     setSession(null);
     setDocuments([]);
@@ -1074,6 +1111,8 @@ function HomeContent() {
     setAccountMenuOpen(false);
     setOpenCategoryId(null);
     setOpenFolderKey(null);
+    setFolderMenuKey(null);
+    setSelectedFolderKey(null);
     setUploadState(selectedFiles.length ? "ready" : "idle");
     setWorkflowStep(1);
     setActiveUploads([]);
@@ -1090,16 +1129,29 @@ function HomeContent() {
   );
   const documentFolders = groupDocumentsIntoFolders(documents);
   const categoryFolders = groupFoldersIntoCategories(documentFolders);
-  const { category: openCategory, folder: openFolder } = resolveFolderLocation(categoryFolders, openCategoryId, openFolderKey);
-  useLayoutEffect(() => {
-    if (showDocuments && !mobileMenuOpen) documentsHeading.current?.focus();
-  }, [showDocuments, mobileMenuOpen, openCategory?.key, openFolder?.key]);
-  const visibleFolderItems = openCategory ? openCategory.folders.map(folderItem) : categoryFolders.map(categoryItem);
-  const currentFolderItem = openFolder ? folderItem(openFolder) : openCategory ? categoryItem(openCategory) : null;
-  const folderNavigation = (
-    <DocumentsNavigation categories={categoryFolders} active={showDocuments}
-      categoryId={openCategory?.category.id ?? null} folderKey={openFolder?.key ?? null}
-      expanded={expandedDocumentCategories} onToggle={toggleDocumentCategory} onNavigate={navigateDocuments} />
+  const openCategory = categoryFolders.find(
+    (folder) => folder.category.id === openCategoryId,
+  );
+  const openFolder = documentFolders.find((folder) => folder.key === openFolderKey);
+  const visibleFolderItems: FolderViewItem[] = openCategory
+    ? openCategory.folders.map((folder) => ({
+        key: `document:${folder.key}`,
+        label: isJustDocument(folder.category) ? "General documents" : folder.msn,
+        description: `${folder.documents.length} ${folder.documents.length === 1 ? "document" : "documents"}`,
+        documents: folder.documents,
+        categoryId: folder.category.id,
+        folderKey: folder.key,
+      }))
+    : categoryFolders.map((folder) => ({
+        key: folder.key,
+        label: folder.category.name,
+        description: `${folder.documents.length} ${folder.documents.length === 1 ? "document" : "documents"}`,
+        documents: folder.documents,
+        categoryId: folder.category.id,
+        folderKey: null,
+      }));
+  const selectedFolder = visibleFolderItems.find(
+    (folder) => folder.key === selectedFolderKey,
   );
   const userDisplayName =
     session?.user.displayName ??
@@ -1112,7 +1164,7 @@ function HomeContent() {
     <main className="product-app">
       <header className="topbar product-topbar" aria-label="Primary">
         <button className="brand-button" onClick={showUploadView}>
-          <Brand />
+          <Brand figmaTopbar />
         </button>
         <nav className="primary-nav" aria-label="Product">
           <button
@@ -1166,7 +1218,7 @@ function HomeContent() {
           ) : (
             <>
               <button className="text-button desktop-login" onClick={openAuth}>
-                Log in
+                Login
               </button>
               <button
                 className="mobile-login-button"
@@ -1215,13 +1267,22 @@ function HomeContent() {
                 ×
               </button>
             </div>
-            <div className="mobile-product-navigation">
-              <nav aria-label="Mobile product navigation">
-                <button type="button" className={!showDocuments ? "nav-active" : ""} onClick={showUploadView}>Upload</button>
-                {!session && <button type="button" className={showDocuments ? "nav-active" : ""} onClick={showDocumentsView}>My Documents</button>}
-              </nav>
-              {session && folderNavigation}
-            </div>
+            <nav aria-label="Mobile product navigation">
+              <button
+                type="button"
+                className={!showDocuments ? "nav-active" : ""}
+                onClick={showUploadView}
+              >
+                Upload
+              </button>
+              <button
+                type="button"
+                className={showDocuments ? "nav-active" : ""}
+                onClick={showDocumentsView}
+              >
+                My Documents
+              </button>
+            </nav>
             {session ? (
               <div className="mobile-session">
                 <span>{userDisplayName}</span>
@@ -1240,104 +1301,197 @@ function HomeContent() {
               </button>
             )}
             <nav className="mobile-navigation-legal" aria-label="Legal">
-              <Link href="/terms" prefetch={false}>Terms and Conditions</Link>
-              <Link href="/privacy" prefetch={false}>Privacy Policy</Link>
+              <Link href="/terms">Terms and Conditions</Link>
+              <Link href="/privacy">Privacy Policy</Link>
             </nav>
           </aside>
         </div>
       )}
 
       {showDocuments ? (
-        <div className={`documents-workspace ${session ? "has-document-navigation" : ""}`}>
-          {session && <aside className="documents-sidebar" aria-label="Documents sidebar">{folderNavigation}</aside>}
-          <section className="documents-view" aria-labelledby="documents-title" aria-busy={documentsLoading || folderActionBusy}>
-            <nav className="folder-breadcrumbs" aria-label="Folder path">
-              <ol>
-                <li>{openCategory
-                  ? <button type="button" onClick={() => navigateDocuments(null, null)}>My Documents</button>
-                  : <span aria-current="page">My Documents</span>}</li>
-                {openCategory && <li>{openFolder
-                  ? <button type="button" onClick={() => navigateDocuments(openCategory.category.id, null)}>{openCategory.category.name}</button>
-                  : <span aria-current="page">{openCategory.category.name}</span>}</li>}
-                {openFolder && <li><span aria-current="page" title={folderLabel(openFolder)}>{folderLabel(openFolder)}</span></li>}
-              </ol>
-            </nav>
-            <div className="app-section-heading">
-              <div className="documents-heading-main">
-                <div className="documents-title-row">
-                  {openCategory && <button className="folder-back-button" type="button"
-                    aria-label={`Back to ${openFolder ? openCategory.category.name : "My Documents"}`}
-                    onClick={() => navigateDocuments(openFolder ? openCategory.category.id : null, null)}>
-                    <DocumentIcon name="back" />
-                  </button>}
-                  <h1 id="documents-title" ref={documentsHeading} tabIndex={-1}>
-                    {openFolder ? folderLabel(openFolder) : openCategory?.category.name ?? "My Documents"}
-                  </h1>
-                  {currentFolderItem && <FolderActions folder={currentFolderItem} busy={folderActionBusy}
-                    onAction={(action, folder) => void performFolderAction(action, folder)} />}
-                </div>
-                {session && <p className="documents-summary">{documentCount(currentFolderItem?.documents.length ?? documents.filter((document) => document.status !== "DELETED").length)}</p>}
-              </div>
-              <button className="button button-primary" onClick={showUploadView}>Upload document</button>
-            </div>
-            {documentNotice && <p className={`documents-notice ${documentNotice.error ? "is-error" : ""}`}
-              role={documentNotice.error ? "alert" : "status"}>{documentNotice.message}</p>}
-            {session && documentsLoadError && <div className="documents-notice is-error" role="alert">
-              <span>{documentsLoadError}</span>
-              <button type="button" onClick={() => void loadDocuments(session)}>Try again</button>
-            </div>}
-            {!session ? (
-              <div className="empty-app-state">
-                <h2>Log in to view your documents</h2>
-                <p>My Documents is available after you sign in.</p>
-                <button className="button button-primary" onClick={openAuth}>Log in</button>
-              </div>
-            ) : documentsLoading && !documents.length ? (
-              <div className="empty-app-state" role="status">Loading documents…</div>
-            ) : categoryFolders.length ? (
-              <div className="documents-library desktop-documents-library">
-                {openFolder ? (
-                  <section className="folder-contents" aria-label={`${openFolder.category.name} ${folderLabel(openFolder)}`}>
-                    <div className="document-table">
-                      {openFolder.documents.map((document) => (
-                        <article className="document-item" key={document.id}>
-                          <DocumentIcon name="file" />
-                          <div className="document-name">
-                            <strong title={document.filename}>{document.filename}</strong>
-                            <span>{formatBytes(document.sizeBytes)}</span>
-                          </div>
-                          <span className={`document-status status-${document.status.toLowerCase()}`}>
-                            <i aria-hidden="true" />{statusLabel(document.status)}
-                          </span>
-                          <div className="document-actions">
-                            {document.shareUrl && <button onClick={() => void copyShareLink(document.shareUrl!)}>Copy link</button>}
-                            {TEMPORARY_SHARE_ENABLED && document.shareUrl && (
-                              <button
-                                disabled={temporaryShareBusyDocumentId === document.id}
-                                onClick={() => void openTemporaryShare(document, session.accessToken)}
-                              >
-                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & code"}
-                              </button>
-                            )}
-                            <button className="danger-action" disabled={folderActionBusy} onClick={() => void deleteDocument(document.id)}>Delete</button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                ) : (
-                  <div className="document-folder-grid">
-                    {visibleFolderItems.map((folder) => <FolderCard key={folder.key} folder={folder} busy={folderActionBusy}
-                      onOpen={(item) => navigateDocuments(item.categoryId, item.folderKey)}
-                      onAction={(action, item) => void performFolderAction(action, item)} />)}
-                  </div>
+        <section className="documents-view" aria-labelledby="documents-title">
+          <div className="app-section-heading">
+            <div>
+              <p className="eyebrow">
+                {openFolder
+                  ? openFolder.category.name
+                  : openCategory
+                    ? "My Documents"
+                    : "Private workspace"}
+              </p>
+              <div className="documents-title-row">
+                {(openCategory || openFolder) && (
+                  <button
+                    className="folder-back-button"
+                    type="button"
+                    aria-label="Go back"
+                    onClick={() => {
+                      setFolderMenuKey(null);
+                      setSelectedFolderKey(null);
+                      if (openFolder) {
+                        setOpenFolderKey(null);
+                      } else {
+                        setOpenCategoryId(null);
+                      }
+                    }}
+                  >
+                    ←
+                  </button>
                 )}
+                <h1 id="documents-title">
+                  {openFolder
+                    ? isJustDocument(openFolder.category)
+                      ? "General documents"
+                      : openFolder.msn
+                    : openCategory?.category.name ?? "My Documents"}
+                </h1>
               </div>
-            ) : !documentsLoadError && (
-              <div className="empty-app-state empty-documents-state"><strong>No documents yet</strong></div>
-            )}
-          </section>
-        </div>
+            </div>
+            <button className="button button-primary" onClick={showUploadView}>
+              Upload document
+            </button>
+          </div>
+
+          {!session ? (
+            <div className="empty-app-state">
+              <h2>Log in to view your documents</h2>
+              <p>My Documents is available after you sign in.</p>
+              <button className="button button-primary" onClick={openAuth}>
+                Log in
+              </button>
+            </div>
+          ) : documents.length ? (
+            <div
+              className="documents-library desktop-documents-library"
+              onClick={() => setFolderMenuKey(null)}
+            >
+              {openFolder ? (
+                <section
+                  className="folder-contents"
+                  aria-label={
+                    isJustDocument(openFolder.category)
+                      ? openFolder.category.name
+                      : `${openFolder.category.name} ${identifierField(openFolder.category).label} ${openFolder.msn}`
+                  }
+                >
+                  <div className="folder-contents-heading">
+                    <div>
+                      <p className="eyebrow">{openFolder.category.name}</p>
+                      <h2>
+                        {isJustDocument(openFolder.category)
+                          ? "General documents"
+                          : `${identifierField(openFolder.category).label} ${openFolder.msn}`}
+                      </h2>
+                    </div>
+                  </div>
+                  <div className="document-table">
+                    {openFolder.documents.map((document) => (
+                      <article className="document-item" key={document.id}>
+                        <span className="file-mark" aria-hidden="true" />
+                        <div className="document-name">
+                          <strong>{document.filename}</strong>
+                          <span>{formatBytes(document.sizeBytes)}</span>
+                        </div>
+                        <span className={`document-status status-${document.status.toLowerCase()}`}>
+                          <i aria-hidden="true" />
+                          {statusLabel(document.status)}
+                        </span>
+                        <div className="document-actions">
+                          {document.shareUrl && (
+                            <button onClick={() => void copyShareLink(document.shareUrl!)}>
+                              Copy link
+                            </button>
+                          )}
+                          <button
+                            className="danger-action"
+                            onClick={() => void deleteDocument(document.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : (
+                <>
+                  {selectedFolder && (
+                    <div className="folder-selection-toolbar" role="toolbar" aria-label={`${selectedFolder.label} actions`}>
+                      <strong>{selectedFolder.label}</strong>
+                      <div>
+                        <button type="button" aria-label="Copy folder links" onClick={() => void copyFolderLinks(selectedFolder.documents)}>↗</button>
+                        <button type="button" aria-label="Download folder" onClick={() => void downloadFolderDocuments(selectedFolder.documents)}>↓</button>
+                        <button type="button" aria-label="Delete all folder documents" onClick={() => void deleteFolderDocuments(selectedFolder.documents)}>⌫</button>
+                        <button type="button" aria-label="Close folder actions" onClick={() => setSelectedFolderKey(null)}>×</button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="document-folder-grid">
+                    {visibleFolderItems.map((folder) => {
+                      const isSelected = folder.key === selectedFolderKey;
+                      const menuOpen = folder.key === folderMenuKey;
+
+                      return (
+                        <article
+                          className={`document-folder-tile ${isSelected || menuOpen ? "folder-selected" : ""}`}
+                          key={folder.key}
+                          onContextMenu={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setFolderMenuKey(folder.key);
+                            setSelectedFolderKey(null);
+                          }}
+                        >
+                          <button
+                            className="document-folder-button"
+                            type="button"
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen}
+                            onPointerDown={() => startFolderLongPress(folder.key)}
+                            onPointerUp={cancelFolderLongPress}
+                            onPointerCancel={cancelFolderLongPress}
+                            onPointerLeave={cancelFolderLongPress}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openFolderItem(folder);
+                            }}
+                          >
+                            <span className="folder-art" aria-hidden="true" />
+                            <strong className="folder-tile-label">{folder.label}</strong>
+                            <span className="folder-tile-meta">{folder.description}</span>
+                          </button>
+                          <button
+                            className="folder-more-button"
+                            type="button"
+                            aria-label={`Show actions for ${folder.label}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedFolderKey(folder.key);
+                              setFolderMenuKey(null);
+                            }}
+                          >
+                            ⋮
+                          </button>
+                          {menuOpen && (
+                            <div className="folder-context-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+                              <button type="button" role="menuitem" onClick={() => void copyFolderLinks(folder.documents)}>↗ <span>Copy link</span></button>
+                              <button type="button" role="menuitem" onClick={() => void downloadFolderDocuments(folder.documents)}>↓ <span>Download</span></button>
+                              <button className="danger-action" type="button" role="menuitem" onClick={() => void deleteFolderDocuments(folder.documents)}>⌫ <span>Delete all</span></button>
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="empty-app-state empty-documents-state">
+              <strong>No documents yet</strong>
+            </div>
+          )}
+        </section>
       ) : (
         <section className="upload-workspace" aria-labelledby="upload-title">
           <aside className="desktop-category-sidebar" aria-label="Document details">
@@ -1387,8 +1541,8 @@ function HomeContent() {
               })}
             </div>
             <nav className="desktop-category-legal" aria-label="Legal">
-              <Link href="/privacy" prefetch={false}>Privacy Policy</Link>
-              <Link href="/terms" prefetch={false}>Terms and Conditions</Link>
+              <Link href="/privacy">Privacy Policy</Link>
+              <Link href="/terms">Terms and Conditions</Link>
             </nav>
           </aside>
 
@@ -1397,8 +1551,8 @@ function HomeContent() {
               <p className="eyebrow">Secure document transfer</p>
               <h1 id="upload-title">Upload an aviation file</h1>
               <p>
-                Upload a PDF, image, video, or archive up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL} after signing in.
-                Guest uploads: up to 100 MB per file, no email required.
+                Upload a PDF, image, video, or archive up to 3 GB. First upload up to 100 MB—no
+                email required.
               </p>
             </div>
 
@@ -1447,7 +1601,7 @@ function HomeContent() {
               </article>
             )}
 
-            {workflowStep < 3 && (
+            {(workflowStep < 2 || workflowStep === 3) && (
               <section
                 className={`workflow-card wizard-panel describe-panel ${
                   workflowStep === 2 ? "step-panel-complete" : ""
@@ -1470,7 +1624,6 @@ function HomeContent() {
                   <select
                     aria-label="Category"
                     value={categoryId}
-                    disabled={categories.length === 0}
                     onChange={(event) => {
                       const nextCategory = categories.find(
                         (category) => category.id === event.target.value,
@@ -1479,6 +1632,9 @@ function HomeContent() {
                       if (isJustDocument(nextCategory)) setMsn("");
                     }}
                   >
+                    <option value="" disabled>
+                      {categories.length ? "Select category" : "Loading categories…"}
+                    </option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}
@@ -1487,16 +1643,7 @@ function HomeContent() {
                   </select>
                 </label>
 
-                {isJustDocument(selectedCategory) ? (
-                  <div className="general-document-note">
-                    <strong>No identifier required</strong>
-                    <p>
-                      You can upload a purchase order, invoice, or general data,
-                      but it must be aviation-related. Unrelated materials may be
-                      removed.
-                    </p>
-                  </div>
-                ) : (
+                {!isJustDocument(selectedCategory) && (
                   <label className="field msn-field">
                     <span>{identifierField(selectedCategory).label} <i>*</i></span>
                     <input
@@ -1517,7 +1664,7 @@ function HomeContent() {
               </section>
             )}
 
-            {workflowStep > 2 && selectedFiles.length > 0 && (
+            {false && workflowStep > 2 && selectedFiles.length > 0 && (
               <article className="step-summary" aria-label="File upload completed">
                 <span className="step-summary-number" aria-hidden="true">✓</span>
                 <div>
@@ -1535,10 +1682,10 @@ function HomeContent() {
               </article>
             )}
 
-            {workflowStep < 3 && (
+            {(workflowStep < 3 || approvedUploads.length > 0 || selectedFiles.length === 0) && (
               <section
                 className={`workflow-card wizard-panel upload-panel ${
-                  workflowStep === 1 ? "step-panel-pending" : ""
+                  workflowStep === 1 ? "step-panel-pending" : workflowStep === 3 ? "upload-complete" : ""
                 }`}
                 ref={stepTwo}
               >
@@ -1549,17 +1696,22 @@ function HomeContent() {
                     <p>
                       PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · multiple files allowed.
                     </p>
+                    <p className="upload-aviation-copy">
+                      Please upload only materials related to aviation components, every file is subject to verification.
+                    </p>
                   </div>
-                </div>
-
-                <p className="upload-limit" id="upload-limit" aria-live="polite">
-                  <strong>{session ? `Up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file` : "Up to 100 MB per file"}</strong>
-                  {!session && (
-                    <button type="button" onClick={openAuth}>
-                      Log in for up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL}
+                  {selectedFiles.length > 0 && (
+                    <button
+                      type="button"
+                      className="clear-upload"
+                      onClick={clearSelectedFiles}
+                      disabled={uploadBusy && workflowStep !== 3}
+                    >
+                      <Image src="/arrow-reload.svg" alt="" width={24} height={24} aria-hidden="true" />
+                      <span>Clear</span>
                     </button>
                   )}
-                </p>
+                </div>
 
                 <input
                   ref={fileInput}
@@ -1573,35 +1725,37 @@ function HomeContent() {
                 <div className="upload-drop-area">
                   <button
                     className={`app-drop-zone ${selectedFiles.length ? "file-selected" : ""}`}
-                    disabled={uploadBusy}
+                    disabled={uploadBusy && workflowStep !== 3}
                     onClick={() => fileInput.current?.click()}
-                    aria-describedby="upload-limit"
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={dropFile}
                   >
                     <span className="upload-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M7 3.5h7l3 3v14H7z" />
-                        <path d="M14 3.5v3h3M12 16v-6m-3 3 3-3 3 3" />
-                      </svg>
+                      <Image src="/upload-streamline.svg" alt="" width={24} height={24} />
                     </span>
                     <span>
                       <strong>Choose files or drag &amp; drop them here</strong>
                       <small>
-                        {session
-                          ? `Maximum ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file`
-                          : `Up to 100 MB per file as a guest. Log in to upload up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file.`}
+                        {session ? "Maximum 3 GB per file" : "Maximum 100 MB per file"}
                       </small>
                     </span>
                   </button>
 
-                  <div className="aviation-notice">
-                    Please upload only materials related to aviation components.
-                    Automatic checks verify file format and size.
+                <aside className="upload-security-notice" aria-label="File privacy and access">
+                  <Image
+                    className="upload-security-icon"
+                    src="/security-shield.svg"
+                    alt=""
+                    width={38}
+                    height={38}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p>Your files are protected with end-to-end encryption and automatically checked by AI.</p>
+                    <p>Only you and those you share the private link with can access your files. Your file contents are not accessible to unauthorized parties.</p>
                   </div>
+                </aside>
                 </div>
-
-                <FilePrivacy />
 
                 {selectedFiles.length > 0 && (
                   <div className="selected-upload-list" aria-label="Selected files">
@@ -1610,8 +1764,22 @@ function HomeContent() {
                         className="selected-upload-row"
                         key={`${file.name}:${file.size}:${file.lastModified}`}
                       >
-                        <span className="selected-check" aria-hidden="true">✓</span>
-                        <span className="selected-file-icon" aria-hidden="true" />
+                        <Image
+                          className="selected-check"
+                          src="/check-circle.svg"
+                          alt=""
+                          width={30}
+                          height={30}
+                          aria-hidden="true"
+                        />
+                        <Image
+                          className="selected-file-icon"
+                          src="/file-icon.svg"
+                          alt=""
+                          width={24}
+                          height={24}
+                          aria-hidden="true"
+                        />
                         <div>
                           <strong>{file.name}</strong>
                           <small>{formatBytes(file.size)}</small>
@@ -1623,7 +1791,13 @@ function HomeContent() {
                             onClick={() => removeSelectedFile(index)}
                             aria-label={`Remove ${file.name}`}
                           >
-                            <i aria-hidden="true" />
+                            <Image
+                              src="/delete-bin.svg"
+                              alt=""
+                              width={24}
+                              height={24}
+                              aria-hidden="true"
+                            />
                           </button>
                         )}
                       </div>
@@ -1632,42 +1806,72 @@ function HomeContent() {
                 )}
 
                 {!session && selectedFiles.length > 0 && !uploadBusy && (
-                  <div className="guest-upload-options">
-                    <p>
-                      Upload these files as a guest. My Documents requires sign-in.
-                    </p>
-                    <label className="legal-check">
-                      <input
-                        type="checkbox"
-                        checked={acceptedGuestLegal}
-                        onChange={(event) => setAcceptedGuestLegal(event.target.checked)}
-                      />
-                      <span>
-                        I accept the{" "}
-                        <Link href="/terms" target="_blank" rel="noopener noreferrer">
-                          Terms
-                        </Link>{" "}
-                        and{" "}
-                        <Link href="/privacy" target="_blank" rel="noopener noreferrer">
-                          Privacy Policy
-                        </Link>
-                        .
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      className="guest-login-link"
-                      onClick={() => {
-                        openAuth();
-                      }}
-                    >
-                      Log in to upload up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL} and use My Documents
-                    </button>
+                  <div className={`guest-upload-options ${acceptedGuestLegal ? "is-accepted" : ""}`}>
+                    <Image
+                      className="guest-upload-illustration"
+                      src="/guest-engine.svg"
+                      alt=""
+                      width={752}
+                      height={658}
+                      aria-hidden="true"
+                    />
+                    <div className="guest-upload-content">
+                      <div className="guest-upload-copy">
+                        <h3>Upload as a guest.</h3>
+                        <p>This temporary access is limited to this document.</p>
+                      </div>
+                      <label className="legal-check">
+                        <input
+                          type="checkbox"
+                          checked={acceptedGuestLegal}
+                          onChange={(event) => setAcceptedGuestLegal(event.target.checked)}
+                        />
+                        <span>
+                          I accept the {" "}
+                          <Link href="/terms" target="_blank" rel="noopener noreferrer">
+                            Terms
+                          </Link>{" "}
+                          and {" "}
+                          <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+                            Privacy Policy
+                          </Link>
+                          .
+                        </span>
+                      </label>
+                      <button
+                        className="button button-primary upload-button"
+                        disabled={!documentDetailsReady || !acceptedGuestLegal}
+                        onClick={() => void startUpload()}
+                      >
+                        Upload securely
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {uploadBusy && (
+                {workflowStep === 3 && approvedUploads.length > 0 && (
+                  <section className="sharing-ready" aria-live="polite" ref={stepThree}>
+                    <strong>Your secure link is ready</strong>
+                    <button
+                      className="button sharing-ready-button"
+                      disabled={temporaryShareBusyDocumentId === approvedUploads[0].document.id}
+                      onClick={() => void openTemporaryShare(approvedUploads[0].document, approvedUploads[0].accessToken)}
+                    >
+                      {temporaryShareBusyDocumentId === approvedUploads[0].document.id ? "Creating…" : "Share"}
+                    </button>
+                  </section>
+                )}
+
+                {uploadBusy && workflowStep !== 3 && (
                   <div className="upload-progress" aria-live="polite">
+                    <Image
+                      className="upload-progress-illustration"
+                      src="/guest-engine.svg"
+                      alt=""
+                      width={752}
+                      height={658}
+                      aria-hidden="true"
+                    />
                     <div>
                       <strong>
                         {uploadState === "preparing" && "Preparing secure upload"}
@@ -1694,7 +1898,7 @@ function HomeContent() {
                   </div>
                 )}
 
-                {selectedFiles.length > 0 && !uploadBusy && (
+                {session && selectedFiles.length > 0 && !uploadBusy && (
                   <button
                     className="button button-primary upload-button"
                     disabled={
@@ -1712,79 +1916,8 @@ function HomeContent() {
               </section>
             )}
 
-            {workflowStep === 3 && approvedUploads.length > 0 && (
-              <section
-                className="share-result wizard-share-result"
-                aria-live="polite"
-                ref={stepThree}
-              >
-                <div className="success-mark" aria-hidden="true">✓</div>
-                <div>
-                  <p className="eyebrow">Step 03 · Approved</p>
-                  <h2>
-                    {approvedUploads.length === 1
-                      ? "Your secure link is ready"
-                      : "Your secure links are ready"}
-                  </h2>
-                  <p>
-                    Anyone with a link can view and download that file without
-                    signing in. Share links only with people you trust. Deleting a
-                    file disables its link; copies already downloaded remain with
-                    recipients.
-                  </p>
-                </div>
-                <div className="share-result-actions">
-                  <div className="share-link-list">
-                    {approvedUploads.map((upload) => {
-                      const { document } = upload;
-                      const isGuestDocument = upload.accessToken.startsWith("gst_");
-                      return (
-                        <div className="share-link-item" key={document.id}>
-                          <strong>{document.filename}</strong>
-                          <code>{document.shareUrl}</code>
-                          <div className="share-link-buttons">
-                            <button
-                              className="button button-success"
-                              onClick={() => void copyShareLink(document.shareUrl!)}
-                            >
-                              Copy link
-                            </button>
-                            {TEMPORARY_SHARE_ENABLED && (
-                              <button
-                                className="button button-primary"
-                                disabled={temporaryShareBusyDocumentId === document.id}
-                                onClick={() => void openTemporaryShare(document, upload.accessToken)}
-                              >
-                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & code"}
-                              </button>
-                            )}
-                            {isGuestDocument && (
-                              <button
-                                className="button button-primary"
-                                disabled={claimBusyDocumentId === document.id}
-                                onClick={() => void saveGuestUpload(upload)}
-                              >
-                                {claimBusyDocumentId === document.id
-                                  ? "Saving…"
-                                  : "Save to My Documents"}
-                              </button>
-                            )}
-                            <button
-                              className="button button-secondary"
-                              onClick={() => void deleteActiveDocument(document.id)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <button className="button button-secondary" onClick={resetUploadFlow}>
-                    Upload more files
-                  </button>
-                </div>
-              </section>
+            {false && workflowStep === 3 && approvedUploads.length > 0 && (
+              <section />
             )}
           </div>
 
@@ -1798,102 +1931,67 @@ function HomeContent() {
         </section>
       )}
 
-      <Mission />
+      <section className="mission-section" aria-labelledby="mission-title">
+        <div>
+          <p className="eyebrow">Purpose-built for aviation</p>
+          <h2 id="mission-title">Mission of fly.ae</h2>
+        </div>
+        <div className="mission-copy">
+          <p>
+            There is no product on the market today built specifically for aviation
+            experts to securely store and share proprietary data. If you’re tired of
+            dropping your files into boxes or relying on yet another way to transfer
+            them, fly.ae gives your aviation data a place of its own.
+          </p>
+          <p>
+            For now, fly.ae is free to use. You can store your files for up to one year
+            with virtually unlimited space. We know that VBSI data can take up a lot of
+            it, so you’ve come to the right place—and you won’t be disappointed.
+          </p>
+          <p>
+            One warning: anything unrelated to flying machines—including personal
+            files, entertainment videos, or pornographic content—will be deleted, and
+            the associated account may be blocked. fly.ae is exclusively for aviation
+            data. For everything else, please find another box—or another way to
+            transfer it. Don’t overstay your welcome.
+          </p>
+        </div>
+      </section>
 
       <footer className="product-footer">
         <Brand />
         <p>Secure aviation file transfer.</p>
         <nav aria-label="Project">
-          <Link href="/terms" prefetch={false}>Terms</Link>
-          <Link href="/privacy" prefetch={false}>Privacy</Link>
+          <Link href="/terms">Terms</Link>
+          <Link href="/privacy">Privacy</Link>
         </nav>
       </footer>
 
-      {temporaryShare && (() => {
-        const secondsRemaining = Math.max(
-          0,
-          Math.ceil((new Date(temporaryShare.expiresAt).getTime() - temporaryShareNow) / 1_000),
-        );
-        const minutes = Math.floor(secondsRemaining / 60);
-        const seconds = String(secondsRemaining % 60).padStart(2, "0");
-        const expired = secondsRemaining === 0;
-        return (
-          <div
-            className="overlay"
-            role="presentation"
-            onMouseDown={() => setTemporaryShare(null)}
-          >
-            <section
-              className="dialog temporary-share-dialog"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="temporary-share-title"
-              onMouseDown={(event) => event.stopPropagation()}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setTemporaryShare(null);
-              }}
-            >
-              <div className="dialog-top">
-                <div>
-                  <p className="eyebrow">Temporary access · DEV</p>
-                  <h2 id="temporary-share-title">Scan or enter the code</h2>
+      {temporaryShare && (
+        <div className="overlay" role="presentation" onMouseDown={() => setTemporaryShare(null)}>
+          <section className="dialog temporary-share-dialog" role="dialog" aria-modal="true" aria-labelledby="temporary-share-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="dialog-top">
+              <h2 id="temporary-share-title">Share</h2>
+              <button className="close" onClick={() => setTemporaryShare(null)} aria-label="Close"><Image src="/close.svg" alt="" width={24} height={24} /></button>
+            </div>
+            {copyNotice && <div className="copy-toast" role="status">{copyNotice}</div>}
+            <div className="temporary-share-content">
+              <div className="temporary-share-qr"><QRCodeSVG value={temporaryShare.shortUrl} size={220} level="M" marginSize={2} title={`Open ${temporaryShare.filename}`} /></div>
+              <div className="temporary-share-details">
+                <div className="share-field">
+                  <strong>Attention! The link is single-use and valid for 24 hours.</strong>
+                  <div><code>{temporaryShare.shortUrl}</code><button type="button" onClick={() => void copyShareLink(temporaryShare.shortUrl, "Link copied")} aria-label="Copy link"><Image src="/copy.svg" alt="" width={24} height={24} /></button></div>
                 </div>
-                <button className="close" onClick={() => setTemporaryShare(null)} aria-label="Close">
-                  ×
-                </button>
-              </div>
-              <div className={`temporary-share-content ${expired ? "is-expired" : ""}`}>
-                <div className="temporary-share-qr" aria-label="QR code for temporary share link">
-                  <QRCodeSVG
-                    value={temporaryShare.shortUrl}
-                    size={220}
-                    level="M"
-                    marginSize={2}
-                    title={`Open ${temporaryShare.filename}`}
-                  />
-                </div>
-                <div className="temporary-share-details">
-                  <strong className="temporary-share-code">{temporaryShare.code}</strong>
-                  <code>{temporaryShare.shortUrl}</code>
-                  <p className="temporary-share-timer" role="timer">
-                    {expired ? "This code has expired" : `Expires in ${minutes}:${seconds}`}
-                  </p>
+                <div className="share-field">
+                  <div className="secret-code-label"><strong>Secret code</strong><span>expire on {new Date(temporaryShare.expiresAt).toLocaleTimeString()}</span></div>
+                  <div><code>{"fly.ae/" + temporaryShare.code}</code><button type="button" onClick={() => void copyShareLink("fly.ae/" + temporaryShare.code, "Secret code copied")} aria-label="Copy secret code"><Image src="/copy.svg" alt="" width={24} height={24} /></button></div>
                   <p>Anyone with this code can download the file until it expires.</p>
-                  <div className="temporary-share-actions">
-                    {expired ? (
-                      <button
-                        className="button button-primary"
-                        disabled={temporaryShareBusyDocumentId === temporaryShare.documentId}
-                        onClick={() => void openTemporaryShare(
-                          { id: temporaryShare.documentId, filename: temporaryShare.filename },
-                          temporaryShare.accessToken,
-                        )}
-                      >
-                        Generate new code
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          className="button button-primary"
-                          onClick={() => void shareTemporaryLink()}
-                        >
-                          Share
-                        </button>
-                        <button
-                          className="button button-secondary"
-                          onClick={() => void copyShareLink(temporaryShare.shortUrl)}
-                        >
-                          Copy short link
-                        </button>
-                      </>
-                    )}
-                  </div>
                 </div>
               </div>
-            </section>
-          </div>
-        );
-      })()}
+            </div>
+          </section>
+        </div>
+      )}
 
       {authOpen && (
         <div className="overlay" role="presentation" onMouseDown={closeAuth}>
@@ -1914,38 +2012,74 @@ function HomeContent() {
             {authError && (
               <div className="app-error auth-dialog-error" role="alert">
                 <strong>
-                  {authStep === "email" ? "Unable to start sign-in" : "Unable to verify the code"}
+                  {authStep === "method" ? "Unable to start sign-in" : "Unable to verify the code"}
                 </strong>
                 <span>{authError}</span>
               </div>
             )}
 
-            {authStep === "email" ? (
+            {authStep === "method" ? (
               <form onSubmit={requestOtp}>
-                <h2 id="auth-title">
-                  {pendingGuestClaim ? "Save to My Documents" : "Log in"}
-                </h2>
+                <h2 id="auth-title">Log in</h2>
                 <p className="info-box">
-                  {pendingGuestClaim
-                    ? "Verify your email to add this guest document to My Documents without uploading it again."
-                    : `Log in with your email to keep a My Documents history and upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`}
+                  Log in to keep a My Documents history and upload files up to 3 GB.
+                  Choose email or Telegram. Each method creates its own fly.ae account.
                 </p>
-                <label>
-                  Email
-                  <input
-                    autoFocus
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="name@company.com"
-                  />
-                </label>
+                {telegramEnabled && (
+                  <fieldset className="otp-delivery-options">
+                    <legend>Sign in with</legend>
+                    <div>
+                      <button
+                        type="button"
+                        className={authenticationMethod === "EMAIL" ? "selected" : ""}
+                        aria-pressed={authenticationMethod === "EMAIL"}
+                        onClick={() => setAuthenticationMethod("EMAIL")}
+                      >
+                        <span aria-hidden="true">✉</span>
+                        Email
+                      </button>
+                      <button
+                        type="button"
+                        className={authenticationMethod === "TELEGRAM" ? "selected" : ""}
+                        aria-pressed={authenticationMethod === "TELEGRAM"}
+                        onClick={() => setAuthenticationMethod("TELEGRAM")}
+                      >
+                        <span aria-hidden="true">↗</span>
+                        Telegram
+                      </button>
+                    </div>
+                  </fieldset>
+                )}
+                {authenticationMethod === "EMAIL" ? (
+                  <label>
+                    Email
+                    <input
+                      autoFocus
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@company.com"
+                    />
+                  </label>
+                ) : (
+                  <p className="code-copy">
+                    No email is required. Open our bot, press Start, and it will send
+                    you a six-digit code.
+                  </p>
+                )}
                 <button
                   className="primary-button"
-                  disabled={authBusy || !email.trim()}
+                  disabled={
+                    authBusy ||
+                    (authenticationMethod === "EMAIL" && !email.trim())
+                  }
                 >
-                  {authBusy ? "Sending…" : "Get one-time code"}
+                  {authBusy
+                    ? "Sending…"
+                    : authenticationMethod === "TELEGRAM"
+                      ? "Continue with Telegram"
+                      : "Get one-time code"}
                 </button>
               </form>
             ) : (
@@ -1956,15 +2090,31 @@ function HomeContent() {
                   onClick={() => {
                     setAuthError("");
                     setOtpCode("");
-                    setAuthStep("email");
+                    setAuthStep("method");
                   }}
                 >
-                  ← Change email
+                  ← Change sign-in method
                 </button>
                 <h2 id="auth-title">Enter your code</h2>
-                <p className="code-copy">
-                  Enter the six-digit code sent to <strong>{email}</strong>.
-                </p>
+                {authenticationMethod === "TELEGRAM" ? (
+                  <div className="telegram-code-instructions">
+                    <p className="code-copy">
+                      Open the bot, press Start, then enter the code it sends you.
+                    </p>
+                    <a
+                      className="telegram-open-button"
+                      href={telegramStartUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open Telegram bot
+                    </a>
+                  </div>
+                ) : (
+                  <p className="code-copy">
+                    Enter the six-digit code sent to <strong>{email}</strong>.
+                  </p>
+                )}
                 <label>
                   One-time code
                   <input
