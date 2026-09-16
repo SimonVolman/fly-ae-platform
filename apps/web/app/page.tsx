@@ -43,6 +43,10 @@ const AUTHENTICATED_MAX_FILE_SIZE_LABEL = `${
   AUTHENTICATED_MAX_FILE_SIZE / (1024 * 1024 * 1024)
 } GB`;
 const GUEST_MAX_FILE_SIZE = 100 * 1024 * 1024;
+const UPLOAD_PART_STALL_TIMEOUT_MS = 90 * 1000;
+const UPLOAD_PART_RETRY_DELAYS = [0, 1_000, 5_000, 15_000, 30_000];
+const MOBILE_SAFE_UPLOAD_CONCURRENCY = 2;
+const DEFAULT_UPLOAD_CONCURRENCY = 6;
 const GENERAL_DOCUMENT_MSN = "GENERAL";
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
 const TEMPORARY_SHARE_ENABLED =
@@ -215,6 +219,111 @@ type UploadBody = {
   location?: string;
 };
 
+type UploadPartRequest = {
+  signature: {
+    url: string;
+    headers?: Record<string, string>;
+    method?: "PUT" | "POST";
+  };
+  body: Blob | FormData;
+  size?: number;
+  onProgress: (event: ProgressEvent<EventTarget>) => void;
+  onComplete: (etag: string) => void;
+  signal?: AbortSignal;
+};
+
+/**
+ * Android browsers can leave an XMLHttpRequest open indefinitely after a radio
+ * handoff. Uppy retries failed parts, but an XHR that never resolves is not a
+ * failure. Treat an absence of upload progress as a retriable connection error.
+ */
+function uploadPartWithStallRecovery(
+  { signature, body, size, onProgress, onComplete, signal }: UploadPartRequest,
+  onStall: () => void,
+): Promise<{ ETag: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let settled = false;
+    let stallTimer: ReturnType<typeof window.setTimeout> | null = null;
+
+    const cleanup = () => {
+      if (stallTimer !== null) window.clearTimeout(stallTimer);
+      signal?.removeEventListener("abort", abortRequest);
+    };
+    const fail = (message: string, status: number) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const error = new Error(message) as Error & { source?: { status: number } };
+      error.source = { status };
+      reject(error);
+    };
+    const abortRequest = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      xhr.abort();
+      reject(new DOMException("Upload cancelled", "AbortError"));
+    };
+    const resetStallTimer = () => {
+      if (stallTimer !== null) window.clearTimeout(stallTimer);
+      stallTimer = window.setTimeout(() => {
+        if (settled) return;
+        onStall();
+        xhr.abort();
+        fail("Upload connection stalled", 503);
+      }, UPLOAD_PART_STALL_TIMEOUT_MS);
+    };
+
+    try {
+      xhr.open(signature.method ?? "PUT", signature.url, true);
+      Object.entries(signature.headers ?? {}).forEach(([name, value]) => {
+        xhr.setRequestHeader(name, value);
+      });
+      xhr.upload.addEventListener("progress", (event) => {
+        resetStallTimer();
+        onProgress(event);
+      });
+      xhr.addEventListener("load", () => {
+        if (xhr.status < 200 || xhr.status >= 300) {
+          fail(
+            xhr.status === 403 ? "Request has expired" : "Upload part failed",
+            xhr.status || 503,
+          );
+          return;
+        }
+        const etag = xhr.getResponseHeader("ETag");
+        if (!etag) {
+          fail("Upload response did not include an ETag", 502);
+          return;
+        }
+        if (settled) return;
+        settled = true;
+        cleanup();
+        onProgress({
+          loaded: size ?? (body instanceof Blob ? body.size : 0),
+          lengthComputable: true,
+        } as ProgressEvent<EventTarget>);
+        onComplete(etag);
+        resolve({ ETag: etag });
+      });
+      xhr.addEventListener("error", () => fail("Upload connection failed", xhr.status || 503));
+      xhr.addEventListener("abort", () => {
+        if (!settled) fail("Upload connection stalled", 503);
+      });
+      signal?.addEventListener("abort", abortRequest, { once: true });
+      if (signal?.aborted) {
+        abortRequest();
+        return;
+      }
+      resetStallTimer();
+      xhr.send(body);
+    } catch (error) {
+      fail(error instanceof Error ? error.message : "Could not start upload", 503);
+    }
+  });
+}
+
 type ActiveUpload = {
   document: FlyDocument;
   accessToken: string;
@@ -302,6 +411,7 @@ function HomeContent() {
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [workflowStep, setWorkflowStep] = useState<WorkflowStep>(1);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadRecoveryNotice, setUploadRecoveryNotice] = useState("");
   const [activeUploads, setActiveUploads] = useState<ActiveUpload[]>([]);
   const [pendingGuestClaim, setPendingGuestClaim] =
     useState<GuestDocumentClaim | null>(null);
@@ -588,6 +698,7 @@ function HomeContent() {
     }
     setError("");
     setUploadProgress(0);
+    setUploadRecoveryNotice("");
     setUploadState("preparing");
     setWorkflowStep(2);
 
@@ -649,6 +760,15 @@ function HomeContent() {
       uppy.use(AwsS3<UploadMeta, UploadBody>, {
         shouldUseMultipart: true,
         getChunkSize: () => 10 * 1024 * 1024,
+        // Fewer simultaneous PUTs keeps memory and radio pressure manageable on phones.
+        limit: window.matchMedia("(max-width: 820px)").matches
+          ? MOBILE_SAFE_UPLOAD_CONCURRENCY
+          : DEFAULT_UPLOAD_CONCURRENCY,
+        retryDelays: UPLOAD_PART_RETRY_DELAYS,
+        uploadPartBytes: (options) =>
+          uploadPartWithStallRecovery(options, () => {
+            setUploadRecoveryNotice("Connection paused. Retrying securely…");
+          }),
         createMultipartUpload: async (file) =>
           api<{ uploadId: string; key: string }>(
             `/documents/${file.meta.documentId}/multipart`,
@@ -707,6 +827,7 @@ function HomeContent() {
       uppy.on("progress", (progress) => {
         setUploadState("uploading");
         setUploadProgress(progress);
+        setUploadRecoveryNotice("");
       });
       selectedFiles.forEach((file, index) => {
         const document = createdUploads[index].document;
@@ -1645,9 +1766,9 @@ function HomeContent() {
                         {uploadState === "processing" && "Verifying files"}
                       </strong>
                       <span>
-                        {uploadState === "processing"
+                        {uploadRecoveryNotice || (uploadState === "processing"
                           ? "The uploaded files are being processed."
-                          : "Files are sent directly to private object storage."}
+                          : "Files are sent directly to private object storage.")}
                       </span>
                     </div>
                     <div className="progress-track">
