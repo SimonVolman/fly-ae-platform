@@ -244,7 +244,7 @@ function uploadPartWithStallRecovery(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let settled = false;
-    let stallTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let stallTimer: number | null = null;
 
     const cleanup = () => {
       if (stallTimer !== null) window.clearTimeout(stallTimer);
