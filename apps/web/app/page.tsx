@@ -1384,7 +1384,7 @@ function HomeContent() {
                                 disabled={temporaryShareBusyDocumentId === document.id}
                                 onClick={() => void openTemporaryShare(document, session.accessToken)}
                               >
-                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & code"}
+                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & short link"}
                               </button>
                             )}
                             <button className="danger-action" disabled={folderActionBusy} onClick={() => void deleteDocument(document.id)}>Delete</button>
@@ -1804,23 +1804,54 @@ function HomeContent() {
 
             {workflowStep === 3 && approvedUploads.length > 0 && (
               <section className="sharing-ready" aria-live="polite" ref={stepThree}>
-                <strong>Your secure link is ready</strong>
-                <button
-                  className="button sharing-ready-button"
-                  disabled={
-                    temporaryShareBusyDocumentId === approvedUploads[0].document.id
-                  }
-                  onClick={() =>
-                    void openTemporaryShare(
-                      approvedUploads[0].document,
-                      approvedUploads[0].accessToken,
-                    )
-                  }
-                >
-                  {temporaryShareBusyDocumentId === approvedUploads[0].document.id
-                    ? "Creating…"
-                    : "Share"}
-                </button>
+                <div className="sharing-ready-copy">
+                  <strong>Your secure link is ready</strong>
+                  <p>
+                    Copy the secure link, or create a QR code and short link valid
+                    for 15 minutes.
+                  </p>
+                </div>
+                <div className="sharing-ready-row">
+                  <div className="sharing-ready-link">
+                    <Image src="/icons/link.svg" alt="" width={24} height={24} aria-hidden="true" />
+                    <code>{approvedUploads[0].document.shareUrl}</code>
+                  </div>
+                  <button
+                    className="button sharing-ready-copy-button"
+                    onClick={() =>
+                      void copyShareLink(
+                        approvedUploads[0].document.shareUrl!,
+                        "Link copied",
+                      )
+                    }
+                  >
+                    Copy link
+                  </button>
+                  <button
+                    className="button sharing-ready-short-button"
+                    disabled={
+                      temporaryShareBusyDocumentId === approvedUploads[0].document.id
+                    }
+                    onClick={() =>
+                      void openTemporaryShare(
+                        approvedUploads[0].document,
+                        approvedUploads[0].accessToken,
+                      )
+                    }
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 4h6v6H4V4Zm2 2v2h2V6H6Zm8-2h6v6h-6V4Zm2 2v2h2V6h-2ZM4 14h6v6H4v-6Zm2 2v2h2v-2H6Zm8-2h2v2h-2v-2Zm4 0h2v4h-2v-4Zm-4 4h4v2h-4v-2Z" />
+                    </svg>
+                    {temporaryShareBusyDocumentId === approvedUploads[0].document.id
+                      ? "Creating…"
+                      : "QR & short link"}
+                  </button>
+                </div>
+                {copyNotice && (
+                  <span className="sharing-ready-notice" role="status">
+                    {copyNotice}
+                  </span>
+                )}
               </section>
             )}
           </div>
@@ -1852,6 +1883,9 @@ function HomeContent() {
           Math.ceil((new Date(temporaryShare.expiresAt).getTime() - temporaryShareNow) / 1_000),
         );
         const expired = secondsRemaining === 0;
+        const remainingTime = `${Math.floor(secondsRemaining / 60)}:${String(
+          secondsRemaining % 60,
+        ).padStart(2, "0")}`;
         return (
           <div
             className="overlay"
@@ -1886,58 +1920,42 @@ function HomeContent() {
                   />
                 </div>
                 <div className="temporary-share-details">
-                  <div className="share-field">
-                    <strong>
-                      {expired
-                        ? "Attention! This link has expired."
-                        : "Attention! The link is valid for 15 minutes."}
-                    </strong>
-                    <div>
-                      <code>{temporaryShare.shortUrl}</code>
-                      <button
-                        type="button"
-                        onClick={() => void copyShareLink(temporaryShare.shortUrl, "Link copied")}
-                        aria-label="Copy link"
-                      >
-                        <Image src="/copy.svg" alt="" width={24} height={24} />
-                      </button>
-                    </div>
+                  <div className="short-share-label">
+                    <strong>Short link</strong>
+                    <span>{expired ? "expired" : `expires in ${remainingTime}`}</span>
                   </div>
-                  <div className="share-field">
-                    <div className="secret-code-label">
-                      <strong>Secret code</strong>
-                      <span>
-                        {expired
-                          ? "expired"
-                          : `expires at ${new Date(temporaryShare.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
-                      </span>
-                    </div>
-                    <div>
-                      <code>{temporaryShare.code}</code>
-                      {expired ? (
-                        <button
-                          type="button"
-                          disabled={temporaryShareBusyDocumentId === temporaryShare.documentId}
-                          onClick={() => void openTemporaryShare(
-                            { id: temporaryShare.documentId, filename: temporaryShare.filename },
-                            temporaryShare.accessToken,
-                          )}
-                          aria-label="Generate new code"
-                        >
-                          <Image src="/arrow-reload.svg" alt="" width={24} height={24} />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void copyShareLink(temporaryShare.code, "Secret code copied")}
-                          aria-label="Copy secret code"
-                        >
-                          <Image src="/copy.svg" alt="" width={24} height={24} />
-                        </button>
+                  <div className="short-share-url">
+                    <code>{temporaryShare.shortUrl}</code>
+                  </div>
+                  <p>
+                    Anyone with this short link can download the file until it
+                    expires.
+                  </p>
+                  {expired ? (
+                    <button
+                      className="button short-share-action"
+                      type="button"
+                      disabled={temporaryShareBusyDocumentId === temporaryShare.documentId}
+                      onClick={() => void openTemporaryShare(
+                        { id: temporaryShare.documentId, filename: temporaryShare.filename },
+                        temporaryShare.accessToken,
                       )}
-                    </div>
-                    <p>Anyone with this code can download the file until it expires.</p>
-                  </div>
+                    >
+                      {temporaryShareBusyDocumentId === temporaryShare.documentId
+                        ? "Creating…"
+                        : "Create new short link"}
+                    </button>
+                  ) : (
+                    <button
+                      className="button short-share-action"
+                      type="button"
+                      onClick={() =>
+                        void copyShareLink(temporaryShare.shortUrl, "Short link copied")
+                      }
+                    >
+                      Copy short link
+                    </button>
+                  )}
                 </div>
               </div>
             </section>

@@ -157,7 +157,10 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
   assert.match(page, /className="sharing-ready"/);
-  assert.match(page, /className="button sharing-ready-button"/);
+  assert.match(page, /className="button sharing-ready-copy-button"/);
+  assert.match(page, /className="button sharing-ready-short-button"/);
+  assert.match(page, /QR & short link/);
+  assert.doesNotMatch(page, /Secret code/);
   assert.doesNotMatch(page, /className="share-result wizard-share-result"/);
   assert.match(page, /JUST_DOCUMENT/);
   assert.match(page, /No identifier required/);
