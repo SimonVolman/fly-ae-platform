@@ -225,11 +225,11 @@ test("copy and download include approved documents only, and report success", as
   assert.deepEqual(requests.filter(({ path }) => path.startsWith("/shares/")).map(({ authorization }) => authorization), ["Bearer test-only-token", "Bearer test-only-token"]);
 });
 
-test("approved document creates a temporary code and local QR without exposing the session", async () => {
+test("approved document creates a short link and local QR without exposing the session", async () => {
   await openLibrary();
   await click(button("Open Aircraft, 2 documents"));
   await click(button("Open 123, 2 documents"));
-  await click(button("QR & code", container.querySelector(".document-item")));
+  await click(button("QR & short link", container.querySelector(".document-item")));
 
   const dialog = container.querySelector(".temporary-share-dialog");
   assert.ok(dialog);
@@ -241,6 +241,8 @@ test("approved document creates a temporary code and local QR without exposing t
     [{ path: "/documents/a/temporary-share", method: "POST", authorization: "Bearer test-only-token" }],
   );
 
+  assert.match(dialog.textContent, /Short link/);
+  assert.doesNotMatch(dialog.textContent, /Secret code/);
   await click(button("Copy short link", dialog));
   assert.deepEqual(copied, ["http://localhost:3000/s/7K9D-P4QX"]);
 });

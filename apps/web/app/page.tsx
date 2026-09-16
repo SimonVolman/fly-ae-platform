@@ -19,7 +19,6 @@ import { apiRequestError, type ApiProblem } from "./api-error";
 import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { Mission } from "./components/Mission";
-import { FilePrivacy } from "./components/FilePrivacy";
 import { DocumentsNavigation } from "./components/DocumentsNavigation";
 import { DocumentIcon, FolderActions, FolderCard, type FolderAction } from "./components/Folder";
 import {
@@ -101,6 +100,14 @@ const CATEGORY_CARD_IMAGES: Record<string, string> = {
   ENGINE: "/category-engine.svg",
   LANDING_GEAR: "/category-landing-gear.svg",
   JUST_DOCUMENT: "/category-just-document.svg",
+};
+
+const CATEGORY_CARD_SELECTED_IMAGES: Record<string, string> = {
+  AIRCRAFT: "/category-aircraft-active.svg",
+  APU: "/category-apu-active.svg",
+  ENGINE: "/category-engine-active.svg",
+  LANDING_GEAR: "/category-landing-gear-active.svg",
+  JUST_DOCUMENT: "/category-just-document-active.svg",
 };
 
 const CATEGORY_CARD_CATALOG = [
@@ -237,7 +244,7 @@ function uploadPartWithStallRecovery(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let settled = false;
-    let stallTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let stallTimer: number | null = null;
 
     const cleanup = () => {
       if (stallTimer !== null) window.clearTimeout(stallTimer);
@@ -408,7 +415,6 @@ function HomeContent() {
   const [activeUploads, setActiveUploads] = useState<ActiveUpload[]>([]);
   const [pendingGuestClaim, setPendingGuestClaim] =
     useState<GuestDocumentClaim | null>(null);
-  const [claimBusyDocumentId, setClaimBusyDocumentId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
@@ -431,6 +437,7 @@ function HomeContent() {
   const [temporaryShare, setTemporaryShare] = useState<TemporaryShare | null>(null);
   const [temporaryShareBusyDocumentId, setTemporaryShareBusyDocumentId] = useState<string | null>(null);
   const [temporaryShareNow, setTemporaryShareNow] = useState(() => Date.now());
+  const [copyNotice, setCopyNotice] = useState("");
   const documentsHeading = useRef<HTMLHeadingElement>(null);
   const documentRequest = useRef(0);
   const folderActionInFlight = useRef(false);
@@ -627,6 +634,18 @@ function HomeContent() {
     });
     setUploadProgress(0);
     setActiveUploads([]);
+    setError("");
+  }
+
+  function clearSelectedFiles() {
+    if (uploadBusy) return;
+    setSelectedFiles([]);
+    setUploadState("idle");
+    setUploadProgress(0);
+    setActiveUploads([]);
+    setAcceptedGuestLegal(false);
+    setWorkflowStep(2);
+    setTemporaryShare(null);
     setError("");
   }
 
@@ -924,41 +943,13 @@ function HomeContent() {
     }
   }
 
-  async function deleteActiveDocument(documentId: string) {
-    const activeUpload = activeUploads.find(
-      (upload) => upload.document.id === documentId,
-    );
-    if (
-      !activeUpload ||
-      !window.confirm("Delete this item and its uploaded file?")
-    ) {
-      return;
-    }
-    setError("");
-    try {
-      await api<void>(
-        `/documents/${documentId}`,
-        { method: "DELETE" },
-        activeUpload.accessToken,
-      );
-      const remainingUploads = activeUploads.filter(
-        (upload) => upload.document.id !== documentId,
-      );
-      setActiveUploads(remainingUploads);
-      if (!remainingUploads.length) {
-        setSelectedFiles([]);
-        setUploadState("idle");
-        setWorkflowStep(1);
-      }
-      if (session) await loadDocuments(session);
-    } catch (requestError) {
-      setError((requestError as Error).message);
-    }
-  }
-
-  async function copyShareLink(link: string) {
+  async function copyShareLink(link: string, notice?: string) {
     try {
       await navigator.clipboard.writeText(link);
+      if (notice) {
+        setCopyNotice(notice);
+        window.setTimeout(() => setCopyNotice(""), 1_800);
+      }
     } catch {
       setError("Copy failed. Select the link manually.");
     }
@@ -977,7 +968,7 @@ function HomeContent() {
         { method: "POST" },
         accessToken,
       );
-      setTemporaryShareNow(Date.now());
+      setTemporaryShareNow(() => Date.now());
       setTemporaryShare({
         ...result,
         documentId: document.id,
@@ -990,25 +981,6 @@ function HomeContent() {
       else setError(message);
     } finally {
       setTemporaryShareBusyDocumentId(null);
-    }
-  }
-
-  async function shareTemporaryLink() {
-    if (!temporaryShare) return;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: temporaryShare.filename,
-          text: `Open with code ${temporaryShare.code}. The link expires in 15 minutes.`,
-          url: temporaryShare.shortUrl,
-        });
-      } else {
-        await navigator.clipboard.writeText(temporaryShare.shortUrl);
-      }
-    } catch (shareError) {
-      if ((shareError as DOMException).name !== "AbortError") {
-        setError("Share failed. Copy the short link instead.");
-      }
     }
   }
 
@@ -1034,30 +1006,6 @@ function HomeContent() {
           : upload,
       ),
     );
-  }
-
-  async function saveGuestUpload(upload: ActiveUpload) {
-    const claim = {
-      documentId: upload.document.id,
-      guestAccessToken: upload.accessToken,
-    };
-    if (!session) {
-      setPendingGuestClaim(claim);
-      prepareAuthDialog();
-      return;
-    }
-
-    setClaimBusyDocumentId(upload.document.id);
-    setError("");
-    try {
-      const claimed = await claimGuestDocument(claim, session);
-      replaceClaimedUpload(claimed, session.accessToken);
-      await loadDocuments(session);
-    } catch (claimError) {
-      setError((claimError as Error).message);
-    } finally {
-      setClaimBusyDocumentId(null);
-    }
   }
 
   async function performFolderAction(action: FolderAction, folder: FolderViewItem) {
@@ -1138,17 +1086,6 @@ function HomeContent() {
       ? current.filter((item) => item !== id) : [...current, id]);
   }
 
-  function resetUploadFlow() {
-    setMsn("");
-    setSelectedFiles([]);
-    setUploadState("idle");
-    setUploadProgress(0);
-    setActiveUploads([]);
-    setAcceptedGuestLegal(false);
-    setError("");
-    setWorkflowStep(1);
-  }
-
   function showUploadView() {
     setShowDocuments(false);
     setMobileMenuOpen(false);
@@ -1171,7 +1108,17 @@ function HomeContent() {
   }
 
   function openAuth() {
-    setPendingGuestClaim(null);
+    const guestUpload = activeUploads.find((upload) =>
+      upload.accessToken.startsWith("gst_"),
+    );
+    setPendingGuestClaim(
+      guestUpload
+        ? {
+            documentId: guestUpload.document.id,
+            guestAccessToken: guestUpload.accessToken,
+          }
+        : null,
+    );
     prepareAuthDialog();
   }
 
@@ -1233,7 +1180,7 @@ function HomeContent() {
     <main className="product-app">
       <header className="topbar product-topbar" aria-label="Primary">
         <button className="brand-button" onClick={showUploadView}>
-          <Brand />
+          <Brand figmaTopbar />
         </button>
         <nav className="primary-nav" aria-label="Product">
           <button
@@ -1437,7 +1384,7 @@ function HomeContent() {
                                 disabled={temporaryShareBusyDocumentId === document.id}
                                 onClick={() => void openTemporaryShare(document, session.accessToken)}
                               >
-                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & code"}
+                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & short link"}
                               </button>
                             )}
                             <button className="danger-action" disabled={folderActionBusy} onClick={() => void deleteDocument(document.id)}>Delete</button>
@@ -1469,10 +1416,9 @@ function HomeContent() {
                 const isSelected = category
                   ? category.id === categoryId
                   : card.code === "AIRCRAFT" && !categoryId;
-                const imageSource =
-                  card.code === "AIRCRAFT" && isSelected
-                    ? "/category-aircraft-selected.svg"
-                    : CATEGORY_CARD_IMAGES[card.code];
+                const imageSource = isSelected
+                  ? CATEGORY_CARD_SELECTED_IMAGES[card.code]
+                  : CATEGORY_CARD_IMAGES[card.code];
 
                 if (!imageSource) return null;
 
@@ -1500,8 +1446,15 @@ function HomeContent() {
                       aria-hidden="true"
                       priority={card.code === "AIRCRAFT"}
                     />
-                    {isSelected && card.code !== "AIRCRAFT" && (
-                      <span className="desktop-category-check" aria-hidden="true">✓</span>
+                    {isSelected && (
+                      <Image
+                        src="/circle-check.svg"
+                        alt=""
+                        width={24}
+                        height={24}
+                        className="desktop-category-check"
+                        aria-hidden="true"
+                      />
                     )}
                   </button>
                 );
@@ -1671,16 +1624,18 @@ function HomeContent() {
                       PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · multiple files allowed.
                     </p>
                   </div>
-                </div>
-
-                <p className="upload-limit" id="upload-limit" aria-live="polite">
-                  <strong>{session ? `Up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file` : "Up to 100 MB per file"}</strong>
-                  {!session && (
-                    <button type="button" onClick={openAuth}>
-                      Log in for up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL}
+                  {selectedFiles.length > 0 && (
+                    <button
+                      type="button"
+                      className="clear-upload"
+                      onClick={clearSelectedFiles}
+                      disabled={uploadBusy}
+                    >
+                      <Image src="/arrow-reload.svg" alt="" width={24} height={24} aria-hidden="true" />
+                      <span>Clear</span>
                     </button>
                   )}
-                </p>
+                </div>
 
                 <input
                   ref={fileInput}
@@ -1696,33 +1651,37 @@ function HomeContent() {
                     className={`app-drop-zone ${selectedFiles.length ? "file-selected" : ""}`}
                     disabled={uploadBusy}
                     onClick={() => fileInput.current?.click()}
-                    aria-describedby="upload-limit"
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={dropFile}
                   >
                     <span className="upload-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M7 3.5h7l3 3v14H7z" />
-                        <path d="M14 3.5v3h3M12 16v-6m-3 3 3-3 3 3" />
-                      </svg>
+                      <Image src="/upload-streamline.svg" alt="" width={24} height={24} />
                     </span>
                     <span>
                       <strong>Choose files or drag &amp; drop them here</strong>
                       <small>
                         {session
                           ? `Maximum ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file`
-                          : `Up to 100 MB per file as a guest. Log in to upload up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file.`}
+                          : "Maximum 100 MB per file"}
                       </small>
                     </span>
                   </button>
 
-                  <div className="aviation-notice">
-                    Please upload only materials related to aviation components.
-                    Automatic checks verify file format and size.
-                  </div>
+                  <aside className="upload-security-notice" aria-label="File privacy and access">
+                    <Image
+                      className="upload-security-icon"
+                      src="/security-shield.svg"
+                      alt=""
+                      width={38}
+                      height={38}
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p>Your files are protected with end-to-end encryption and automatically checked by AI.</p>
+                      <p>Only you and those you share the private link with can access your files. Your file contents are not accessible to unauthorized parties.</p>
+                    </div>
+                  </aside>
                 </div>
-
-                <FilePrivacy />
 
                 {selectedFiles.length > 0 && (
                   <div className="selected-upload-list" aria-label="Selected files">
@@ -1731,8 +1690,8 @@ function HomeContent() {
                         className="selected-upload-row"
                         key={`${file.name}:${file.size}:${file.lastModified}`}
                       >
-                        <span className="selected-check" aria-hidden="true">✓</span>
-                        <span className="selected-file-icon" aria-hidden="true" />
+                        <Image className="selected-check" src="/check-circle.svg" alt="" width={30} height={30} aria-hidden="true" />
+                        <Image className="selected-file-icon" src="/file-icon.svg" alt="" width={24} height={24} aria-hidden="true" />
                         <div>
                           <strong>{file.name}</strong>
                           <small>{formatBytes(file.size)}</small>
@@ -1744,7 +1703,7 @@ function HomeContent() {
                             onClick={() => removeSelectedFile(index)}
                             aria-label={`Remove ${file.name}`}
                           >
-                            <i aria-hidden="true" />
+                            <Image src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
                           </button>
                         )}
                       </div>
@@ -1753,11 +1712,21 @@ function HomeContent() {
                 )}
 
                 {!session && selectedFiles.length > 0 && !uploadBusy && (
-                  <div className="guest-upload-options">
-                    <p>
-                      Upload these files as a guest. My Documents requires sign-in.
-                    </p>
-                    <label className="legal-check">
+                  <div className={`guest-upload-options ${acceptedGuestLegal ? "is-accepted" : ""}`}>
+                    <Image
+                      className="guest-upload-illustration"
+                      src="/guest-engine.svg"
+                      alt=""
+                      width={752}
+                      height={658}
+                      aria-hidden="true"
+                    />
+                    <div className="guest-upload-content">
+                      <div className="guest-upload-copy">
+                        <h3>Upload as a guest.</h3>
+                        <p>This temporary access is limited to this document.</p>
+                      </div>
+                      <label className="legal-check">
                       <input
                         type="checkbox"
                         checked={acceptedGuestLegal}
@@ -1774,21 +1743,21 @@ function HomeContent() {
                         </Link>
                         .
                       </span>
-                    </label>
-                    <button
-                      type="button"
-                      className="guest-login-link"
-                      onClick={() => {
-                        openAuth();
-                      }}
-                    >
-                      Log in to upload up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL} and use My Documents
-                    </button>
+                      </label>
+                    </div>
                   </div>
                 )}
 
                 {uploadBusy && (
                   <div className="upload-progress" aria-live="polite">
+                    <Image
+                      className="upload-progress-illustration"
+                      src="/guest-engine.svg"
+                      alt=""
+                      width={752}
+                      height={658}
+                      aria-hidden="true"
+                    />
                     <div>
                       <strong>
                         {uploadState === "preparing" && "Preparing secure upload"}
@@ -1834,77 +1803,55 @@ function HomeContent() {
             )}
 
             {workflowStep === 3 && approvedUploads.length > 0 && (
-              <section
-                className="share-result wizard-share-result"
-                aria-live="polite"
-                ref={stepThree}
-              >
-                <div className="success-mark" aria-hidden="true">✓</div>
-                <div>
-                  <p className="eyebrow">Step 03 · Approved</p>
-                  <h2>
-                    {approvedUploads.length === 1
-                      ? "Your secure link is ready"
-                      : "Your secure links are ready"}
-                  </h2>
+              <section className="sharing-ready" aria-live="polite" ref={stepThree}>
+                <div className="sharing-ready-copy">
+                  <strong>Your secure link is ready</strong>
                   <p>
-                    Anyone with a link can view and download that file without
-                    signing in. Share links only with people you trust. Deleting a
-                    file disables its link; copies already downloaded remain with
-                    recipients.
+                    Copy the secure link, or create a QR code and short link valid
+                    for 15 minutes.
                   </p>
                 </div>
-                <div className="share-result-actions">
-                  <div className="share-link-list">
-                    {approvedUploads.map((upload) => {
-                      const { document } = upload;
-                      const isGuestDocument = upload.accessToken.startsWith("gst_");
-                      return (
-                        <div className="share-link-item" key={document.id}>
-                          <strong>{document.filename}</strong>
-                          <code>{document.shareUrl}</code>
-                          <div className="share-link-buttons">
-                            <button
-                              className="button button-success"
-                              onClick={() => void copyShareLink(document.shareUrl!)}
-                            >
-                              Copy link
-                            </button>
-                            {TEMPORARY_SHARE_ENABLED && (
-                              <button
-                                className="button button-primary"
-                                disabled={temporaryShareBusyDocumentId === document.id}
-                                onClick={() => void openTemporaryShare(document, upload.accessToken)}
-                              >
-                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & code"}
-                              </button>
-                            )}
-                            {isGuestDocument && (
-                              <button
-                                className="button button-primary"
-                                disabled={claimBusyDocumentId === document.id}
-                                onClick={() => void saveGuestUpload(upload)}
-                              >
-                                {claimBusyDocumentId === document.id
-                                  ? "Saving…"
-                                  : "Save to My Documents"}
-                              </button>
-                            )}
-                            <button
-                              className="button button-secondary"
-                              onClick={() => void deleteActiveDocument(document.id)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                <div className="sharing-ready-row">
+                  <div className="sharing-ready-link">
+                    <Image src="/icons/link.svg" alt="" width={24} height={24} aria-hidden="true" />
+                    <code>{approvedUploads[0].document.shareUrl}</code>
                   </div>
-                  <button className="button button-secondary" onClick={resetUploadFlow}>
-                    Upload more files
+                  <button
+                    className="button sharing-ready-copy-button"
+                    onClick={() =>
+                      void copyShareLink(
+                        approvedUploads[0].document.shareUrl!,
+                        "Link copied",
+                      )
+                    }
+                  >
+                    Copy link
+                  </button>
+                  <button
+                    className="button sharing-ready-short-button"
+                    disabled={
+                      temporaryShareBusyDocumentId === approvedUploads[0].document.id
+                    }
+                    onClick={() =>
+                      void openTemporaryShare(
+                        approvedUploads[0].document,
+                        approvedUploads[0].accessToken,
+                      )
+                    }
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 4h6v6H4V4Zm2 2v2h2V6H6Zm8-2h6v6h-6V4Zm2 2v2h2V6h-2ZM4 14h6v6H4v-6Zm2 2v2h2v-2H6Zm8-2h2v2h-2v-2Zm4 0h2v4h-2v-4Zm-4 4h4v2h-4v-2Z" />
+                    </svg>
+                    {temporaryShareBusyDocumentId === approvedUploads[0].document.id
+                      ? "Creating…"
+                      : "QR & short link"}
                   </button>
                 </div>
+                {copyNotice && (
+                  <span className="sharing-ready-notice" role="status">
+                    {copyNotice}
+                  </span>
+                )}
               </section>
             )}
           </div>
@@ -1935,9 +1882,10 @@ function HomeContent() {
           0,
           Math.ceil((new Date(temporaryShare.expiresAt).getTime() - temporaryShareNow) / 1_000),
         );
-        const minutes = Math.floor(secondsRemaining / 60);
-        const seconds = String(secondsRemaining % 60).padStart(2, "0");
         const expired = secondsRemaining === 0;
+        const remainingTime = `${Math.floor(secondsRemaining / 60)}:${String(
+          secondsRemaining % 60,
+        ).padStart(2, "0")}`;
         return (
           <div
             className="overlay"
@@ -1955,14 +1903,12 @@ function HomeContent() {
               }}
             >
               <div className="dialog-top">
-                <div>
-                  <p className="eyebrow">Temporary access · DEV</p>
-                  <h2 id="temporary-share-title">Scan or enter the code</h2>
-                </div>
+                <h2 id="temporary-share-title">Share</h2>
                 <button className="close" onClick={() => setTemporaryShare(null)} aria-label="Close">
-                  ×
+                  <Image src="/close.svg" alt="" width={24} height={24} />
                 </button>
               </div>
+              {copyNotice && <div className="copy-toast" role="status">{copyNotice}</div>}
               <div className={`temporary-share-content ${expired ? "is-expired" : ""}`}>
                 <div className="temporary-share-qr" aria-label="QR code for temporary share link">
                   <QRCodeSVG
@@ -1974,41 +1920,42 @@ function HomeContent() {
                   />
                 </div>
                 <div className="temporary-share-details">
-                  <strong className="temporary-share-code">{temporaryShare.code}</strong>
-                  <code>{temporaryShare.shortUrl}</code>
-                  <p className="temporary-share-timer" role="timer">
-                    {expired ? "This code has expired" : `Expires in ${minutes}:${seconds}`}
-                  </p>
-                  <p>Anyone with this code can download the file until it expires.</p>
-                  <div className="temporary-share-actions">
-                    {expired ? (
-                      <button
-                        className="button button-primary"
-                        disabled={temporaryShareBusyDocumentId === temporaryShare.documentId}
-                        onClick={() => void openTemporaryShare(
-                          { id: temporaryShare.documentId, filename: temporaryShare.filename },
-                          temporaryShare.accessToken,
-                        )}
-                      >
-                        Generate new code
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          className="button button-primary"
-                          onClick={() => void shareTemporaryLink()}
-                        >
-                          Share
-                        </button>
-                        <button
-                          className="button button-secondary"
-                          onClick={() => void copyShareLink(temporaryShare.shortUrl)}
-                        >
-                          Copy short link
-                        </button>
-                      </>
-                    )}
+                  <div className="short-share-label">
+                    <strong>Short link</strong>
+                    <span>{expired ? "expired" : `expires in ${remainingTime}`}</span>
                   </div>
+                  <div className="short-share-url">
+                    <code>{temporaryShare.shortUrl}</code>
+                  </div>
+                  <p>
+                    Anyone with this short link can download the file until it
+                    expires.
+                  </p>
+                  {expired ? (
+                    <button
+                      className="button short-share-action"
+                      type="button"
+                      disabled={temporaryShareBusyDocumentId === temporaryShare.documentId}
+                      onClick={() => void openTemporaryShare(
+                        { id: temporaryShare.documentId, filename: temporaryShare.filename },
+                        temporaryShare.accessToken,
+                      )}
+                    >
+                      {temporaryShareBusyDocumentId === temporaryShare.documentId
+                        ? "Creating…"
+                        : "Create new short link"}
+                    </button>
+                  ) : (
+                    <button
+                      className="button short-share-action"
+                      type="button"
+                      onClick={() =>
+                        void copyShareLink(temporaryShare.shortUrl, "Short link copied")
+                      }
+                    >
+                      Copy short link
+                    </button>
+                  )}
                 </div>
               </div>
             </section>
