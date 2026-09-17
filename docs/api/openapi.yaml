@@ -93,6 +93,42 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /auth/session/refresh:
+    post:
+      tags: [Authentication]
+      operationId: refreshSession
+      description: Rotates the HttpOnly refresh cookie and returns a new short-lived bearer access token. The request must include an allowed Origin header.
+      security: []
+      responses:
+        "200":
+          description: Session restored. A rotated refresh cookie may be returned in Set-Cookie.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /auth/session/logout:
+    post:
+      tags: [Authentication]
+      operationId: logoutSession
+      description: Revokes the current refresh-session family and clears the HttpOnly cookie. The request must include an allowed Origin header.
+      security: []
+      responses:
+        "204":
+          description: Session ended.
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /guest/sessions:
     post:
       tags: [Guest sessions]

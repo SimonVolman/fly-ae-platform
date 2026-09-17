@@ -20,7 +20,7 @@ class OtpService(
     private val users: UserRepository,
     private val termsAcceptances: TermsAcceptanceRepository,
     private val emailSender: EmailSender,
-    private val sessionTokens: SessionTokenService,
+    private val persistentSessions: PersistentSessionService,
     private val properties: SecurityProperties,
     private val clock: Clock,
 ) {
@@ -50,7 +50,7 @@ class OtpService(
     }
 
     @Transactional
-    fun verify(request: OtpVerification): SessionResponse {
+    fun verify(request: OtpVerification): LoginSession {
         val email = normalizeEmail(request.email)
         val now = clock.instant()
         val otp = otpCodes.findFirstByEmailAndConsumedAtIsNullOrderByCreatedAtDesc(email)
@@ -72,18 +72,7 @@ class OtpService(
         recordLegalAcceptance(user, "TERMS", request.termsVersion)
         recordLegalAcceptance(user, "PRIVACY", request.privacyVersion)
 
-        val (token, expiresAt) = sessionTokens.issue(user.id)
-        return SessionResponse(
-            token,
-            expiresAt,
-            SessionUser(
-                id = user.id,
-                email = user.email,
-                telegramUsername = null,
-                displayName = requireNotNull(user.email),
-                authenticationMethod = AuthenticationMethod.EMAIL,
-            ),
-        )
+        return persistentSessions.login(user)
     }
 
     private fun recordLegalAcceptance(user: User, type: String, version: String) {

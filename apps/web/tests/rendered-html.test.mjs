@@ -173,7 +173,8 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /NLG \| LH_MLG \| RH_MLG \| SHIPSET/);
   assert.doesNotMatch(page, /role="radiogroup"/);
   assert.match(page, /Unrelated materials may be/);
-  assert.match(page, /sessionStorage/);
+  assert.doesNotMatch(page, /sessionStorage\.setItem/);
+  assert.match(page, /refreshBrowserSession/);
   assert.match(page, /APPROVED/);
   assert.match(layout, /title:\s*"fly\.ae/);
   assert.match(layout, /favicon-v2\.svg/);

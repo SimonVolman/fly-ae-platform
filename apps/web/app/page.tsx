@@ -16,6 +16,11 @@ import {
   useState,
 } from "react";
 import { apiRequestError, type ApiProblem } from "./api-error";
+import {
+  logoutBrowserSession,
+  refreshBrowserSession,
+  type BrowserSession,
+} from "./auth-session";
 import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { Mission } from "./components/Mission";
@@ -193,17 +198,7 @@ function supportedUploadMimeType(file: File): string | null {
   );
 }
 
-type Session = {
-  accessToken: string;
-  expiresAt: string;
-  user: {
-    id: string;
-    email: string | null;
-    telegramUsername: string | null;
-    displayName: string;
-    authenticationMethod: "EMAIL" | "TELEGRAM";
-  };
-};
+type Session = BrowserSession;
 
 type GuestSession = {
   accessToken: string;
@@ -350,14 +345,29 @@ async function api<T>(
   options: RequestInit = {},
   accessToken?: string,
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const request = (token = accessToken) => fetch(`${API_URL}${path}`, {
     ...options,
+    credentials: "include",
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
+
+  let response = await request();
+  if (
+    response.status === 401 &&
+    accessToken &&
+    !accessToken.startsWith("gst_") &&
+    !path.startsWith("/auth/session/")
+  ) {
+    const refreshed = await refreshBrowserSession(API_URL);
+    if (refreshed.kind === "ok") {
+      window.dispatchEvent(new CustomEvent("flyae:session-refreshed", { detail: refreshed.session }));
+      response = await request(refreshed.session.accessToken);
+    }
+  }
 
   if (!response.ok) {
     const problem = (await response.json().catch(() => ({}))) as ApiProblem;
@@ -441,6 +451,7 @@ function HomeContent() {
   const documentsHeading = useRef<HTMLHeadingElement>(null);
   const documentRequest = useRef(0);
   const folderActionInFlight = useRef(false);
+  const authChannel = useRef<BroadcastChannel | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const stepTwo = useRef<HTMLElement>(null);
   const stepThree = useRef<HTMLElement>(null);
@@ -472,24 +483,61 @@ function HomeContent() {
       })
       .catch((requestError: Error) => setError(requestError.message));
 
-    const sessionTimer = window.setTimeout(() => {
-      const stored = window.sessionStorage.getItem("flyae:session");
-      if (!stored) return;
-      try {
-        const parsed = JSON.parse(stored) as Session;
-        if (new Date(parsed.expiresAt).getTime() > Date.now()) {
-          setSession(parsed);
-          void loadDocuments(parsed);
-        } else {
-          window.sessionStorage.removeItem("flyae:session");
-        }
-      } catch {
-        window.sessionStorage.removeItem("flyae:session");
-      }
-    }, 0);
+    // A prior release persisted an access token in tab storage. Never reuse it:
+    // the persistent session is an HttpOnly cookie and access stays in memory.
+    window.sessionStorage.removeItem("flyae:session");
+    let mounted = true;
+    void refreshBrowserSession(API_URL).then((result) => {
+      if (!mounted || result.kind !== "ok") return;
+      setSession(result.session);
+      void loadDocuments(result.session);
+    });
 
-    return () => window.clearTimeout(sessionTimer);
+    const onRefreshed = (event: Event) => {
+      const refreshed = (event as CustomEvent<Session>).detail;
+      if (!refreshed?.accessToken) return;
+      setSession(refreshed);
+    };
+    window.addEventListener("flyae:session-refreshed", onRefreshed);
+
+    if ("BroadcastChannel" in window) {
+      const channel = new BroadcastChannel("flyae:auth");
+      authChannel.current = channel;
+      channel.onmessage = (event: MessageEvent<"login" | "logout">) => {
+        if (event.data === "logout") {
+          clearSessionView();
+        } else if (event.data === "login") {
+          void refreshBrowserSession(API_URL).then((result) => {
+            if (result.kind !== "ok") return;
+            setSession(result.session);
+            void loadDocuments(result.session);
+          });
+        }
+      };
+    }
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("flyae:session-refreshed", onRefreshed);
+      authChannel.current?.close();
+      authChannel.current = null;
+    };
   }, [loadDocuments]);
+
+  useEffect(() => {
+    if (!session) return;
+    const refreshAt = new Date(session.expiresAt).getTime() - Date.now() - 60_000;
+    const timer = window.setTimeout(() => {
+      void refreshBrowserSession(API_URL).then((result) => {
+        if (result.kind === "ok") {
+          setSession(result.session);
+        } else if (result.kind === "unauthorized") {
+          clearSessionView();
+        }
+      });
+    }, Math.max(0, refreshAt));
+    return () => window.clearTimeout(timer);
+  }, [session]);
 
   useEffect(() => {
     if (!temporaryShare) return;
@@ -547,7 +595,7 @@ function HomeContent() {
         }),
       });
       setSession(nextSession);
-      window.sessionStorage.setItem("flyae:session", JSON.stringify(nextSession));
+      authChannel.current?.postMessage("login");
       if (pendingGuestClaim) {
         try {
           const claimed = await claimGuestDocument(pendingGuestClaim, nextSession);
@@ -1128,13 +1176,12 @@ function HomeContent() {
     setPendingGuestClaim(null);
   }
 
-  function logOut() {
+  function clearSessionView() {
     documentRequest.current += 1;
     setDocumentsLoading(false);
     setDocumentsLoadError("");
     setDocumentNotice(null);
     setExpandedDocumentCategories(["root"]);
-    window.sessionStorage.removeItem("flyae:session");
     setSession(null);
     setDocuments([]);
     setShowDocuments(false);
@@ -1145,6 +1192,17 @@ function HomeContent() {
     setUploadState(selectedFiles.length ? "ready" : "idle");
     setWorkflowStep(1);
     setActiveUploads([]);
+  }
+
+  async function logOut() {
+    try {
+      await logoutBrowserSession(API_URL);
+    } catch {
+      setError("We could not end this session securely. Please try again.");
+      return;
+    }
+    clearSessionView();
+    authChannel.current?.postMessage("logout");
   }
 
   const selectedCategory = categories.find((category) => category.id === categoryId);

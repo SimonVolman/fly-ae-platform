@@ -30,8 +30,11 @@ export function ShareDocumentClient() {
     if (!token || token === "__token__" || token === "__code__") {
       return;
     }
-    const headers = sessionHeaders({ getItem: (key) => window.sessionStorage.getItem(key) });
-    void fetch(`${API_URL}/shares/${encodeURIComponent(decodeURIComponent(token))}`, { headers })
+    const headers = sessionHeaders();
+    void fetch(`${API_URL}/shares/${encodeURIComponent(decodeURIComponent(token))}`, {
+      headers,
+      credentials: "include",
+    })
       .then(async (response) => {
         if (!response.ok) {
           const problem = (await response.json().catch(() => ({}))) as {

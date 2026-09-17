@@ -78,12 +78,12 @@ beforeEach(() => {
   requests = []; copied = []; downloads = []; rejectDeletes = new Set();
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (value) => copied.push(value) } });
   window.HTMLAnchorElement.prototype.click = function () { downloads.push(this.href); };
-  window.sessionStorage.setItem("flyae:session", JSON.stringify({
-    accessToken: "test-only-token", expiresAt: "2099-01-01T00:00:00Z",
-    user: { id: "test", email: "test@example.com", displayName: "Test", authenticationMethod: "EMAIL" },
-  }));
   global("fetch", async (input, options = {}) => {
     const path = new URL(input).pathname.replace("/api/v1", "");
+    if (path === "/auth/session/refresh") return Response.json({
+      accessToken: "test-only-token", expiresAt: "2099-01-01T00:00:00Z",
+      user: { id: "test", email: "test@example.com", displayName: "Test", authenticationMethod: "EMAIL" },
+    });
     requests.push({ path, method: options.method ?? "GET", authorization: new Headers(options.headers).get("Authorization") });
     if (path === "/categories") return Response.json([aircraft, engine, general]);
     if (path === "/documents") return Response.json(records);
@@ -247,11 +247,11 @@ test("approved document creates a short link and local QR without exposing the s
   assert.deepEqual(copied, ["http://localhost:3000/s/7K9D-P4QX"]);
 });
 
-test("share page identifies a logged-in visitor only to the backend", async () => {
+test("share page remains public without reading a browser session", async () => {
   window.history.replaceState({}, "", "/share/test-share-token");
   await mount(React.createElement(ShareDocumentClient));
   assert.equal(heading(), "shared.pdf");
-  assert.deepEqual(requests, [{ path: "/shares/test-share-token", method: "GET", authorization: "Bearer test-only-token" }]);
+  assert.deepEqual(requests, [{ path: "/shares/test-share-token", method: "GET", authorization: null }]);
   assert.equal(container.querySelector(".shared-card a").href, "https://download.example.com/test-share-token.pdf");
   assert.doesNotMatch(container.innerHTML, /test-only-token/);
 });
@@ -263,7 +263,7 @@ test("short share route resolves the formatted temporary code", async () => {
   assert.deepEqual(requests, [{
     path: "/shares/7K9D-P4QX",
     method: "GET",
-    authorization: "Bearer test-only-token",
+    authorization: null,
   }]);
 });
 

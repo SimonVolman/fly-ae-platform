@@ -72,6 +72,18 @@ Parameters:
     Type: Number
     Default: 3221225472
     MinValue: 104857600
+  AccessTokenTtl:
+    Type: String
+    Default: 15m
+    AllowedPattern: "[1-9][0-9]*[smhd]"
+  RefreshSessionTtl:
+    Type: String
+    Default: 30d
+    AllowedPattern: "[1-9][0-9]*[smhd]"
+  RefreshReuseGrace:
+    Type: String
+    Default: 30s
+    AllowedPattern: "[1-9][0-9]*[smhd]"
 
 Conditions:
   CustomDomainEnabled: !Equals [!Ref EnableCustomDomain, "true"]
@@ -268,6 +280,9 @@ Resources:
           FLY_ALLOWED_ORIGINS: !Sub https://${FrontendDomainName}
           FLY_MAINTENANCE_MODE: !Ref MaintenanceMode
           FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES: !Ref AuthenticatedMaxFileSizeBytes
+          FLY_ACCESS_TOKEN_TTL: !Ref AccessTokenTtl
+          FLY_REFRESH_SESSION_TTL: !Ref RefreshSessionTtl
+          FLY_REFRESH_REUSE_GRACE: !Ref RefreshReuseGrace
           FLY_SHORT_SHARE_ENABLED: !Ref EnableTemporaryShare
           FLY_SHORT_SHARE_TTL: 15m
           FLY_EMAIL_FROM: !Sub no-reply@${FrontendDomainName}
@@ -310,6 +325,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins:
           - !Sub https://${FrontendDomainName}
+        AllowCredentials: true
         AllowMethods:
           - GET
           - POST
@@ -480,6 +496,40 @@ Resources:
             Protection: true
             Override: true
 
+  ApiCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${ResourcePrefix}-api-no-cache
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+
+  ApiOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub ${ResourcePrefix}-api-session-origin
+        CookiesConfig:
+          CookieBehavior: all
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers:
+            - Authorization
+            - Content-Type
+            - Origin
+        QueryStringsConfig:
+          QueryStringBehavior: all
+
   FrontendDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -489,6 +539,24 @@ Resources:
           - - !Ref FrontendDomainName
           - !Ref AWS::NoValue
         Comment: fly.ae V0 production frontend
+        CacheBehaviors:
+          - PathPattern: /api/*
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: !Ref ApiCachePolicy
+            Compress: true
+            OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
+            TargetOriginId: BackendApi
+            ViewerProtocolPolicy: redirect-to-https
         DefaultCacheBehavior:
           AllowedMethods:
             - GET
@@ -510,6 +578,13 @@ Resources:
         HttpVersion: http2and3
         IPV6Enabled: true
         Origins:
+          - DomainName: !Select [2, !Split ["/", !GetAtt HttpApi.ApiEndpoint]]
+            Id: BackendApi
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
           - DomainName: !GetAtt FrontendBucket.RegionalDomainName
             Id: FrontendS3
             OriginAccessControlId: !Ref FrontendOriginAccessControl

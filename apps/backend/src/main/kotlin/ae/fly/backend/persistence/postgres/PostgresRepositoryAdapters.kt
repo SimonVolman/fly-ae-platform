@@ -5,6 +5,7 @@ import ae.fly.backend.domain.Document
 import ae.fly.backend.domain.GuestSession
 import ae.fly.backend.domain.OtpCode
 import ae.fly.backend.domain.ProcessingJob
+import ae.fly.backend.domain.RefreshSession
 import ae.fly.backend.domain.ShareToken
 import ae.fly.backend.domain.TermsAcceptance
 import ae.fly.backend.domain.TelegramLoginRequest
@@ -14,6 +15,7 @@ import ae.fly.backend.repository.DocumentRepository
 import ae.fly.backend.repository.GuestSessionRepository
 import ae.fly.backend.repository.OtpCodeRepository
 import ae.fly.backend.repository.ProcessingJobRepository
+import ae.fly.backend.repository.RefreshSessionRepository
 import ae.fly.backend.repository.ShareTokenRepository
 import ae.fly.backend.repository.TermsAcceptanceRepository
 import ae.fly.backend.repository.TelegramLoginRequestRepository
@@ -21,9 +23,13 @@ import ae.fly.backend.repository.UserRepository
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
 
@@ -70,6 +76,37 @@ interface JpaTermsAcceptanceRepository : JpaRepository<TermsAcceptance, UUID> {
 }
 
 interface JpaProcessingJobRepository : JpaRepository<ProcessingJob, UUID>
+
+interface JpaRefreshSessionRepository : JpaRepository<RefreshSession, UUID> {
+    fun findByTokenHash(tokenHash: String): RefreshSession?
+
+    @Modifying
+    @Query(
+        """
+        update RefreshSession session
+        set session.rotatedAt = :rotatedAt, session.successorId = :successorId
+        where session.id = :id and session.rotatedAt is null and session.revokedAt is null
+        """,
+    )
+    fun markRotatedIfActive(
+        @Param("id") id: UUID,
+        @Param("rotatedAt") rotatedAt: Instant,
+        @Param("successorId") successorId: UUID,
+    ): Int
+
+    @Modifying
+    @Query(
+        """
+        update RefreshSession session
+        set session.revokedAt = :revokedAt
+        where session.familyId = :familyId and session.revokedAt is null
+        """,
+    )
+    fun revokeFamily(
+        @Param("familyId") familyId: UUID,
+        @Param("revokedAt") revokedAt: Instant,
+    ): Int
+}
 
 interface JpaShareTokenRepository : JpaRepository<ShareToken, UUID> {
     @EntityGraph(attributePaths = ["document", "document.category"])
@@ -196,6 +233,28 @@ class PostgresProcessingJobRepository(
     private val delegate: JpaProcessingJobRepository,
 ) : ProcessingJobRepository {
     override fun save(processingJob: ProcessingJob): ProcessingJob = delegate.save(processingJob)
+}
+
+@Repository
+@ConditionalOnProperty(name = [POSTGRES_PROPERTY], havingValue = "postgres", matchIfMissing = true)
+class PostgresRefreshSessionRepository(
+    private val delegate: JpaRefreshSessionRepository,
+) : RefreshSessionRepository {
+    override fun findById(id: UUID): RefreshSession? = delegate.findById(id).orElse(null)
+    override fun findByTokenHash(tokenHash: String): RefreshSession? = delegate.findByTokenHash(tokenHash)
+    override fun save(session: RefreshSession): RefreshSession = delegate.save(session)
+
+    @Transactional
+    override fun rotate(currentId: UUID, rotatedAt: Instant, successor: RefreshSession): Boolean {
+        if (delegate.markRotatedIfActive(currentId, rotatedAt, successor.id) != 1) return false
+        delegate.save(successor)
+        return true
+    }
+
+    @Transactional
+    override fun revokeFamily(familyId: UUID, revokedAt: Instant) {
+        delegate.revokeFamily(familyId, revokedAt)
+    }
 }
 
 @Repository

@@ -10,12 +10,15 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.Duration
+import java.time.Clock
 
 @RestController
 @RequestMapping("/api/v1/auth/otp")
 class OtpController(
     private val otpService: OtpService,
     private val rateLimiter: RateLimiter,
+    private val refreshCookie: RefreshSessionCookie,
+    private val clock: Clock,
 ) {
     @GetMapping("/options")
     fun deliveryOptions(): OtpDeliveryOptions = OtpDeliveryOptions(
@@ -38,13 +41,16 @@ class OtpController(
     fun verifyOtp(
         @Valid @RequestBody request: OtpVerification,
         servletRequest: HttpServletRequest,
-    ): SessionResponse {
+        servletResponse: jakarta.servlet.http.HttpServletResponse,
+    ): ResponseEntity<SessionResponse> {
         rateLimiter.check("otp-verify:ip:${servletRequest.remoteAddr}", 30, Duration.ofMinutes(15))
         rateLimiter.check(
             "otp-verify:email:${request.email.trim().lowercase()}",
             10,
             Duration.ofMinutes(15),
         )
-        return otpService.verify(request)
+        val login = otpService.verify(request)
+        refreshCookie.set(servletResponse, login.refreshToken, login.refreshExpiresAt, clock.instant())
+        return ResponseEntity.ok(login.response)
     }
 }

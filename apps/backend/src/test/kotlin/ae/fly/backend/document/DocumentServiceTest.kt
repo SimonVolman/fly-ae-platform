@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import jakarta.validation.Validation
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
@@ -178,6 +179,17 @@ class DocumentServiceTest {
 
         assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, error.status)
         assertEquals("This upload is limited to 15 GB.", error.message)
+    }
+
+    @Test
+    fun `request DTO does not impose a stale fixed size limit`() {
+        val validator = Validation.buildDefaultValidatorFactory().validator
+
+        val violations = validator.validate(
+            request(sizeBytes = 15L * 1024 * 1024 * 1024),
+        )
+
+        assertTrue(violations.none { it.propertyPath.toString() == "sizeBytes" })
     }
 
     @Test

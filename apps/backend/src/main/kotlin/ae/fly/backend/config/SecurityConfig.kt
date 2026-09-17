@@ -1,6 +1,7 @@
 package ae.fly.backend.config
 
 import ae.fly.backend.auth.BearerSessionFilter
+import ae.fly.backend.auth.AuthResponseHeadersFilter
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -24,6 +25,7 @@ class SecurityConfig {
     fun securityFilterChain(
         http: HttpSecurity,
         bearerSessionFilter: BearerSessionFilter,
+        authResponseHeadersFilter: AuthResponseHeadersFilter,
         objectMapper: ObjectMapper,
     ): SecurityFilterChain {
         http
@@ -54,6 +56,7 @@ class SecurityConfig {
                     )
                 }
             }
+            .addFilterBefore(authResponseHeadersFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(bearerSessionFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
@@ -66,7 +69,7 @@ class SecurityConfig {
             allowedMethods = listOf("GET", "POST", "DELETE", "OPTIONS")
             allowedHeaders = listOf("Authorization", "Content-Type")
             exposedHeaders = listOf("ETag", "Location", "Retry-After")
-            allowCredentials = false
+            allowCredentials = true
             maxAge = 3600
         }
         return UrlBasedCorsConfigurationSource().also {

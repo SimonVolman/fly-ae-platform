@@ -2,8 +2,10 @@ package ae.fly.backend.auth
 
 import ae.fly.backend.config.SecurityProperties
 import ae.fly.backend.domain.OtpCode
+import ae.fly.backend.domain.RefreshSession
 import ae.fly.backend.domain.User
 import ae.fly.backend.repository.OtpCodeRepository
+import ae.fly.backend.repository.RefreshSessionRepository
 import ae.fly.backend.repository.TermsAcceptanceRepository
 import ae.fly.backend.repository.UserRepository
 import ae.fly.backend.support.MutableClock
@@ -23,6 +25,7 @@ class OtpServiceTest {
     private val otpCodes = mock(OtpCodeRepository::class.java)
     private val users = mock(UserRepository::class.java)
     private val terms = mock(TermsAcceptanceRepository::class.java)
+    private val refreshSessions = mock(RefreshSessionRepository::class.java)
     private val emailSender = CapturingEmailSender()
     private val clock = MutableClock(Instant.parse("2026-07-26T12:00:00Z"))
     private val properties = SecurityProperties(
@@ -34,12 +37,19 @@ class OtpServiceTest {
         otpMaxAttempts = 5,
     )
     private val sessionTokens = SessionTokenService(properties, clock)
+    private val persistentSessions = PersistentSessionService(
+        refreshSessions,
+        users,
+        sessionTokens,
+        properties,
+        clock,
+    )
     private val service = OtpService(
         otpCodes,
         users,
         terms,
         emailSender,
-        sessionTokens,
+        persistentSessions,
         properties,
         clock,
     )
@@ -57,6 +67,8 @@ class OtpServiceTest {
         `when`(otpCodes.findFirstByEmailAndConsumedAtIsNullOrderByCreatedAtDesc("pilot@fly.ae"))
             .thenAnswer { savedOtp }
         `when`(users.findByEmail("pilot@fly.ae")).thenReturn(user)
+        `when`(refreshSessions.save(any(RefreshSession::class.java) ?: RefreshSession()))
+            .thenAnswer { it.arguments[0] }
         `when`(
             terms.existsByUserIdAndDocumentTypeAndVersion(
                 user.id,
@@ -83,10 +95,10 @@ class OtpServiceTest {
             ),
         )
 
-        assertEquals(user.id, response.user.id)
-        assertEquals("pilot@fly.ae", response.user.email)
+        assertEquals(user.id, response.response.user.id)
+        assertEquals("pilot@fly.ae", response.response.user.email)
         assertNotNull(savedOtp?.consumedAt)
-        assertTrue(sessionTokens.verify(response.accessToken) != null)
+        assertTrue(sessionTokens.verify(response.response.accessToken) != null)
         assertEquals(
             2,
             mockingDetails(terms).invocations.count { it.method.name == "save" },

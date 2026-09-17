@@ -3,7 +3,6 @@ package ae.fly.backend.document
 import ae.fly.backend.domain.Category
 import ae.fly.backend.domain.Document
 import ae.fly.backend.domain.DocumentStatus
-import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
@@ -47,7 +46,6 @@ data class CreateDocumentRequest(
     val mimeType: String,
 
     @field:Min(1)
-    @field:Max(3_221_225_472)
     val sizeBytes: Long,
 )
 
