@@ -1491,6 +1491,12 @@ footer a {
   padding-top: 16px;
 }
 
+@media (min-width: 1100px) {
+  .documents-workspace:not(.has-document-navigation) .documents-view {
+    padding: 16px;
+  }
+}
+
 .desktop-category-sidebar {
   display: none;
 }
