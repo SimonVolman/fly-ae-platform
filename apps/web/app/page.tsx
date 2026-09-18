@@ -35,6 +35,18 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+
+function localStorageProxyUrl(signedUrl: string) {
+  try {
+    const apiUrl = new URL(API_URL);
+    const usesLocalApi = apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1";
+    return usesLocalApi
+      ? apiUrl.origin + "/__s3_proxy?url=" + encodeURIComponent(signedUrl)
+      : signedUrl;
+  } catch {
+    return signedUrl;
+  }
+}
 const DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
 const configuredAuthenticatedMaxFileSize = Number(
   process.env.NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES,
@@ -835,7 +847,7 @@ function HomeContent() {
           );
           return {
             method: "PUT" as const,
-            url: signed.url,
+            url: localStorageProxyUrl(signed.url),
             headers: signed.headers,
           };
         },
