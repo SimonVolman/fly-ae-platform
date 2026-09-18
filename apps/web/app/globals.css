@@ -4604,3 +4604,7 @@ footer a {
   .mission-notice-warning h3,
   .mission-notice-warning p { position: relative; z-index: 1; }
 }
+
+
+/* Footer is intentionally hidden in the product interface. */
+.product-footer { display: none; }
