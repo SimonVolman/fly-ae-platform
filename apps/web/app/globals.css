@@ -4683,14 +4683,14 @@ footer a {
 
 
 /* User-provided About background. */
- (min-width: 1100px) {
+@media (min-width: 1100px) {
   .workspace-main > .mission-section .mission-hero { padding: 32px !important; }
   .workspace-main > .mission-section .mission-aircraft { transform: none !important; }
 }
 
 
 /* Full-bleed mirrored background in the About hero. */
- (min-width: 1100px) {
+@media (min-width: 1100px) {
   .workspace-main > .mission-section .mission-aircraft {
     bottom: 0;
     height: 100%;
@@ -4699,5 +4699,33 @@ footer a {
     right: 0;
     transform: scaleX(-1) !important;
     width: 100%;
+  }
+}
+
+
+/* Keep mission copy readable above its background image. */
+@media (min-width: 1100px) {
+  .workspace-main > .mission-section .mission-hero {
+    isolation: isolate;
+    padding: 32px !important;
+  }
+
+  .workspace-main > .mission-section .mission-aircraft {
+    bottom: 0;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    right: 0;
+    transform: none !important;
+    width: 100%;
+    z-index: 0;
+  }
+
+  .workspace-main > .mission-section .mission-hero::after { z-index: 1; }
+
+  .workspace-main > .mission-section .mission-copy {
+    color: #090f1b;
+    position: relative;
+    z-index: 2;
   }
 }
