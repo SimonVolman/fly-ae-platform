@@ -4447,7 +4447,7 @@ footer a {
 
 
 /* Figma 678:505 — mission block on the desktop Upload page. */
- (min-width: 1100px) {
+@media (min-width: 1100px) {
   .workspace-main > .mission-section {
     display: flex;
     flex-direction: column;
@@ -4559,7 +4559,7 @@ footer a {
   }
 }
 
- (max-width: 1099px) {
+@media (max-width: 1099px) {
   .mission-section {
     display: flex;
     flex-direction: column;
@@ -4577,4 +4577,30 @@ footer a {
   .mission-copy h2, .mission-copy p, .mission-copy li, .mission-notice p, .mission-notice h3 { margin: 0; }
   .mission-copy ul { padding-left: 24px; }
   .mission-notice-warning { background: #f9f1e1; border-color: #f2ba79; }
+}
+
+
+/* Exact asset orientation and warning mark from Figma node 696:866. */
+ (min-width: 1100px) {
+  .mission-aircraft { transform: scaleX(-1); }
+
+  .mission-notice-neutral {
+    background: rgba(255, 255, 255, 0.26);
+    backdrop-filter: blur(7px);
+  }
+
+  .mission-notice-warning { position: relative; }
+
+  .mission-warning-art {
+    height: 96px;
+    left: calc(100% - 115px);
+    max-width: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 96px;
+  }
+
+  .mission-notice-warning h3,
+  .mission-notice-warning p { position: relative; z-index: 1; }
 }
