@@ -4638,3 +4638,10 @@ footer a {
 
   .mission-notice-warning p { padding-right: 112px; }
 }
+
+
+/* About container has no standalone surface or top divider. */
+.mission-section {
+  background: transparent;
+  border-top: 0;
+}
