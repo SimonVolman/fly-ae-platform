@@ -2557,6 +2557,43 @@ footer a {
   margin: 0 0 24px;
 }
 
+.documents-login-state {
+  border-color: #d9dee8;
+  border-radius: 24px;
+  gap: 24px;
+  min-height: 336px;
+  padding: 24px;
+}
+
+.documents-login-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.documents-login-state h2 {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.05px;
+  line-height: normal;
+  margin: 0;
+}
+
+.documents-login-state > .documents-login-copy > p {
+  color: #5f636d;
+  font-size: 16px;
+  line-height: normal;
+  margin: 0;
+}
+
+.documents-login-button {
+  height: 32px;
+  min-height: 32px;
+  padding: 8px 20px;
+  width: 230px;
+}
+
 .empty-documents-state {
   min-height: 260px;
 }

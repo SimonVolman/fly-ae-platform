@@ -1425,10 +1425,12 @@ function HomeContent() {
               <button type="button" onClick={() => void loadDocuments(session)}>Try again</button>
             </div>}
             {!session ? (
-              <div className="empty-app-state">
-                <h2>Log in to view your documents</h2>
-                <p>My Documents is available after you sign in.</p>
-                <button className="button button-primary" onClick={openAuth}>Log in</button>
+              <div className="empty-app-state documents-login-state">
+                <div className="documents-login-copy">
+                  <h2>Log in to view your documents</h2>
+                  <p>My Documents is available after you log in</p>
+                </div>
+                <button className="button button-primary documents-login-button" onClick={openAuth}>Login</button>
               </div>
             ) : documentsLoading && !documents.length ? (
               <div className="empty-app-state" role="status">Loading documents…</div>
