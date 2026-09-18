@@ -1923,11 +1923,11 @@ function HomeContent() {
               <span>{error}</span>
             </div>
           )}
+
+          {!showDocuments && <Mission />}
           </div>
         </section>
       )}
-
-      <Mission />
 
       <footer className="product-footer">
         <Brand />
