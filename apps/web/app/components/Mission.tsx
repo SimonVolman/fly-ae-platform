@@ -6,7 +6,7 @@ export function Mission() {
   return (
     <section className="mission-section" aria-labelledby="mission-title">
       <article className="mission-hero">
-        <Image className="mission-aircraft" src="/mission-figma.png" alt="" width={1024} height={493} unoptimized aria-hidden="true" />
+        <Image className="mission-aircraft" src="/img-bg-om.png" alt="" width={2304} height={668} unoptimized aria-hidden="true" />
         <div className="mission-copy">
           <div className="mission-intro">
             <h2 id="mission-title">Our mission</h2>
