@@ -4150,6 +4150,22 @@ footer a {
   .upload-panel.upload-complete .remove-upload { display: none; }
 }
 
+/* Figma 712:1175 — keep the completed workflow in context. */
+.step-summary {
+  display: none;
+}
+
+.describe-panel.workflow-complete .continue-button,
+.upload-panel.upload-complete .guest-upload-options,
+.upload-panel.upload-complete > .upload-button,
+.upload-panel.upload-complete .remove-upload {
+  display: none;
+}
+
+.upload-panel.upload-complete .app-drop-zone {
+  cursor: default;
+}
+
 .sharing-ready {
   background: #fff;
   border: 3px solid #1dc328;

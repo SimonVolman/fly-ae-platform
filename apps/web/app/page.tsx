@@ -1579,11 +1579,11 @@ function HomeContent() {
               </article>
             )}
 
-            {workflowStep < 3 && (
+            {(workflowStep < 3 || approvedUploads.length > 0) && (
               <section
                 className={`workflow-card wizard-panel describe-panel ${
                   workflowStep === 2 ? "step-panel-complete" : ""
-                }`}
+                } ${workflowStep === 3 ? "workflow-complete" : ""}`}
               >
                 <div className="card-heading">
                   <span>01</span>
@@ -1667,11 +1667,11 @@ function HomeContent() {
               </article>
             )}
 
-            {workflowStep < 3 && (
+            {(workflowStep < 3 || approvedUploads.length > 0) && (
               <section
                 className={`workflow-card wizard-panel upload-panel ${
                   workflowStep === 1 ? "step-panel-pending" : ""
-                }`}
+                } ${workflowStep === 3 ? "upload-complete" : ""}`}
                 ref={stepTwo}
               >
                 <div className="card-heading">
