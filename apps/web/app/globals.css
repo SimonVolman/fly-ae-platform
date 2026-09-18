@@ -1481,6 +1481,16 @@ footer a {
   padding: 72px var(--app-inline) 112px;
 }
 
+.documents-workspace:not(.has-document-navigation) .folder-breadcrumbs,
+.documents-workspace:not(.has-document-navigation) .app-section-heading,
+.documents-workspace:not(.has-document-navigation) .documents-notice {
+  display: none;
+}
+
+.documents-workspace:not(.has-document-navigation) .documents-view {
+  padding-top: 16px;
+}
+
 .desktop-category-sidebar {
   display: none;
 }
