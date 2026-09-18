@@ -1643,12 +1643,24 @@ function HomeContent() {
                 ) : (
                   <label className="field msn-field">
                     <span>{identifierField(selectedCategory).label} <i>*</i></span>
-                    <input
-                      value={msn}
-                      onChange={(event) => setMsn(event.target.value)}
-                      placeholder={identifierField(selectedCategory).placeholder}
-                      maxLength={64}
-                    />
+                    <div className="msn-input-control">
+                      <input
+                        value={msn}
+                        onChange={(event) => setMsn(event.target.value)}
+                        placeholder={identifierField(selectedCategory).placeholder}
+                        maxLength={64}
+                      />
+                      {msn.length > 0 && (
+                        <button
+                          type="button"
+                          className="clear-msn"
+                          aria-label="Clear MSN"
+                          onClick={() => setMsn("")}
+                        >
+                          <Image src="/clear-field.svg" alt="" width={24} height={24} aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
                     <small className="identifier-examples">
                       {identifierField(selectedCategory).helper}
                     </small>
