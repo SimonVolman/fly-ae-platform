@@ -4645,3 +4645,38 @@ footer a {
   background: transparent;
   border-top: 0;
 }
+
+
+/* Enforce the desktop About geometry after the base section styles. */
+ (min-width: 1100px) {
+  .workspace-main > .mission-section {
+    align-items: stretch !important;
+    display: flex !important;
+    width: 100% !important;
+  }
+
+  .workspace-main > .mission-section > .mission-hero,
+  .workspace-main > .mission-section > .mission-notices {
+    align-self: stretch !important;
+    width: 100% !important;
+  }
+
+  .workspace-main > .mission-section .mission-notices {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .workspace-main > .mission-section .mission-notice {
+    min-height: 0 !important;
+  }
+
+  .workspace-main > .mission-section .mission-notice-warning {
+    position: relative !important;
+  }
+
+  .workspace-main > .mission-section .mission-warning-art {
+    left: auto !important;
+    right: 19px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+  }
+}
