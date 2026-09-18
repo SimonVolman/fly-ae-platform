@@ -4729,3 +4729,24 @@ footer a {
     z-index: 2;
   }
 }
+
+
+/* Mission hero: content-driven height and unfiltered full-bleed background. */
+@media (min-width: 1100px) {
+  .workspace-main > .mission-section .mission-hero {
+    height: auto;
+    min-height: 334px;
+    padding: 32px !important;
+  }
+
+  .workspace-main > .mission-section .mission-hero::after { display: none; }
+
+  .workspace-main > .mission-section .mission-aircraft {
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    width: 100%;
+  }
+
+  .workspace-main > .mission-section .mission-copy { z-index: 1; }
+}
