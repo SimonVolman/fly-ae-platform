@@ -2578,7 +2578,7 @@ footer a {
 .documents-login-copy {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .documents-login-state h2 {
