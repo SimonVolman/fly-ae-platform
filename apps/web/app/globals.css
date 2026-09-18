@@ -3189,8 +3189,17 @@ footer a {
     padding: 8px 4px 8px 8px;
   }
 
+  .describe-panel .msn-field {
+    gap: 0;
+  }
+
+  .describe-panel .msn-input-control {
+    margin-top: 4px;
+  }
+
   .describe-panel .identifier-examples {
     font-size: 11px;
+    margin-top: 2px;
   }
 
   .upload-panel,
