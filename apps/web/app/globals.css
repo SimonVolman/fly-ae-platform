@@ -4608,3 +4608,33 @@ footer a {
 
 /* Footer is intentionally hidden in the product interface. */
 .product-footer { display: none; }
+
+
+/* About layout refinement: full Upload column width and compact notice cards. */
+ (min-width: 1100px) {
+  .workspace-main > .mission-section {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .mission-hero,
+  .mission-notices { width: 100%; }
+
+  .mission-notices { align-items: stretch; }
+
+  .mission-notice {
+    min-height: 0;
+    padding: 24px;
+  }
+
+  .mission-warning-art {
+    left: auto;
+    right: 19px;
+    z-index: 1;
+  }
+
+  .mission-notice-warning h3,
+  .mission-notice-warning p { z-index: 2; }
+
+  .mission-notice-warning p { padding-right: 112px; }
+}
