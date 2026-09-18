@@ -4680,3 +4680,10 @@ footer a {
     transform: translateY(-50%) !important;
   }
 }
+
+
+/* User-provided About background. */
+ (min-width: 1100px) {
+  .workspace-main > .mission-section .mission-hero { padding: 32px !important; }
+  .workspace-main > .mission-section .mission-aircraft { transform: none !important; }
+}
