@@ -2,12 +2,6 @@ name: Deploy DEV (dev.fly.ae) on Lambda
 
 on:
   workflow_dispatch:
-    inputs:
-      enable_telegram_otp:
-        description: Enable Telegram bot notifications and admin commands (requires Secrets Manager values)
-        required: true
-        type: boolean
-        default: false
 
 concurrency:
   group: fly-ae-dev
@@ -35,7 +29,7 @@ jobs:
       SECRET_PATH_PREFIX: fly-ae/v0-prod
       FRONTEND_DOMAIN: dev.fly.ae
       HOSTED_ZONE_ID: Z10483352SBZ9U6ULG9OH
-      ENABLE_TELEGRAM_OTP: ${{ inputs.enable_telegram_otp && 'true' || 'false' }}
+      ENABLE_TELEGRAM_OTP: ${{ vars.ENABLE_TELEGRAM_OTP || 'false' }}
       TELEGRAM_ADMIN_CHAT_ID: ${{ vars.TELEGRAM_ADMIN_CHAT_ID || '0' }}
 
     steps:
@@ -162,15 +156,15 @@ jobs:
           echo "Smoke test did not become healthy in time." >&2
           exit 1
 
-      - name: Smoke test email-only authentication
+      - name: Smoke test authentication configuration
         env:
           API_URL: ${{ steps.application.outputs.api_url }}
         run: |
           curl --fail --silent --show-error "$API_URL/api/v1/auth/otp/options" \
-            | python3 -c 'import json, sys; options = json.load(sys.stdin); assert options["emailEnabled"] is True and options["telegramEnabled"] is False'
+            | python3 -c 'import json, os, sys; options = json.load(sys.stdin); assert options["emailEnabled"] is True; assert options["telegramEnabled"] is (os.environ["ENABLE_TELEGRAM_OTP"] == "true")'
 
       - name: Register Telegram webhook
-        if: ${{ inputs.enable_telegram_otp }}
+        if: ${{ env.ENABLE_TELEGRAM_OTP == 'true' }}
         env:
           API_URL: ${{ steps.application.outputs.api_url }}
         run: |
