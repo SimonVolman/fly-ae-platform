@@ -4750,3 +4750,14 @@ footer a {
 
   .workspace-main > .mission-section .mission-copy { z-index: 1; }
 }
+
+
+ (min-width: 1100px) {
+  .workspace-main > .mission-section .mission-copy ul {
+    list-style: disc outside;
+  }
+
+  .workspace-main > .mission-section .mission-copy li {
+    display: list-item;
+  }
+}
