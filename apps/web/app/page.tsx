@@ -698,7 +698,7 @@ function HomeContent() {
   }
 
   function clearSelectedFiles() {
-    if (uploadBusy) return;
+    if (uploadBusy && workflowStep !== 3) return;
     setSelectedFiles([]);
     setUploadState("idle");
     setUploadProgress(0);
@@ -1702,7 +1702,7 @@ function HomeContent() {
                       type="button"
                       className="clear-upload"
                       onClick={clearSelectedFiles}
-                      disabled={uploadBusy}
+                      disabled={uploadBusy && workflowStep !== 3}
                     >
                       <Image src="/arrow-reload.svg" alt="" width={24} height={24} aria-hidden="true" />
                       <span>Clear</span>
