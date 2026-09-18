@@ -1681,6 +1681,9 @@ function HomeContent() {
                     <p>
                       PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · multiple files allowed.
                     </p>
+                    <p className="upload-aviation-copy">
+                      Please upload only materials related to aviation components, every file is subject to verification.
+                    </p>
                   </div>
                   {selectedFiles.length > 0 && (
                     <button
