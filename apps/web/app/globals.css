@@ -4752,12 +4752,14 @@ footer a {
 }
 
 
- (min-width: 1100px) {
-  .workspace-main > .mission-section .mission-copy ul {
-    list-style: disc outside;
-  }
 
-  .workspace-main > .mission-section .mission-copy li {
-    display: list-item;
-  }
+
+
+/* Always expose the three mission list markers. */
+.workspace-main .mission-copy ul {
+  list-style: disc outside !important;
+}
+
+.workspace-main .mission-copy li {
+  display: list-item !important;
 }
