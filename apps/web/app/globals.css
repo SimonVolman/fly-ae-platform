@@ -4150,6 +4150,27 @@ footer a {
   .upload-panel.upload-complete .remove-upload { display: none; }
 }
 
+@media (min-width: 1100px) {
+  .upload-panel .upload-drop-area {
+    background:
+      repeating-linear-gradient(90deg, #c9cdd8 0 9px, transparent 9px 18px) top / 18px 2px repeat-x,
+      repeating-linear-gradient(180deg, #c9cdd8 0 9px, transparent 9px 18px) right / 2px 18px repeat-y,
+      repeating-linear-gradient(90deg, #c9cdd8 0 9px, transparent 9px 18px) bottom / 18px 2px repeat-x,
+      repeating-linear-gradient(180deg, #c9cdd8 0 9px, transparent 9px 18px) left / 2px 18px repeat-y,
+      #fff;
+    border: 0;
+    border-radius: 12px;
+    gap: 0;
+    padding: 16px;
+  }
+
+  .upload-panel .app-drop-zone,
+  .upload-panel .app-drop-zone.file-selected {
+    background: #fff;
+    border: 0;
+  }
+}
+
 /* Figma 712:1175 — keep the completed workflow in context. */
 .step-summary {
   display: none;

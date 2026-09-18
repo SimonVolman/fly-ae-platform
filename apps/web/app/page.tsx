@@ -1740,22 +1740,6 @@ function HomeContent() {
                     </span>
                   </button>
 
-                  <aside className="upload-security-notice" aria-label="File privacy and access">
-                    <Image
-                      className="upload-security-icon"
-                      src="/security-shield.svg"
-                      alt=""
-                      width={38}
-                      height={38}
-                      aria-hidden="true"
-                    />
-                    <div>
-                      <p>Your files are protected with end-to-end encryption and automatically checked by AI.</p>
-                      <p>Only you and those you share the private link with can access your files. Your file contents are not accessible to unauthorized parties.</p>
-                    </div>
-                  </aside>
-                </div>
-
                 {selectedFiles.length > 0 && (
                   <div className="selected-upload-list" aria-label="Selected files">
                     {selectedFiles.map((file, index) => (
@@ -1783,6 +1767,22 @@ function HomeContent() {
                     ))}
                   </div>
                 )}
+                </div>
+
+                <aside className="upload-security-notice" aria-label="File privacy and access">
+                    <Image
+                      className="upload-security-icon"
+                      src="/security-shield.svg"
+                      alt=""
+                      width={38}
+                      height={38}
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p>Your files are protected with end-to-end encryption and automatically checked by AI.</p>
+                      <p>Only you and those you share the private link with can access your files. Your file contents are not accessible to unauthorized parties.</p>
+                    </div>
+                  </aside>
 
                 {!session && selectedFiles.length > 0 && !uploadBusy && (
                   <div className={`guest-upload-options ${acceptedGuestLegal ? "is-accepted" : ""}`}>
@@ -1857,25 +1857,7 @@ function HomeContent() {
                   </div>
                 )}
 
-                {selectedFiles.length > 0 && !uploadBusy && (
-                  <button
-                    className="button button-primary upload-button"
-                    disabled={
-                      !documentDetailsReady || (!session && !acceptedGuestLegal)
-                    }
-                    onClick={() => void startUpload()}
-                  >
-                    {documentDetailsReady
-                      ? selectedFiles.length === 1
-                        ? "Upload securely"
-                        : `Upload ${selectedFiles.length} files securely`
-                      : "Complete document details to upload"}
-                  </button>
-                )}
-              </section>
-            )}
-
-            {workflowStep === 3 && approvedUploads.length > 0 && (
+                {workflowStep === 3 && approvedUploads.length > 0 && (
               <section className="sharing-ready" aria-live="polite" ref={stepThree}>
                 <div className="sharing-ready-copy">
                   <strong>Your secure link is ready</strong>
@@ -1926,7 +1908,26 @@ function HomeContent() {
                   </span>
                 )}
               </section>
+                )}
+
+                {selectedFiles.length > 0 && !uploadBusy && (
+                  <button
+                    className="button button-primary upload-button"
+                    disabled={
+                      !documentDetailsReady || (!session && !acceptedGuestLegal)
+                    }
+                    onClick={() => void startUpload()}
+                  >
+                    {documentDetailsReady
+                      ? selectedFiles.length === 1
+                        ? "Upload securely"
+                        : `Upload ${selectedFiles.length} files securely`
+                      : "Complete document details to upload"}
+                  </button>
+                )}
+              </section>
             )}
+
           </div>
 
           {error && (
