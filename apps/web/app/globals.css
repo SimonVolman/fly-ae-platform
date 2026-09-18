@@ -1834,9 +1834,12 @@ footer a {
   outline-offset: 2px;
 }
 
-.continue-button,
-.upload-button {
+.continue-button {
   margin-top: 28px;
+}
+
+.upload-button {
+  margin-top: 24px;
   width: 100%;
 }
 
