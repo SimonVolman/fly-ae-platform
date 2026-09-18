@@ -203,12 +203,12 @@ jobs:
           echo "Smoke test did not become healthy in time." >&2
           exit 1
 
-      - name: Smoke test authentication configuration
+      - name: Smoke test email-only authentication
         env:
           API_URL: ${{ steps.application.outputs.api_url }}
         run: |
           curl --fail --silent --show-error "$API_URL/api/v1/auth/otp/options" \
-            | python3 -c 'import json, os, sys; options = json.load(sys.stdin); assert options["emailEnabled"] is True; assert options["telegramEnabled"] is (os.environ["ENABLE_TELEGRAM_OTP"] == "true")'
+            | python3 -c 'import json, sys; options = json.load(sys.stdin); assert options["emailEnabled"] is True and options["telegramEnabled"] is False'
 
       - name: Register Telegram webhook
         if: ${{ env.ENABLE_TELEGRAM_OTP == 'true' }}
