@@ -4581,7 +4581,7 @@ footer a {
 
 
 /* Exact asset orientation and warning mark from Figma node 696:866. */
- (min-width: 1100px) {
+@media (min-width: 1100px) {
   .mission-aircraft { transform: scaleX(-1); }
 
   .mission-notice-neutral {
@@ -4611,7 +4611,7 @@ footer a {
 
 
 /* About layout refinement: full Upload column width and compact notice cards. */
- (min-width: 1100px) {
+@media (min-width: 1100px) {
   .workspace-main > .mission-section {
     align-items: stretch;
     width: 100%;
@@ -4648,7 +4648,7 @@ footer a {
 
 
 /* Enforce the desktop About geometry after the base section styles. */
- (min-width: 1100px) {
+@media (min-width: 1100px) {
   .workspace-main > .mission-section {
     align-items: stretch !important;
     display: flex !important;
