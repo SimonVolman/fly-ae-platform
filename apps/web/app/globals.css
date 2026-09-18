@@ -4797,3 +4797,33 @@ footer a {
     padding-bottom: 12px;
   }
 }
+
+
+/* Desktop upload uses a fixed viewport: only the working area scrolls. */
+@media (min-width: 1100px) {
+  .product-app {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .upload-workspace {
+    height: calc(100dvh - 48px);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .desktop-category-sidebar {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workspace-main {
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
