@@ -1821,7 +1821,7 @@ function HomeContent() {
                   </div>
                 )}
 
-                {uploadBusy && (
+                {uploadBusy && workflowStep !== 3 && (
                   <div className="upload-progress" aria-live="polite">
                     <Image
                       className="upload-progress-illustration"
