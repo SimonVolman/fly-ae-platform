@@ -4759,3 +4759,7 @@ footer a {
 .workspace-main .mission-copy li {
   display: list-item !important;
 }
+
+
+/* Just Document does not require the informational note. */
+.general-document-note { display: none; }
