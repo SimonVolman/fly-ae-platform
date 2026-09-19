@@ -1399,7 +1399,7 @@ function HomeContent() {
                   <h1 id="documents-title" ref={documentsHeading} tabIndex={-1}>
                     {openFolder ? folderLabel(openFolder) : openCategory?.category.name ?? "My Documents"}
                   </h1>
-                  {currentFolderItem && <FolderActions folder={currentFolderItem} busy={folderActionBusy}
+                  {currentFolderItem && <FolderActions className="folder-heading-action" folder={currentFolderItem} busy={folderActionBusy}
                     onAction={(action, folder) => void performFolderAction(action, folder)} />}
                 </div>
                 {session && <p className="documents-summary">{documentCount(currentFolderItem?.documents.length ?? documents.filter((document) => document.status !== "DELETED").length)}</p>}

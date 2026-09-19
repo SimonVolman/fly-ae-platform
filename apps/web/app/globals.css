@@ -2362,6 +2362,16 @@ footer a {
   z-index: 2;
 }
 
+.folder-heading-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-left: auto;
+  position: relative;
+  right: auto;
+  scroll-margin-top: 88px;
+  top: auto;
+}
+
 .folder-context-menu {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
@@ -2371,9 +2381,7 @@ footer a {
   min-width: 148px;
   overflow: hidden;
   padding: 6px;
-  position: absolute;
-  right: -68px;
-  top: 72px;
+  position: fixed;
   z-index: 20;
 }
 
@@ -3622,10 +3630,6 @@ footer a {
     align-items: center;
     display: inline-flex;
     justify-content: center;
-  }
-
-  .folder-context-menu {
-    display: none;
   }
 
   .folder-selection-toolbar {

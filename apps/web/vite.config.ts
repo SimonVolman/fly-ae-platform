@@ -52,6 +52,10 @@ export default defineConfig(async () => {
       sites(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+        // The Playwright web server runs in a restricted environment where
+        // Wrangler's default inspector port cannot bind. Keep normal local
+        // debugging unchanged and disable only for browser UI test runs.
+        inspectorPort: process.env.PLAYWRIGHT_UI === "1" ? false : undefined,
         config: localBindingConfig,
       }),
     ],
