@@ -23,7 +23,7 @@ export function DocumentIcon({ name }: { name: "link" | "download" | "bin" | "ba
   return <span className={`document-icon document-icon-${name}`} aria-hidden="true" />;
 }
 
-export function FolderActions({ folder, busy, onAction, ref, onOpenChange }: ActionsProps) {
+export function FolderActions({ folder, busy, temporaryShareEnabled, onAction, ref, onOpenChange }: ActionsProps) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
