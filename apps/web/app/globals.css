@@ -6046,9 +6046,15 @@ footer a {
   }
 
   .documents-workspace.has-document-navigation .document-folder-button {
-    align-items: flex-start;
+    align-items: flex-start !important;
     gap: 0;
     width: 100%;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-button > .folder-art,
+  .documents-workspace.has-document-navigation .document-folder-button > .folder-tile-label,
+  .documents-workspace.has-document-navigation .document-folder-button > .folder-tile-meta {
+    align-self: flex-start;
   }
 
   .documents-workspace.has-document-navigation .folder-art {
