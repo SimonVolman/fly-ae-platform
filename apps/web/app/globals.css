@@ -5097,7 +5097,7 @@ footer a {
     position: absolute;
     right: 12px;
     text-overflow: ellipsis;
-    top: 12px;
+    top: 4px;
     white-space: nowrap;
   }
 
@@ -5293,5 +5293,13 @@ footer a {
 
   .documents-workspace.has-document-navigation .documents-navigation-label {
     z-index: 2;
+  }
+}
+
+
+@media (min-width: 821px) {
+  .documents-workspace.has-document-navigation .documents-navigation-row:has(.documents-navigation-label[aria-current="page"]) {
+    background-color: #e8f7f2 !important;
+    border: 1px solid #56dd93 !important;
   }
 }
