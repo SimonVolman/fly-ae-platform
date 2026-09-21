@@ -15,7 +15,6 @@ type ActionsProps = {
   busy: boolean;
   temporaryShareEnabled: boolean;
   onAction: (action: FolderAction, folder: FolderViewItem) => void;
-  className?: string;
   ref?: Ref<ActionsHandle>;
   onOpenChange?: (open: boolean) => void;
 };
@@ -24,7 +23,7 @@ export function DocumentIcon({ name }: { name: "link" | "download" | "bin" | "ba
   return <span className={`document-icon document-icon-${name}`} aria-hidden="true" />;
 }
 
-export function FolderActions({ folder, busy, onAction, className, ref, onOpenChange }: ActionsProps) {
+export function FolderActions({ folder, busy, temporaryShareEnabled, onAction, ref, onOpenChange }: ActionsProps) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -84,7 +83,7 @@ export function FolderActions({ folder, busy, onAction, className, ref, onOpenCh
 
   return (
     <>
-      <button ref={trigger} className={`folder-more-button${className ? ` ${className}` : ""}`} type="button"
+      <button ref={trigger} className="folder-more-button" type="button"
         aria-label={`Actions for ${folder.label}`} aria-haspopup="menu"
         aria-expanded={Boolean(anchor)} aria-controls={anchor ? id : undefined} disabled={busy}
         onClick={(event) => {
