@@ -5394,3 +5394,23 @@ footer a {
     margin-top: 4px;
   }
 }
+
+@media (min-width: 1100px) {
+  .upload-panel > .upload-button {
+    align-self: center;
+    background: #14213d;
+    border-color: #14213d;
+    border-radius: 12px;
+    color: #fff;
+    height: 68px;
+    max-width: 572px;
+    min-height: 68px;
+    width: 100%;
+  }
+
+  .upload-panel > .upload-button:hover:not(:disabled) {
+    background: #14213d;
+    border-color: #14213d;
+    color: #fff;
+  }
+}

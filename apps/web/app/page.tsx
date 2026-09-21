@@ -1951,11 +1951,7 @@ function HomeContent() {
                     }
                     onClick={() => void startUpload()}
                   >
-                    {documentDetailsReady
-                      ? selectedFiles.length === 1
-                        ? "Upload securely"
-                        : `Upload ${selectedFiles.length} files securely`
-                      : "Complete document details to upload"}
+                    {documentDetailsReady ? "Upload securely" : "Complete document details to upload"}
                   </button>
                 )}
               </section>
