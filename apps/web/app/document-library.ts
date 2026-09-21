@@ -62,7 +62,10 @@ export function groupDocumentsIntoFolders(documents: FlyDocument[]) {
   return Array.from(folders.values());
 }
 
-export function groupFoldersIntoCategories(folders: DocumentFolder[]) {
+export function groupFoldersIntoCategories(
+  folders: DocumentFolder[],
+  availableCategories: Category[] = [],
+) {
   const categories = new Map<string, CategoryFolder>();
   for (const folder of folders) {
     const category = categories.get(folder.category.id);
@@ -73,6 +76,13 @@ export function groupFoldersIntoCategories(folders: DocumentFolder[]) {
       key: `category:${folder.category.id}`, category: folder.category,
       folders: [folder], documents: [...folder.documents],
     });
+  }
+  for (const category of availableCategories) {
+    if (!categories.has(category.id)) {
+      categories.set(category.id, {
+        key: "category:" + category.id, category, folders: [], documents: [],
+      });
+    }
   }
   return Array.from(categories.values()).sort((left, right) => {
     const rank = (code: string) => {

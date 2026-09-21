@@ -1246,7 +1246,7 @@ function HomeContent() {
     (upload) => upload.document.status === "APPROVED" && upload.document.shareUrl,
   );
   const documentFolders = groupDocumentsIntoFolders(documents);
-  const categoryFolders = groupFoldersIntoCategories(documentFolders);
+  const categoryFolders = groupFoldersIntoCategories(documentFolders, categories);
   const { category: openCategory, folder: openFolder } = resolveFolderLocation(categoryFolders, openCategoryId, openFolderKey);
   useLayoutEffect(() => {
     if (showDocuments && !mobileMenuOpen) documentsHeading.current?.focus();
@@ -1500,11 +1500,15 @@ function HomeContent() {
                       ))}
                     </div>
                   </section>
-                ) : (
+                ) : visibleFolderItems.length ? (
                   <div className="document-folder-grid">
                     {visibleFolderItems.map((folder) => <FolderCard key={folder.key} folder={folder} busy={folderActionBusy}
                       onOpen={(item) => navigateDocuments(item.categoryId, item.folderKey)}
                       onAction={(action, item) => void performFolderAction(action, item)} />)}
+                  </div>
+                ) : (
+                  <div className="documents-empty-category-state" role="status">
+                    <p>There is no documents yet</p>
                   </div>
                 )}
               </div>

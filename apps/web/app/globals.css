@@ -6008,3 +6008,68 @@ footer a {
   .file-list-qr-icon b:nth-of-type(4) { left: 18px; top: 13px; }
   .file-list-qr-icon b:nth-of-type(5) { height: 2px; left: 17px; top: 19px; width: 4px; }
 }
+
+
+/* Figma 717:1268 and 717:1290 — category content states. */
+@media (min-width: 821px) {
+  .documents-workspace.has-document-navigation .documents-empty-category-state {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    min-height: 188px;
+    width: 100%;
+  }
+
+  .documents-workspace.has-document-navigation .documents-empty-category-state p {
+    color: #7b7d84;
+    font-family: var(--font-sans);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: .05px;
+    line-height: normal;
+    margin: 0;
+    text-align: center;
+    width: 265px;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-grid {
+    column-gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    justify-content: initial;
+    row-gap: 32px;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-tile {
+    padding: 0;
+    width: auto;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-button {
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .documents-workspace.has-document-navigation .folder-art {
+    height: 152px;
+    margin: 0;
+    width: 100%;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-label {
+    margin: 0;
+    text-align: left;
+    width: 100%;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-meta {
+    margin: 0;
+    width: 100%;
+  }
+}
+
+@media (min-width: 1100px) {
+  .documents-workspace.has-document-navigation .document-folder-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
