@@ -5740,10 +5740,10 @@ footer a {
   box-shadow: 0 4px 16px rgb(48 47 59 / 10%);
   display: flex;
   flex-direction: column;
-  min-width: 125px;
+  min-width: 184px;
   overflow: hidden;
   padding: 8px 0;
-  width: 125px;
+  width: 184px;
 }
 
 .folder-context-menu button {
@@ -5761,6 +5761,7 @@ footer a {
   line-height: normal;
   min-height: 32px;
   padding: 4px 12px;
+  white-space: nowrap;
   width: 100%;
 }
 
