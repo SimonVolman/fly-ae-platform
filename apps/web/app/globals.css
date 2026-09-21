@@ -5053,7 +5053,7 @@ footer a {
   .documents-workspace.has-document-navigation .documents-navigation-row.is-current,
   .documents-workspace.has-document-navigation .documents-navigation-row.is-ancestor {
     background-color: #e8f7f2;
-    border-color: #56dd93;
+    border: 1px solid #56dd93;
   }
 
   .documents-workspace.has-document-navigation .documents-navigation-row.is-current[data-category-code="AIRCRAFT"],
@@ -5079,7 +5079,7 @@ footer a {
     display: block;
     font-family: var(--font-sans);
     height: 100%;
-    padding: 11px;
+    padding: 12px;
     position: relative;
     text-align: left;
     width: 100%;
@@ -5089,17 +5089,28 @@ footer a {
     display: block;
     font-size: 16px;
     font-weight: 700;
-    line-height: normal;
+    line-height: 16px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .documents-workspace.has-document-navigation .documents-navigation-label small {
+    bottom: 12px;
     color: #7b7d84;
     display: block;
     font-family: var(--font-sans);
     font-size: 14px;
     font-weight: 600;
-    line-height: normal;
-    margin-top: 20px;
+    left: 12px;
+    line-height: 16px;
+    margin: 0;
+    max-width: calc(100% - 24px);
+    overflow: hidden;
+    position: absolute;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .documents-sidebar-legal {
