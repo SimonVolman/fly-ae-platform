@@ -14,12 +14,12 @@ type Props = {
   onNavigate: (categoryId: string | null, folderKey: string | null) => void;
 };
 
-const CATEGORY_ILLUSTRATIONS: Record<string, { src: string; width: number; height: number }> = {
-  AIRCRAFT: { src: "/documents-category-aircraft.svg", width: 264, height: 103 },
-  APU: { src: "/documents-category-apu.svg", width: 166, height: 124 },
-  ENGINE: { src: "/documents-category-engine.svg", width: 162, height: 141 },
-  LANDING_GEAR: { src: "/documents-category-landing-gear.svg", width: 146, height: 121 },
-  JUST_DOCUMENT: { src: "/documents-category-just-document.svg", width: 67, height: 83 },
+const CATEGORY_ILLUSTRATIONS: Record<string, { src: string; activeSrc: string; width: number; height: number }> = {
+  AIRCRAFT: { src: "/documents-category-aircraft-default.svg", activeSrc: "/documents-category-aircraft-active.svg", width: 264, height: 103 },
+  APU: { src: "/documents-category-apu.svg", activeSrc: "/documents-category-apu-active.svg", width: 166, height: 124 },
+  ENGINE: { src: "/documents-category-engine.svg", activeSrc: "/documents-category-engine-active.svg", width: 162, height: 141 },
+  LANDING_GEAR: { src: "/documents-category-landing-gear.svg", activeSrc: "/documents-category-landing-gear-active.svg", width: 146, height: 121 },
+  JUST_DOCUMENT: { src: "/documents-category-just-document.svg", activeSrc: "/documents-category-just-document-active.svg", width: 67, height: 83 },
 };
 
 export function DocumentsNavigation({
@@ -57,7 +57,7 @@ export function DocumentsNavigation({
                 {illustration && (
                   <Image
                     className="documents-category-illustration"
-                    src={illustration.src}
+                    src={selected ? illustration.activeSrc : illustration.src}
                     alt=""
                     width={illustration.width}
                     height={illustration.height}
