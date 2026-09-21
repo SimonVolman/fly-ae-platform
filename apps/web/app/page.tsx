@@ -1153,9 +1153,15 @@ function HomeContent() {
   }
 
   function showDocumentsView() {
+    const aircraft = categories.find((category) => category.code === "AIRCRAFT");
     setShowDocuments(true);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
+    if (aircraft) {
+      setOpenCategoryId(aircraft.id);
+      setOpenFolderKey(null);
+      setExpandedDocumentCategories((current) => Array.from(new Set([...current, "root", aircraft.id])));
+    }
     if (session) void loadDocuments(session);
   }
 

@@ -5220,3 +5220,62 @@ footer a {
     margin: 0;
   }
 }
+
+
+/* Figma 717:1070 — My Documents category cards */
+@media (min-width: 821px) {
+  .documents-workspace.has-document-navigation .documents-navigation > ul > li > .documents-navigation-row {
+    background-image: none !important;
+    background-position: initial;
+    background-size: initial;
+  }
+
+  .documents-workspace.has-document-navigation .documents-category-illustration {
+    display: block;
+    pointer-events: none;
+    position: absolute;
+    z-index: 1;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="AIRCRAFT"] .documents-category-illustration {
+    bottom: -30px;
+    height: 103px;
+    left: 69px;
+    transform: rotate(180deg) scaleY(-1);
+    width: 264px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="APU"] .documents-category-illustration {
+    height: 124px;
+    left: 102px;
+    top: 7px;
+    width: 166px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="ENGINE"] .documents-category-illustration {
+    height: 141px;
+    left: 88px;
+    top: -19px;
+    transform: rotate(-172.3deg) scaleY(-1);
+    width: 162px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="LANDING_GEAR"] .documents-category-illustration {
+    height: 121px;
+    left: 89px;
+    top: -14px;
+    transform: rotate(176.86deg) scaleY(-1);
+    width: 146px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="JUST_DOCUMENT"] .documents-category-illustration {
+    height: 83px;
+    left: 140px;
+    top: 14px;
+    width: 67px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-label {
+    z-index: 2;
+  }
+}
