@@ -58,11 +58,11 @@ export function ShareDocumentClient() {
       </header>
 
       {document ? (
-        <section className="shared-card">
-          <div className="success-mark" aria-hidden="true">
-            ✓
+        <section className="shared-card shared-document-card">
+          <div className="shared-document-status" aria-label="Approved aviation file">
+            <span aria-hidden="true">✓</span>
+            <b>Approved aviation file</b>
           </div>
-          <p className="eyebrow">Approved aviation file</p>
           <h1>{document.filename}</h1>
           <dl>
             <div>
@@ -78,12 +78,15 @@ export function ShareDocumentClient() {
               <dd>{formatBytes(document.sizeBytes)}</dd>
             </div>
           </dl>
+          <aside className="shared-privacy" aria-label="Privacy and Security">
+            <strong>Privacy and Security</strong>
+            <p>The file is accessible only to the owner and those who have been given the link. Do not share it with unauthorized parties.</p>
+            <p>Your data is protected during transmission and storage. Content cannot be accessed without an authorized link.</p>
+          </aside>
           <a className="button button-primary" href={document.downloadUrl}>
             Download file
           </a>
-          <p className="message message-info">
-            Anyone with this share link can view and download the file without
-            signing in. Forward it only to people the owner intends to share with.
+          <p className="shared-download-expiry">
             If the download expires, reopen this page for a fresh download.
           </p>
         </section>

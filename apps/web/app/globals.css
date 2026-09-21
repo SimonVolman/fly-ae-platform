@@ -5430,3 +5430,30 @@ footer a {
     overflow: visible;
   }
 }
+
+
+/* Public recipient page: approved document state. */
+.shared-page > header { max-width: 690px; }
+.shared-page > header > span { font-size: 16px; font-weight: 600; line-height: normal; }
+.shared-document-card { border-radius: 12px; box-sizing: border-box; margin-top: 88px; max-width: 690px; padding: 52px; }
+.shared-document-status { align-items: center; background: #69c84f; border-radius: 999px; box-sizing: border-box; color: #14213d; display: inline-flex; gap: 8px; height: 40px; padding: 0 16px; }
+.shared-document-status > span { align-items: center; background: #14213d; border-radius: 50%; color: #69c84f; display: inline-flex; font-size: 11px; font-weight: 800; height: 20px; justify-content: center; line-height: 1; width: 20px; }
+.shared-document-status b { font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: .7px; line-height: normal; text-transform: uppercase; }
+.shared-document-card h1 { font-size: 24px; font-weight: 600; letter-spacing: 0; line-height: normal; margin: 44px 0 40px; overflow-wrap: anywhere; }
+.shared-document-card dl { margin: 0 0 28px; }
+.shared-document-card dl > div { padding: 16px 0; }
+.shared-document-card dt { font-size: 11px; line-height: normal; margin-bottom: 8px; }
+.shared-document-card dd { font-size: 14px; line-height: normal; }
+.shared-privacy { background: #e8f7f2; border-radius: 8px; color: #090f1b; margin: 0 0 26px; padding: 16px; }
+.shared-privacy strong { display: block; font-family: var(--font-sans); font-size: 16px; font-weight: 700; line-height: normal; margin-bottom: 12px; }
+.shared-privacy p { font-size: 16px; line-height: 1.45; margin: 0; }
+.shared-privacy p + p { margin-top: 12px; }
+.shared-document-card > .button { height: 48px; min-height: 48px; }
+.shared-download-expiry { background: #fff0e7; border-radius: 8px; color: #14213d; font-size: 16px; line-height: normal; margin: 24px 0 0; padding: 16px; text-align: center; }
+@media (max-width: 560px) {
+  .shared-page > header > span { font-size: 13px; }
+  .shared-document-card { margin-top: 48px; padding: 28px 24px; }
+  .shared-document-card h1 { font-size: 22px; margin: 32px 0 28px; }
+  .shared-document-card dl { margin-bottom: 24px; }
+  .shared-privacy p, .shared-download-expiry { font-size: 14px; }
+}
