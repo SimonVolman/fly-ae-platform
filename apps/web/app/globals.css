@@ -4418,7 +4418,7 @@ footer a {
   border: 3px solid #fbfcff;
   border-radius: 20px;
   box-sizing: border-box;
-  padding: 19px 24px;
+  padding: 38px 24px 19px;
   position: relative;
   width: min(100%, 510px);
 }
