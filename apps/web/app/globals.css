@@ -5219,8 +5219,10 @@ footer a {
   }
 
   .documents-workspace.has-document-navigation .folder-art {
+    background: transparent;
+    box-shadow: none;
     height: 152px;
-    margin: 0 0 12px;
+    margin: 0 0 6px;
     width: 203.5px;
   }
 
