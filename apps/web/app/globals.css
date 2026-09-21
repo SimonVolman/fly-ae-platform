@@ -1280,7 +1280,7 @@ footer a {
     height: 48px;
     max-height: 48px;
     min-height: 48px;
-    overflow: clip;
+    overflow: visible;
     padding: 0;
   }
 
