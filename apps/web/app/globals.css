@@ -5462,6 +5462,7 @@ footer a {
 /* Figma 731:2500 — public recipient download screen. */
 .shared-page {
   background: #f5f7fa;
+  display: flow-root;
   min-height: 100vh;
   padding: 0;
   position: relative;
