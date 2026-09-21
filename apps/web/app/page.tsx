@@ -1447,11 +1447,21 @@ function HomeContent() {
                 <span>Upload document</span>
               </button>
             </div>
-            {documentNotice && <p className={`documents-notice ${documentNotice.error ? "is-error" : ""}`}
-              role={documentNotice.error ? "alert" : "status"}>{documentNotice.message}</p>}
+            {documentNotice && <div className={"documents-notice " + (documentNotice.error ? "is-error" : "is-success")}
+              role={documentNotice.error ? "alert" : "status"}>
+              <span className="documents-notice-mark" aria-hidden="true">{documentNotice.error ? "!" : "✓"}</span>
+              <span className="documents-notice-message">{documentNotice.message}</span>
+              <button className="documents-notice-close" type="button" aria-label="Dismiss message"
+                onClick={() => setDocumentNotice(null)}>×</button>
+            </div>}
             {session && documentsLoadError && <div className="documents-notice is-error" role="alert">
-              <span>{documentsLoadError}</span>
-              <button type="button" onClick={() => void loadDocuments(session)}>Try again</button>
+              <span className="documents-notice-mark" aria-hidden="true">!</span>
+              <span className="documents-notice-message">{documentsLoadError}</span>
+              <div className="documents-notice-controls">
+                <button className="documents-notice-action" type="button" onClick={() => void loadDocuments(session)}>Try again</button>
+                <button className="documents-notice-close" type="button" aria-label="Dismiss message"
+                  onClick={() => setDocumentsLoadError("")}>×</button>
+              </div>
             </div>}
             {!session ? (
               <div className="empty-app-state documents-login-state">
