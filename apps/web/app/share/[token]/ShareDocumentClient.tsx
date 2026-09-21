@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Brand } from "../../components/Brand";
@@ -52,7 +53,7 @@ export function ShareDocumentClient() {
     <main className="shared-page">
       <header>
         <Link href="/" className="shared-brand-link" aria-label="fly.ae home">
-          <Brand />
+          <Brand figmaTopbar />
         </Link>
         <span>Secure document share</span>
       </header>
@@ -60,7 +61,7 @@ export function ShareDocumentClient() {
       {document ? (
         <section className="shared-card shared-document-card">
           <div className="shared-document-status" aria-label="Approved aviation file">
-            <span aria-hidden="true">✓</span>
+            <Image src="/approved-aviation-file.svg" alt="" aria-hidden="true" width={24} height={24} />
             <b>Approved aviation file</b>
           </div>
           <h1>{document.filename}</h1>
@@ -78,17 +79,19 @@ export function ShareDocumentClient() {
               <dd>{formatBytes(document.sizeBytes)}</dd>
             </div>
           </dl>
-          <aside className="shared-privacy" aria-label="Privacy and Security">
+          <div className="shared-document-actions">
+            <aside className="shared-privacy" aria-label="Privacy and Security">
             <strong>Privacy and Security</strong>
             <p>The file is accessible only to the owner and those who have been given the link. Do not share it with unauthorized parties.</p>
             <p>Your data is protected during transmission and storage. Content cannot be accessed without an authorized link.</p>
           </aside>
-          <a className="button button-primary" href={document.downloadUrl}>
-            Download file
-          </a>
-          <p className="shared-download-expiry">
-            If the download expires, reopen this page for a fresh download.
-          </p>
+            <a className="button button-primary" href={document.downloadUrl}>
+              Download file
+            </a>
+            <p className="shared-download-expiry">
+              If the download expires, reopen this page for a fresh download.
+            </p>
+          </div>
         </section>
       ) : error ? (
         <section className="shared-card shared-error">
