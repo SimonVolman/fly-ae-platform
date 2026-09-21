@@ -123,9 +123,7 @@ export function FolderActions({ folder, busy, temporaryShareEnabled, onAction, r
           </button>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available || !temporaryShareEnabled}
             onClick={() => choose("qr")}>
-            <svg className="folder-context-menu-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 4h6v6H4V4Zm2 2v2h2V6H6Zm8-2h6v6h-6V4Zm2 2v2h2V6h-2ZM4 14h6v6H4v-6Zm2 2v2h2v-2H6Zm8-2h2v2h-2v-2Zm4 0h2v4h-2v-4Zm-4 4h4v2h-4v-2Z" fill="currentColor" />
-            </svg>
+            <Image className="folder-context-menu-icon" src="/folder-menu-qr.svg" alt="" width={24} height={24} aria-hidden="true" />
             <span>QR & short link</span>
           </button>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
