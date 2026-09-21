@@ -4525,7 +4525,7 @@ footer a {
 .temporary-share-details {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 6px;
   min-width: 0;
 }
 
