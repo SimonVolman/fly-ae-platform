@@ -4978,3 +4978,245 @@ footer a {
     overscroll-behavior: contain;
   }
 }
+
+
+/* Authenticated My Documents — Figma node 717:1026 */
+@media (min-width: 821px) {
+  .documents-workspace.has-document-navigation {
+    align-items: stretch;
+    display: flex;
+    min-height: calc(100vh - 48px);
+  }
+
+  .documents-workspace.has-document-navigation .documents-sidebar {
+    align-self: stretch;
+    background: #fff;
+    border-right: 1px solid #d9dee8;
+    box-sizing: border-box;
+    display: flex;
+    flex: 0 0 240px;
+    flex-direction: column;
+    min-height: calc(100vh - 48px);
+    overflow: hidden;
+    padding: 24px 12px 48px;
+    position: sticky;
+    top: 48px;
+    width: 240px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation > .documents-navigation-row {
+    display: none;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation > ul {
+    display: grid !important;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation > ul > li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation > ul > li > ul {
+    display: none !important;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation > ul > li > .documents-navigation-row {
+    background-color: #fff;
+    background-position: right -8px bottom -15px;
+    background-repeat: no-repeat;
+    background-size: auto 112px;
+    border: 1px solid #e8ebf1;
+    border-radius: 8px;
+    box-sizing: border-box;
+    height: 80px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="AIRCRAFT"] { background-image: url("/category-aircraft.svg"); }
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="APU"] { background-image: url("/category-apu.svg"); }
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="ENGINE"] { background-image: url("/category-engine.svg"); }
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="LANDING_GEAR"] { background-image: url("/category-landing-gear.svg"); }
+  .documents-workspace.has-document-navigation .documents-navigation-row[data-category-code="JUST_DOCUMENT"] { background-image: url("/category-just-document.svg"); }
+
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-current,
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-ancestor {
+    background-color: #e8f7f2;
+    border-color: #56dd93;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-current[data-category-code="AIRCRAFT"],
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-ancestor[data-category-code="AIRCRAFT"] { background-image: url("/category-aircraft-active.svg"); }
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-current[data-category-code="APU"],
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-ancestor[data-category-code="APU"] { background-image: url("/category-apu-active.svg"); }
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-current[data-category-code="ENGINE"],
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-ancestor[data-category-code="ENGINE"] { background-image: url("/category-engine-active.svg"); }
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-current[data-category-code="LANDING_GEAR"],
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-ancestor[data-category-code="LANDING_GEAR"] { background-image: url("/category-landing-gear-active.svg"); }
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-current[data-category-code="JUST_DOCUMENT"],
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-ancestor[data-category-code="JUST_DOCUMENT"] { background-image: url("/category-just-document-active.svg"); }
+
+  .documents-workspace.has-document-navigation .documents-disclosure {
+    display: none;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-label {
+    background: transparent;
+    border: 0;
+    color: #000;
+    cursor: pointer;
+    display: block;
+    font-family: var(--font-sans);
+    height: 100%;
+    padding: 11px;
+    position: relative;
+    text-align: left;
+    width: 100%;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-label > span {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: normal;
+  }
+
+  .documents-workspace.has-document-navigation .documents-navigation-label small {
+    color: #7b7d84;
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: normal;
+    margin-top: 20px;
+  }
+
+  .documents-sidebar-legal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .documents-sidebar-legal a {
+    color: #090f1b;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: normal;
+    text-decoration: underline;
+  }
+
+  .documents-workspace.has-document-navigation .documents-view {
+    background: #fff;
+    border: 1px solid #d9dee8;
+    border-radius: 24px;
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    margin: 24px;
+    min-height: 0;
+    min-width: 0;
+    padding: 24px 24px 32px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-breadcrumbs,
+  .documents-workspace.has-document-navigation .documents-summary {
+    display: none;
+  }
+
+  .documents-workspace.has-document-navigation .app-section-heading {
+    align-items: center;
+    margin: 0 0 44px;
+  }
+
+  .documents-workspace.has-document-navigation .app-section-heading h1 {
+    color: #090f1b;
+    font-family: var(--font-sans);
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: normal;
+  }
+
+  .documents-workspace.has-document-navigation .documents-upload-button {
+    align-items: center;
+    background: #14213d;
+    border: 0;
+    border-radius: 8px;
+    display: inline-flex;
+    gap: 8px;
+    height: 40px;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 20px;
+    width: 231px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-upload-button img {
+    display: block;
+    height: 24px;
+    width: 24px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-upload-button span {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: normal;
+  }
+
+  .documents-workspace.has-document-navigation .desktop-documents-library {
+    display: block;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-grid {
+    gap: 24px;
+    grid-template-columns: repeat(auto-fill, 203.5px);
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-tile {
+    padding: 0;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-tile:hover,
+  .documents-workspace.has-document-navigation .document-folder-tile.folder-selected {
+    background: transparent;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-button {
+    display: grid;
+    gap: 12px;
+    padding: 0;
+  }
+
+  .documents-workspace.has-document-navigation .folder-art {
+    height: 152px;
+    margin: 0;
+    width: 203.5px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-label {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: normal;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-meta {
+    color: #7b7d84;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: normal;
+    margin: 0;
+  }
+}

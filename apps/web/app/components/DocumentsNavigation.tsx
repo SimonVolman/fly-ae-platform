@@ -37,7 +37,10 @@ export function DocumentsNavigation({
           const open = expanded.includes(category.category.id);
           return (
             <li key={category.key}>
-              <div className={`documents-navigation-row ${selected ? "is-ancestor" : ""} ${selected && !folderKey ? "is-current" : ""}`}>
+              <div
+                className={`documents-navigation-row ${selected ? "is-ancestor" : ""} ${selected && !folderKey ? "is-current" : ""}`}
+                data-category-code={category.category.code}
+              >
                 <button type="button" className="documents-disclosure"
                   aria-label={`${open ? "Collapse" : "Expand"} ${category.category.name}`}
                   aria-expanded={open} aria-controls={`${id}-${index}`}

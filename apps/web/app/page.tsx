@@ -1387,7 +1387,13 @@ function HomeContent() {
 
       {showDocuments ? (
         <div className={`documents-workspace ${session ? "has-document-navigation" : ""}`}>
-          {session && <aside className="documents-sidebar" aria-label="Documents sidebar">{folderNavigation}</aside>}
+          {session && <aside className="documents-sidebar" aria-label="Documents sidebar">
+            {folderNavigation}
+            <nav className="documents-sidebar-legal" aria-label="Legal">
+              <Link href="/privacy" prefetch={false}>Privacy Policy</Link>
+              <Link href="/terms" prefetch={false}>Terms and Conditions</Link>
+            </nav>
+          </aside>}
           <section className="documents-view" aria-labelledby="documents-title" aria-busy={documentsLoading || folderActionBusy}>
             <nav className="folder-breadcrumbs" aria-label="Folder path">
               <ol>
@@ -1416,7 +1422,10 @@ function HomeContent() {
                 </div>
                 {session && <p className="documents-summary">{documentCount(currentFolderItem?.documents.length ?? documents.filter((document) => document.status !== "DELETED").length)}</p>}
               </div>
-              <button className="button button-primary" onClick={showUploadView}>Upload document</button>
+              <button className="button button-primary documents-upload-button" onClick={showUploadView}>
+                <Image src="/icons/plus.svg" alt="" width={24} height={24} aria-hidden="true" />
+                <span>Upload document</span>
+              </button>
             </div>
             {documentNotice && <p className={`documents-notice ${documentNotice.error ? "is-error" : ""}`}
               role={documentNotice.error ? "alert" : "status"}>{documentNotice.message}</p>}
