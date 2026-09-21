@@ -5502,7 +5502,7 @@ footer a {
   margin: 0;
   max-width: none;
   overflow: hidden;
-  padding: 38px 24px 19px;
+  padding: 38px 24px 24px;
   position: absolute;
   top: calc(50% + .5px);
   transform: translate(-50%, -50%);
@@ -5547,7 +5547,7 @@ footer a {
   line-height: normal;
   margin: 0;
   overflow-wrap: anywhere;
-  width: 542px;
+  width: 100%;
 }
 
 .shared-document-card dl {
@@ -5558,7 +5558,7 @@ footer a {
   gap: 10px;
   margin: 0;
   padding: 24px 0;
-  width: 542px;
+  width: 100%;
 }
 
 .shared-document-card dl > div {
@@ -5594,7 +5594,7 @@ footer a {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  width: 542px;
+  width: 100%;
 }
 
 .shared-privacy {
