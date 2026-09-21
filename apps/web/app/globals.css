@@ -6193,3 +6193,72 @@ footer a {
     gap: 8px;
   }
 }
+
+
+/* Figma 734:3324 — folder default and focus states. */
+@media (min-width: 821px) {
+  .documents-workspace.has-document-navigation .document-folder-grid {
+    column-gap: 38px;
+    grid-template-columns: repeat(auto-fill, 227px);
+    justify-content: start;
+    row-gap: 24px;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-tile {
+    background: transparent;
+    border-radius: 16px;
+    box-sizing: border-box;
+    padding: 12px;
+    width: 227px;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-tile:focus-within,
+  .documents-workspace.has-document-navigation .document-folder-tile.folder-selected,
+  .documents-workspace.has-document-navigation .document-folder-tile:has(.document-folder-button:active) {
+    background: #b6ccf4;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-button {
+    align-items: flex-start !important;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    width: 203px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-art {
+    height: 152px;
+    margin: 0;
+    width: 203px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-text {
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 203px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-label,
+  .documents-workspace.has-document-navigation .folder-tile-meta {
+    align-self: stretch;
+    margin: 0;
+    text-align: left;
+    width: 100%;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-label {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: normal;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-meta {
+    color: #7b7d84;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: normal;
+  }
+}
