@@ -5074,6 +5074,7 @@ footer a {
     cursor: pointer;
     display: block;
     font-family: var(--font-sans);
+    box-sizing: border-box;
     height: 100%;
     padding: 12px;
     position: relative;
@@ -5085,7 +5086,7 @@ footer a {
     display: block;
     font-size: 16px;
     font-weight: 700;
-    line-height: 16px;
+    line-height: 20px;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
