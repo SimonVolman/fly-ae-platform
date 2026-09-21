@@ -5730,3 +5730,95 @@ footer a {
     height: auto;
   }
 }
+
+
+/* Figma 698:3758 — My Documents folder interaction states. */
+.folder-context-menu {
+  background: #fff;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgb(48 47 59 / 10%);
+  display: flex;
+  flex-direction: column;
+  min-width: 125px;
+  overflow: hidden;
+  padding: 8px 0;
+  width: 125px;
+}
+
+.folder-context-menu button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: #090f1b;
+  display: flex;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  gap: 4px;
+  height: 32px;
+  line-height: normal;
+  min-height: 32px;
+  padding: 4px 12px;
+  width: 100%;
+}
+
+.folder-context-menu-icon {
+  display: block;
+  flex: 0 0 24px;
+  height: 24px;
+  width: 24px;
+}
+
+.folder-context-menu button:hover:not(:disabled),
+.folder-context-menu button:focus-visible {
+  background: #f5f7fa;
+}
+
+.folder-context-menu .danger-action {
+  color: #901d28;
+}
+
+ (min-width: 821px) {
+  .documents-workspace.has-document-navigation .document-folder-grid {
+    column-gap: 38px;
+    grid-template-columns: repeat(auto-fill, 227px);
+    row-gap: 24px;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-tile {
+    border-radius: 16px;
+    box-sizing: border-box;
+    padding: 12px;
+    width: 227px;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-tile:hover {
+    background: transparent;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-tile:focus-within,
+  .documents-workspace.has-document-navigation .document-folder-tile.folder-selected,
+  .documents-workspace.has-document-navigation .document-folder-tile:has(.document-folder-button:active) {
+    background: #b6ccf4;
+  }
+
+  .documents-workspace.has-document-navigation .document-folder-button {
+    align-items: center;
+    gap: 12px;
+    width: 203px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-art {
+    height: 152px;
+    margin: 0;
+    width: 203px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-tile-label {
+    line-height: normal;
+    text-align: center;
+    width: 203px;
+  }
+}

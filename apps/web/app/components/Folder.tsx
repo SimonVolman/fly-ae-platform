@@ -116,18 +116,21 @@ export function FolderActions({ folder, busy, onAction, className, ref, onOpenCh
               : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
             items[next]?.focus();
           }}>
-          <p className="folder-menu-title" role="presentation">{folder.label}</p>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
-            onClick={() => choose("copy")}><DocumentIcon name="link" /><span>Copy links</span></button>
+            onClick={() => choose("copy")}>
+            <Image className="folder-context-menu-icon" src="/folder-menu-link.svg" alt="" width={24} height={24} aria-hidden="true" />
+            <span>Copy link</span>
+          </button>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
-            onClick={() => choose("download")}><DocumentIcon name="download" /><span>Download files</span></button>
-          {available > 0 && <p className="folder-menu-hint" role="presentation">
-            Copied links include file names, with one link per approved document.
-          </p>}
-          {!available && <p className="folder-menu-hint" role="presentation">Links and downloads are available after approval.</p>}
-          <div className="folder-menu-separator" role="separator" />
+            onClick={() => choose("download")}>
+            <Image className="folder-context-menu-icon" src="/folder-menu-download.svg" alt="" width={24} height={24} aria-hidden="true" />
+            <span>Download</span>
+          </button>
           <button className="danger-action" type="button" role="menuitem" tabIndex={-1} disabled={busy}
-            onClick={() => choose("delete")}><DocumentIcon name="bin" /><span>Delete all documents</span></button>
+            onClick={() => choose("delete")}>
+            <Image className="folder-context-menu-icon" src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
+            <span>Delete all</span>
+          </button>
         </div>, document.body,
       )}
     </>
