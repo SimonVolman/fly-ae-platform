@@ -475,7 +475,11 @@ function HomeContent() {
     setDocumentsLoadError("");
     try {
       const result = await api<FlyDocument[]>("/documents", {}, currentSession.accessToken);
-      if (request === documentRequest.current) setDocuments(result);
+      if (request === documentRequest.current) {
+        setDocuments(result);
+        const aircraft = result.find((document) => document.category.code === "AIRCRAFT");
+        if (aircraft) setOpenCategoryId((current) => current ?? aircraft.category.id);
+      }
     } catch (requestError) {
       if (request === documentRequest.current) setDocumentsLoadError((requestError as Error).message);
     } finally {
