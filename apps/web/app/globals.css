@@ -4418,7 +4418,7 @@ footer a {
   border: 3px solid #fbfcff;
   border-radius: 20px;
   box-sizing: border-box;
-  padding: 38px 24px 19px;
+  padding: 19px 24px;
   position: relative;
   width: min(100%, 510px);
 }
@@ -5502,7 +5502,7 @@ footer a {
   margin: 0;
   max-width: none;
   overflow: hidden;
-  padding: 19px 24px;
+  padding: 38px 24px 19px;
   position: absolute;
   top: calc(50% + .5px);
   transform: translate(-50%, -50%);
