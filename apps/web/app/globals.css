@@ -5375,7 +5375,7 @@ footer a {
 
 
 @media (min-width: 821px) {
-  .documents-workspace.has-document-navigation .documents-navigation-row:has(.documents-navigation-label[aria-current="page"]) {
+  .documents-workspace.has-document-navigation .documents-navigation-row.is-ancestor {
     background-color: #e8f7f2 !important;
     border: 1px solid #56dd93 !important;
   }
@@ -5384,7 +5384,7 @@ footer a {
 
 @media (min-width: 821px) {
   .documents-workspace.has-document-navigation .folder-back-button {
-    display: none;
+    display: inline-flex;
   }
 }
 
@@ -5820,5 +5820,14 @@ footer a {
     line-height: normal;
     text-align: center;
     width: 203px;
+  }
+}
+
+
+ (min-width: 821px) {
+  .documents-workspace.has-document-navigation .folder-back-button > img {
+    display: block;
+    height: 24px;
+    width: 24px;
   }
 }

@@ -1419,10 +1419,10 @@ function HomeContent() {
             <div className="app-section-heading">
               <div className="documents-heading-main">
                 <div className="documents-title-row">
-                  {openCategory && <button className="folder-back-button" type="button"
-                    aria-label={`Back to ${openFolder ? openCategory.category.name : "My Documents"}`}
-                    onClick={() => navigateDocuments(openFolder ? openCategory.category.id : null, null)}>
-                    <DocumentIcon name="back" />
+                  {openFolder && <button className="folder-back-button" type="button"
+                    aria-label={`Back to `}
+                    onClick={() => navigateDocuments(openFolder.category.id, null)}>
+                    <Image src="/icons/arrow_back.svg" alt="" width={24} height={24} aria-hidden="true" />
                   </button>}
                   <h1 id="documents-title" ref={documentsHeading} tabIndex={-1}>
                     {openFolder ? folderLabel(openFolder) : openCategory?.category.name ?? "My Documents"}
