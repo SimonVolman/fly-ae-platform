@@ -42,7 +42,10 @@ export function DocumentsNavigation({
       </div>
       <ul id={`${id}-categories`} hidden={!rootOpen}>
         {categories.map((category, index) => {
-          const selected = active && category.category.id === categoryId;
+          const selected = active && (
+            category.category.id === categoryId ||
+            (!categoryId && category.category.code === "AIRCRAFT")
+          );
           const open = expanded.includes(category.category.id);
           const illustration = CATEGORY_ILLUSTRATIONS[category.category.code];
           return (
