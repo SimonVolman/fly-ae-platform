@@ -1246,7 +1246,7 @@ function HomeContent() {
   const currentFolderItem = openFolder ? folderItem(openFolder) : openCategory ? categoryItem(openCategory) : null;
   const folderNavigation = (
     <DocumentsNavigation categories={categoryFolders} active={showDocuments}
-      categoryId={openCategory?.category.id ?? null} folderKey={openFolder?.key ?? null}
+      categoryId={openCategoryId} folderKey={openFolder?.key ?? null}
       expanded={expandedDocumentCategories} onToggle={toggleDocumentCategory} onNavigate={navigateDocuments} />
   );
   const userDisplayName =

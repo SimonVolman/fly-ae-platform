@@ -5090,10 +5090,14 @@ footer a {
     display: block;
     font-size: 16px;
     font-weight: 700;
-    line-height: 20px;
-    max-width: 100%;
+    left: 12px;
+    line-height: 24px;
+    max-width: calc(100% - 24px);
     overflow: hidden;
+    position: absolute;
+    right: 12px;
     text-overflow: ellipsis;
+    top: 12px;
     white-space: nowrap;
   }
 
