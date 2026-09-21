@@ -202,8 +202,10 @@ export function FolderCard({ folder, busy, temporaryShareEnabled, onOpen, onActi
           onOpen(folder);
         }}>
         <Image className="folder-art" src="/folder.svg" alt="" width={204} height={152} draggable={false} />
-        <strong className="folder-tile-label">{folder.label}</strong>
-        <span className="folder-tile-meta">{documentCount(folder.documents.length)}</span>
+        <span className="folder-tile-text">
+          <strong className="folder-tile-label">{folder.label}</strong>
+          <span className="folder-tile-meta">{documentCount(folder.documents.length)}</span>
+        </span>
       </button>
       <FolderActions ref={actions} folder={folder} busy={busy} temporaryShareEnabled={temporaryShareEnabled} onAction={onAction} onOpenChange={setSelected} />
     </article>
