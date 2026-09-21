@@ -25,11 +25,11 @@ import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { Mission } from "./components/Mission";
 import { DocumentsNavigation } from "./components/DocumentsNavigation";
-import { DocumentIcon, FolderActions, FolderCard, type FolderAction } from "./components/Folder";
+import { FolderCard, type FolderAction } from "./components/Folder";
 import {
   categoryItem, documentCount, folderItem, folderLabel, groupDocumentsIntoFolders,
   groupFoldersIntoCategories, resolveFolderLocation, shareableDocuments, folderShareText,
-  type Category, type DocumentStatus, type FlyDocument, type FolderViewItem,
+  type Category, type FlyDocument, type FolderViewItem,
 } from "./document-library";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
@@ -395,20 +395,6 @@ async function api<T>(
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function statusLabel(status: DocumentStatus) {
-  const labels: Record<DocumentStatus, string> = {
-    CREATED: "Ready to upload",
-    UPLOADING: "Uploading",
-    PENDING: "Pending",
-    PROCESSING: "Processing",
-    APPROVED: "Approved",
-    REJECTED: "Rejected",
-    FAILED: "Failed",
-    DELETED: "Deleted",
-  };
-  return labels[status];
 }
 
 function isJustDocument(category?: Category) {
@@ -1019,6 +1005,29 @@ function HomeContent() {
     }
   }
 
+  async function downloadDocument(document: FlyDocument) {
+    if (!session || !document.shareUrl) return;
+    setDocumentNotice(null);
+    try {
+      const token = new URL(document.shareUrl, window.location.origin).pathname.split("/").filter(Boolean).at(-1);
+      if (!token) throw new Error("The document share link is invalid.");
+      const result = await api<{ downloadUrl: string }>(
+        "/shares/" + encodeURIComponent(decodeURIComponent(token)),
+        {},
+        session.accessToken,
+      );
+      const link = document.createElement("a");
+      link.href = result.downloadUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (requestError) {
+      setDocumentNotice({ error: true, message: (requestError as Error).message });
+    }
+  }
+
   async function openTemporaryShare(
     document: TemporaryShareDocument,
     accessToken: string,
@@ -1420,20 +1429,21 @@ function HomeContent() {
               <div className="documents-heading-main">
                 <div className="documents-title-row">
                   {openFolder && <button className="folder-back-button" type="button"
-                    aria-label={`Back to `}
+                    aria-label="Back to category"
                     onClick={() => navigateDocuments(openFolder.category.id, null)}>
-                    <Image src="/icons/arrow_back.svg" alt="" width={24} height={24} aria-hidden="true" />
+                    <Image src="/file-list-back.svg" alt="" width={24} height={24} aria-hidden="true" />
                   </button>}
                   <h1 id="documents-title" ref={documentsHeading} tabIndex={-1}>
-                    {openFolder ? folderLabel(openFolder) : openCategory?.category.name ?? "My Documents"}
+                    {openFolder ? <>
+                      <span className="folder-category-title">{openFolder.category.name}</span>
+                      <span className="folder-path-title"> / {folderLabel(openFolder)}</span>
+                    </> : openCategory?.category.name ?? "My Documents"}
                   </h1>
-                  {currentFolderItem && <FolderActions className="folder-heading-action" folder={currentFolderItem} busy={folderActionBusy}
-                    onAction={(action, folder) => void performFolderAction(action, folder)} />}
                 </div>
                 {session && <p className="documents-summary">{documentCount(currentFolderItem?.documents.length ?? documents.filter((document) => document.status !== "DELETED").length)}</p>}
               </div>
               <button className="button button-primary documents-upload-button" onClick={showUploadView}>
-                <Image src="/icons/plus.svg" alt="" width={24} height={24} aria-hidden="true" />
+                <Image src="/file-list-plus.svg" alt="" width={24} height={24} aria-hidden="true" />
                 <span>Upload document</span>
               </button>
             </div>
@@ -1460,25 +1470,31 @@ function HomeContent() {
                     <div className="document-table">
                       {openFolder.documents.map((document) => (
                         <article className="document-item" key={document.id}>
-                          <DocumentIcon name="file" />
-                          <div className="document-name">
-                            <strong title={document.filename}>{document.filename}</strong>
-                            <span>{formatBytes(document.sizeBytes)}</span>
+                          <div className="file-row-main">
+                            <Image className="file-row-icon" src="/file-list-doc.svg" alt="" width={21} height={24} aria-hidden="true" />
+                            <div className="document-name">
+                              <strong title={document.filename}>{document.filename}</strong>
+                              <span>{formatBytes(document.sizeBytes)}</span>
+                            </div>
                           </div>
-                          <span className={`document-status status-${document.status.toLowerCase()}`}>
-                            <i aria-hidden="true" />{statusLabel(document.status)}
-                          </span>
-                          <div className="document-actions">
-                            {document.shareUrl && <button onClick={() => void copyShareLink(document.shareUrl!)}>Copy link</button>}
-                            {TEMPORARY_SHARE_ENABLED && document.shareUrl && (
-                              <button
-                                disabled={temporaryShareBusyDocumentId === document.id}
-                                onClick={() => void openTemporaryShare(document, session.accessToken)}
-                              >
-                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & short link"}
-                              </button>
-                            )}
-                            <button className="danger-action" disabled={folderActionBusy} onClick={() => void deleteDocument(document.id)}>Delete</button>
+                          <div className="file-row-actions" aria-label="File actions">
+                            <button type="button" title="Copy link" aria-label="Copy link" disabled={!document.shareUrl}
+                              onClick={() => document.shareUrl && void copyShareLink(document.shareUrl)}>
+                              <Image src="/file-list-link.svg" alt="" width={24} height={24} aria-hidden="true" />
+                            </button>
+                            <button type="button" title="QR & short link" aria-label="QR & short link"
+                              disabled={!TEMPORARY_SHARE_ENABLED || !document.shareUrl || temporaryShareBusyDocumentId === document.id}
+                              onClick={() => document.shareUrl && void openTemporaryShare(document, session.accessToken)}>
+                              <span className="file-list-qr-icon" aria-hidden="true"><i /><i /><i /><b /><b /><b /><b /><b /></span>
+                            </button>
+                            <button type="button" title="Download file" aria-label="Download file" disabled={!document.shareUrl}
+                              onClick={() => void downloadDocument(document)}>
+                              <Image src="/file-list-download.svg" alt="" width={24} height={24} aria-hidden="true" />
+                            </button>
+                            <button className="danger-action" type="button" title="Delete file" aria-label="Delete file" disabled={folderActionBusy}
+                              onClick={() => void deleteDocument(document.id)}>
+                              <Image src="/file-list-delete.svg" alt="" width={24} height={24} aria-hidden="true" />
+                            </button>
                           </div>
                         </article>
                       ))}

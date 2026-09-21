@@ -5780,7 +5780,7 @@ footer a {
   color: #901d28;
 }
 
- (min-width: 821px) {
+@media (min-width: 821px) {
   .documents-workspace.has-document-navigation .document-folder-grid {
     column-gap: 38px;
     grid-template-columns: repeat(auto-fill, 227px);
@@ -5824,10 +5824,175 @@ footer a {
 }
 
 
- (min-width: 821px) {
+@media (min-width: 821px) {
   .documents-workspace.has-document-navigation .folder-back-button > img {
     display: block;
     height: 24px;
     width: 24px;
   }
+}
+
+
+/* Figma 717:1631 — files inside an open folder. */
+@media (min-width: 821px) {
+  .documents-workspace.has-document-navigation .app-section-heading {
+    margin-bottom: 48px;
+  }
+
+  .documents-workspace.has-document-navigation .documents-title-row {
+    gap: 12px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-back-button {
+    background: #fff;
+    border: 1px solid #14213d;
+    border-radius: 8px;
+    height: 40px;
+    width: 40px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-back-button img {
+    display: block;
+    height: 24px;
+    width: 24px;
+  }
+
+  .documents-workspace.has-document-navigation .folder-category-title {
+    color: #090f1b;
+  }
+
+  .documents-workspace.has-document-navigation .folder-path-title {
+    color: #7b7d84;
+    display: inline-block;
+    max-width: min(48vw, 560px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    white-space: nowrap;
+  }
+
+  .documents-workspace.has-document-navigation .folder-contents,
+  .documents-workspace.has-document-navigation .document-table {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .documents-workspace.has-document-navigation .document-item {
+    align-items: center;
+    border-bottom: 1px solid #c9cdd8;
+    display: flex;
+    gap: 24px;
+    min-height: 0;
+    padding: 12px 0;
+  }
+
+  .documents-workspace.has-document-navigation .document-item:last-child {
+    border-bottom: 1px solid #c9cdd8;
+  }
+
+  .documents-workspace.has-document-navigation .file-row-main {
+    align-items: center;
+    display: flex;
+    flex: 1 1 auto;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .documents-workspace.has-document-navigation .file-row-icon {
+    display: block;
+    flex: 0 0 auto;
+    height: 24px;
+    width: 21px;
+  }
+
+  .documents-workspace.has-document-navigation .document-name {
+    gap: 2px;
+  }
+
+  .documents-workspace.has-document-navigation .document-name strong {
+    color: #090f1b;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: normal;
+  }
+
+  .documents-workspace.has-document-navigation .document-name span {
+    color: #a7aab3;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: normal;
+  }
+
+  .documents-workspace.has-document-navigation .file-row-actions {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .documents-workspace.has-document-navigation .file-row-actions button {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: #14213d;
+    cursor: pointer;
+    display: inline-flex;
+    height: 24px;
+    justify-content: center;
+    padding: 0;
+    width: 24px;
+  }
+
+  .documents-workspace.has-document-navigation .file-row-actions button img {
+    display: block;
+    height: 24px;
+    width: 24px;
+  }
+
+  .documents-workspace.has-document-navigation .file-row-actions button:disabled {
+    cursor: not-allowed;
+    opacity: .35;
+  }
+
+  .documents-workspace.has-document-navigation .file-row-actions button:focus-visible {
+    outline: 2px solid #56dd93;
+    outline-offset: 2px;
+  }
+
+  .file-list-qr-icon {
+    display: block;
+    height: 24px;
+    position: relative;
+    width: 24px;
+  }
+
+  .file-list-qr-icon i {
+    border: 2px solid #14213d;
+    height: 8px;
+    position: absolute;
+    width: 8px;
+  }
+
+  .file-list-qr-icon i:nth-child(1) { left: 3px; top: 3px; }
+  .file-list-qr-icon i:nth-child(2) { left: 13px; top: 3px; }
+  .file-list-qr-icon i:nth-child(3) { left: 3px; top: 13px; }
+
+  .file-list-qr-icon b {
+    background: #14213d;
+    height: 3px;
+    position: absolute;
+    width: 3px;
+  }
+
+  .file-list-qr-icon b:nth-of-type(1) { left: 13px; top: 18px; }
+  .file-list-qr-icon b:nth-of-type(2) { left: 13px; top: 13px; }
+  .file-list-qr-icon b:nth-of-type(3) { height: 2px; left: 16px; top: 16px; width: 2px; }
+  .file-list-qr-icon b:nth-of-type(4) { left: 18px; top: 13px; }
+  .file-list-qr-icon b:nth-of-type(5) { height: 2px; left: 17px; top: 19px; width: 4px; }
 }
