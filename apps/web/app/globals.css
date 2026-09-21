@@ -1980,9 +1980,8 @@ footer a {
 
 .selected-upload-list {
   margin: 0 auto;
-  max-height: 256px;
   max-width: 610px;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .selected-check {
@@ -5417,5 +5416,17 @@ footer a {
     background: #14213d;
     border-color: #14213d;
     color: #fff;
+  }
+}
+
+@media (min-width: 1100px) {
+  .upload-panel .app-drop-zone.file-selected {
+    height: auto;
+    min-height: 232px;
+  }
+
+  .upload-panel .selected-upload-list {
+    max-height: none;
+    overflow: visible;
   }
 }
