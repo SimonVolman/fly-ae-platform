@@ -4749,7 +4749,7 @@ footer a {
   .mission-copy ul {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 6px;
     margin: 0;
     padding-left: 24px;
   }
