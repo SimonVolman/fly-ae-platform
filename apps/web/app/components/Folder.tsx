@@ -144,7 +144,7 @@ export function FolderActions({ folder, busy, onAction, ref, onOpenChange }: Act
   );
 }
 
-export function FolderCard({ folder, busy, onOpen, onAction }: Omit<ActionsProps, "ref" | "onOpenChange"> & {
+export function FolderCard({ folder, busy, temporaryShareEnabled, onOpen, onAction }: Omit<ActionsProps, "ref" | "onOpenChange"> & {
   onOpen: (folder: FolderViewItem) => void;
 }) {
   const actions = useRef<ActionsHandle>(null);
