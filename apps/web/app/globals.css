@@ -5196,8 +5196,10 @@ footer a {
   }
 
   .documents-workspace.has-document-navigation .document-folder-grid {
-    gap: 24px;
+    column-gap: 24px;
     grid-template-columns: repeat(auto-fill, 203.5px);
+    justify-content: space-between;
+    row-gap: 24px;
   }
 
   .documents-workspace.has-document-navigation .document-folder-tile {
@@ -5210,14 +5212,15 @@ footer a {
   }
 
   .documents-workspace.has-document-navigation .document-folder-button {
-    display: grid;
-    gap: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
     padding: 0;
   }
 
   .documents-workspace.has-document-navigation .folder-art {
     height: 152px;
-    margin: 0;
+    margin: 0 0 12px;
     width: 203.5px;
   }
 
@@ -5225,6 +5228,7 @@ footer a {
     font-size: 18px;
     font-weight: 600;
     line-height: normal;
+    margin: 0 0 2px;
   }
 
   .documents-workspace.has-document-navigation .folder-tile-meta {
