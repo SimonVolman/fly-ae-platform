@@ -5909,7 +5909,19 @@ footer a {
   }
 
   .documents-workspace.has-document-navigation .document-name {
-    gap: 2px;
+    align-items: baseline;
+    flex-direction: row;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .documents-workspace.has-document-navigation .document-name strong {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .documents-workspace.has-document-navigation .document-name span {
+    flex: 0 0 auto;
   }
 
   .documents-workspace.has-document-navigation .document-name strong {
