@@ -1781,7 +1781,7 @@ function HomeContent() {
                         key={`${file.name}:${file.size}:${file.lastModified}`}
                       >
                         <Image className="selected-check" src="/check-circle.svg" alt="" width={30} height={30} aria-hidden="true" />
-                        <Image className="selected-file-icon" src="/file-icon.svg" alt="" width={24} height={24} aria-hidden="true" />
+                        <Image className="selected-file-icon" src="/doc.svg" alt="" width={24} height={24} aria-hidden="true" />
                         <div>
                           <strong>{file.name}</strong>
                           <small>{formatBytes(file.size)}</small>
