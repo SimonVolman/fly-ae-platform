@@ -8,11 +8,12 @@ import {
 import { createPortal } from "react-dom";
 import { documentCount, shareableDocuments, type FolderViewItem } from "../document-library";
 
-export type FolderAction = "copy" | "download" | "delete";
+export type FolderAction = "copy" | "qr" | "download" | "delete";
 type ActionsHandle = { openAt: (x: number, y: number, origin: HTMLElement) => void };
 type ActionsProps = {
   folder: FolderViewItem;
   busy: boolean;
+  temporaryShareEnabled: boolean;
   onAction: (action: FolderAction, folder: FolderViewItem) => void;
   className?: string;
   ref?: Ref<ActionsHandle>;
@@ -121,6 +122,13 @@ export function FolderActions({ folder, busy, onAction, className, ref, onOpenCh
             <Image className="folder-context-menu-icon" src="/folder-menu-link.svg" alt="" width={24} height={24} aria-hidden="true" />
             <span>Copy link</span>
           </button>
+          <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available || !temporaryShareEnabled}
+            onClick={() => choose("qr")}>
+            <svg className="folder-context-menu-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 4h6v6H4V4Zm2 2v2h2V6H6Zm8-2h6v6h-6V4Zm2 2v2h2V6h-2ZM4 14h6v6H4v-6Zm2 2v2h2v-2H6Zm8-2h2v2h-2v-2Zm4 0h2v4h-2v-4Zm-4 4h4v2h-4v-2Z" fill="currentColor" />
+            </svg>
+            <span>QR & short link</span>
+          </button>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
             onClick={() => choose("download")}>
             <Image className="folder-context-menu-icon" src="/folder-menu-download.svg" alt="" width={24} height={24} aria-hidden="true" />
@@ -200,7 +208,7 @@ export function FolderCard({ folder, busy, onOpen, onAction }: Omit<ActionsProps
         <strong className="folder-tile-label">{folder.label}</strong>
         <span className="folder-tile-meta">{documentCount(folder.documents.length)}</span>
       </button>
-      <FolderActions ref={actions} folder={folder} busy={busy} onAction={onAction} onOpenChange={setSelected} />
+      <FolderActions ref={actions} folder={folder} busy={busy} temporaryShareEnabled={temporaryShareEnabled} onAction={onAction} onOpenChange={setSelected} />
     </article>
   );
 }

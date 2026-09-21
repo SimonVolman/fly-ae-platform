@@ -1102,6 +1102,9 @@ function HomeContent() {
           error: false,
           message: `Copied ${available.length} labeled document ${available.length === 1 ? "link" : "links"} from “${folder.label}”.`,
         });
+      } else if (action === "qr") {
+        if (!available.length) throw new Error("No approved share links are available yet.");
+        await openTemporaryShare(available[0], session.accessToken);
       } else if (action === "download") {
         if (!available.length) throw new Error("No approved documents are available to download yet.");
         const downloads = await Promise.all(available.map(async (document) => {
@@ -1512,7 +1515,7 @@ function HomeContent() {
                   </section>
                 ) : visibleFolderItems.length ? (
                   <div className="document-folder-grid">
-                    {visibleFolderItems.map((folder) => <FolderCard key={folder.key} folder={folder} busy={folderActionBusy}
+                    {visibleFolderItems.map((folder) => <FolderCard key={folder.key} folder={folder} busy={folderActionBusy} temporaryShareEnabled={TEMPORARY_SHARE_ENABLED}
                       onOpen={(item) => navigateDocuments(item.categoryId, item.folderKey)}
                       onAction={(action, item) => void performFolderAction(action, item)} />)}
                   </div>
