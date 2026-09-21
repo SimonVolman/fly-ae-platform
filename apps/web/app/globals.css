@@ -5388,3 +5388,9 @@ footer a {
     display: none;
   }
 }
+
+@media (min-width: 1100px) {
+  .upload-panel .card-heading p.upload-aviation-copy {
+    margin-top: 4px;
+  }
+}
