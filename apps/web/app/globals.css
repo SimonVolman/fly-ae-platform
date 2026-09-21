@@ -5795,6 +5795,7 @@ footer a {
     background: transparent;
   }
 
+  .documents-workspace.has-document-navigation .document-folder-tile:hover,
   .documents-workspace.has-document-navigation .document-folder-tile:focus-within,
   .documents-workspace.has-document-navigation .document-folder-tile.folder-selected,
   .documents-workspace.has-document-navigation .document-folder-tile:has(.document-folder-button:active) {
@@ -6208,6 +6209,7 @@ footer a {
     width: 227px;
   }
 
+  .documents-workspace.has-document-navigation .document-folder-tile:hover,
   .documents-workspace.has-document-navigation .document-folder-tile:focus-within,
   .documents-workspace.has-document-navigation .document-folder-tile.folder-selected,
   .documents-workspace.has-document-navigation .document-folder-tile:has(.document-folder-button:active) {
