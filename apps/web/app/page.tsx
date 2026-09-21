@@ -1993,7 +1993,7 @@ function HomeContent() {
         const remainingTime = `${Math.floor(secondsRemaining / 60)}:${String(
           secondsRemaining % 60,
         ).padStart(2, "0")}`;
-        return (
+        const shortCode = temporaryShare.shortUrl.split("/").at(-1) || temporaryShare.shortUrl;        return (
           <div
             className="overlay"
             role="presentation"
@@ -2020,25 +2020,35 @@ function HomeContent() {
                 <div className="temporary-share-qr" aria-label="QR code for temporary share link">
                   <QRCodeSVG
                     value={temporaryShare.shortUrl}
-                    size={220}
+                    size={162}
                     level="M"
-                    marginSize={2}
+                    marginSize={0}
                     title={`Open ${temporaryShare.filename}`}
                   />
                 </div>
+                <div className="temporary-share-code">
+                  <strong>{shortCode}</strong>
+                  <div>
+                    <b>Code</b>
+                    <span>{expired ? "expired" : `expire on ${remainingTime}`}</span>
+                  </div>
+                </div>
                 <div className="temporary-share-details">
-                  <div className="short-share-label">
-                    <strong>Short link</strong>
-                    <span>{expired ? "expired" : `expires in ${remainingTime}`}</span>
-                  </div>
-                  <div className="short-share-url">
-                    <code>{temporaryShare.shortUrl}</code>
-                  </div>
                   <p>
-                    Anyone with this short link can download the file until it
-                    expires.
+                    To use the code, enter <b>fly.ae/<a href={temporaryShare.shortUrl} target="_blank" rel="noreferrer">your code</a></b> into your browser&apos;s address bar or copy the link along with the code in the field and send it.
                   </p>
-                  {expired ? (
+                  <div className="short-share-url">
+                    <code><span>fly.ae/</span>{shortCode}</code>
+                    <button
+                      type="button"
+                      aria-label="Copy short link"
+                      disabled={expired}
+                      onClick={() => void copyShareLink(temporaryShare.shortUrl, "Short link copied")}
+                    >
+                      <Image src="/copy.svg" alt="" width={24} height={24} />
+                    </button>
+                  </div>
+                  {expired && (
                     <button
                       className="button short-share-action"
                       type="button"
@@ -2051,16 +2061,6 @@ function HomeContent() {
                       {temporaryShareBusyDocumentId === temporaryShare.documentId
                         ? "Creating…"
                         : "Create new short link"}
-                    </button>
-                  ) : (
-                    <button
-                      className="button short-share-action"
-                      type="button"
-                      onClick={() =>
-                        void copyShareLink(temporaryShare.shortUrl, "Short link copied")
-                      }
-                    >
-                      Copy short link
                     </button>
                   )}
                 </div>
