@@ -32,6 +32,9 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
 function localStorageProxyUrl(signedUrl: string) {
+  if (API_URL.startsWith("/")) {
+    return "/__s3_proxy?url=" + encodeURIComponent(signedUrl);
+  }
   try {
     const apiUrl = new URL(API_URL);
     const usesLocalApi = apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1";
@@ -42,6 +45,7 @@ function localStorageProxyUrl(signedUrl: string) {
     return signedUrl;
   }
 }
+
 const DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
 const configuredAuthenticatedMaxFileSize = Number(
   process.env.NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES,
@@ -120,6 +124,22 @@ const CATEGORY_CARD_SELECTED_IMAGES: Record<string, string> = {
   ENGINE: "/category-engine-active.svg",
   LANDING_GEAR: "/category-landing-gear-active.svg",
   JUST_DOCUMENT: "/category-just-document-active.svg",
+};
+
+const MOBILE_CATEGORY_CARD_IMAGES: Record<string, string> = {
+  AIRCRAFT: "/mobile-category-aircraft.svg",
+  APU: "/mobile-category-apu.svg",
+  ENGINE: "/mobile-category-engine.svg",
+  LANDING_GEAR: "/mobile-category-landing-gear.svg",
+  JUST_DOCUMENT: "/mobile-category-just-document.svg",
+};
+
+const MOBILE_CATEGORY_CARD_SELECTED_IMAGES: Record<string, string> = {
+  AIRCRAFT: "/mobile-category-aircraft-active.svg",
+  APU: "/mobile-category-apu-active.svg",
+  ENGINE: "/mobile-category-engine-active.svg",
+  LANDING_GEAR: "/mobile-category-landing-gear-active.svg",
+  JUST_DOCUMENT: "/mobile-category-just-document-active.svg",
 };
 
 const CATEGORY_CARD_CATALOG = [
@@ -387,6 +407,24 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function friendlyRequestMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 429) return error.message;
+    if (error.status >= 500) return fallback;
+    if (error.message && error.message !== "Request failed.") return error.message;
+  }
+
+  const message = error instanceof Error ? error.message : "";
+  if (!message || /request failed|failed to fetch|networkerror/i.test(message)) {
+    return fallback;
+  }
+  return message;
+}
+
+function fileKey(file: File) {
+  return file.name + ":" + file.size + ":" + file.lastModified;
+}
+
 function isJustDocument(category?: Category) {
   return category?.code === "JUST_DOCUMENT";
 }
@@ -415,6 +453,12 @@ function HomeContent() {
     useState<GuestDocumentClaim | null>(null);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
+  const [authEmailError, setAuthEmailError] = useState("");
+  const [authCodeError, setAuthCodeError] = useState("");
+  const [detailsError, setDetailsError] = useState("");
+  const [uploadFileErrors, setUploadFileErrors] = useState<Record<string, string>>({});
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const [completedUploadCount, setCompletedUploadCount] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
   const [authStep, setAuthStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -442,6 +486,16 @@ function HomeContent() {
   const fileInput = useRef<HTMLInputElement>(null);
   const stepTwo = useRef<HTMLElement>(null);
   const stepThree = useRef<HTMLElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
+  const otpInput = useRef<HTMLInputElement>(null);
+  const identifierInput = useRef<HTMLInputElement>(null);
+  const categorySelect = useRef<HTMLSelectElement>(null);
+  const authDialog = useRef<HTMLElement>(null);
+  const mobileNavigation = useRef<HTMLElement>(null);
+  const temporaryShareDialog = useRef<HTMLElement>(null);
+  const authTrigger = useRef<HTMLElement | null>(null);
+  const mobileMenuTrigger = useRef<HTMLElement | null>(null);
+  const temporaryShareTrigger = useRef<HTMLElement | null>(null);
 
   const loadDocuments = useCallback(async (currentSession: Session) => {
     if (folderActionInFlight.current) return;
@@ -452,11 +506,9 @@ function HomeContent() {
       const result = await api<FlyDocument[]>("/documents", {}, currentSession.accessToken);
       if (request === documentRequest.current) {
         setDocuments(result);
-        const aircraft = result.find((document) => document.category.code === "AIRCRAFT");
-        if (aircraft) setOpenCategoryId((current) => current ?? aircraft.category.id);
       }
     } catch (requestError) {
-      if (request === documentRequest.current) setDocumentsLoadError((requestError as Error).message);
+      if (request === documentRequest.current) setDocumentsLoadError(friendlyRequestMessage(requestError, "We couldn’t load your documents. Check your connection and try again."));
     } finally {
       if (request === documentRequest.current) setDocumentsLoading(false);
     }
@@ -472,7 +524,7 @@ function HomeContent() {
             : result[0]?.id || "",
         );
       })
-      .catch((requestError: Error) => setError(requestError.message));
+      .catch((requestError: Error) => setError(friendlyRequestMessage(requestError, "We couldn’t load document categories. Refresh the page and try again.")));
 
     const sessionTimer = window.setTimeout(() => {
       const stored = window.sessionStorage.getItem("flyae:session");
@@ -499,12 +551,45 @@ function HomeContent() {
     return () => window.clearInterval(timer);
   }, [temporaryShare]);
 
+  useEffect(() => {
+    const activeDialog = temporaryShare ? temporaryShareDialog.current : authOpen ? authDialog.current : mobileMenuOpen ? mobileNavigation.current : null;
+    if (!activeDialog) return;
+
+    const focusable = () => Array.from(activeDialog.querySelectorAll<HTMLElement>(
+      "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
+    ));
+    window.setTimeout(() => focusable()[0]?.focus(), 0);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (temporaryShare) closeTemporaryShare();
+        else if (authOpen) closeAuth();
+        else closeMobileMenu();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const elements = focusable();
+      if (!elements.length) return;
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [authOpen, mobileMenuOpen, temporaryShare]);
+
   function continueToUpload() {
-    setError("");
-    if (!categoryId || (!isJustDocument(selectedCategory) && !msn.trim())) {
-      setError(
-        `Select a document category and enter the ${identifierField(selectedCategory).label}.`,
-      );
+    setDetailsError("");
+    if (!categoryId) {
+      setDetailsError("Choose a document category to continue.");
+      window.setTimeout(() => categorySelect.current?.focus(), 0);
+      return;
+    }
+    if (!isJustDocument(selectedCategory) && !msn.trim()) {
+      const field = identifierField(selectedCategory).label;
+      setDetailsError("Enter the " + field + " to continue.");
+      window.setTimeout(() => identifierInput.current?.focus(), 0);
       return;
     }
     setUploadState(selectedFiles.length ? "ready" : "idle");
@@ -516,17 +601,26 @@ function HomeContent() {
 
   async function requestOtp(event: FormEvent) {
     event.preventDefault();
-    setAuthBusy(true);
     setAuthError("");
+    setAuthEmailError("");
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
+      setAuthEmailError("Enter a valid email address.");
+      window.setTimeout(() => emailInput.current?.focus(), 0);
+      return;
+    }
+    setAuthBusy(true);
     try {
       await api<void>("/auth/otp/request", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
+      setEmail(normalizedEmail);
       setOtpCode("");
       setAuthStep("code");
     } catch (requestError) {
-      setAuthError((requestError as Error).message);
+      setAuthEmailError(friendlyRequestMessage(requestError, "We couldn’t send the code. Check your connection and try again."));
+      window.setTimeout(() => emailInput.current?.focus(), 0);
     } finally {
       setAuthBusy(false);
     }
@@ -534,9 +628,18 @@ function HomeContent() {
 
   async function verifyOtp(event: FormEvent) {
     event.preventDefault();
-    if (!acceptedLegal) return;
-    setAuthBusy(true);
     setAuthError("");
+    setAuthCodeError("");
+    if (!acceptedLegal) {
+      setAuthCodeError("Accept the Terms and Privacy Policy to continue.");
+      return;
+    }
+    if (otpCode.length !== 6) {
+      setAuthCodeError("Enter the six-digit code from your email.");
+      window.setTimeout(() => otpInput.current?.focus(), 0);
+      return;
+    }
+    setAuthBusy(true);
     try {
       const nextSession = await api<Session>("/auth/otp/verify", {
         method: "POST",
@@ -569,7 +672,8 @@ function HomeContent() {
       );
       await loadDocuments(nextSession);
     } catch (requestError) {
-      setAuthError((requestError as Error).message);
+      setAuthCodeError(friendlyRequestMessage(requestError, "We couldn’t verify the code. Check it and try again."));
+      window.setTimeout(() => otpInput.current?.focus(), 0);
     } finally {
       setAuthBusy(false);
     }
@@ -700,6 +804,8 @@ function HomeContent() {
     }
     setError("");
     setUploadProgress(0);
+    setCompletedUploadCount(0);
+    setUploadFileErrors({});
     setUploadRecoveryNotice("");
     setUploadState("preparing");
     setWorkflowStep(2);
@@ -831,6 +937,9 @@ function HomeContent() {
         setUploadProgress(progress);
         setUploadRecoveryNotice("");
       });
+      uppy.on("upload-success", () => {
+        setCompletedUploadCount((current) => Math.min(current + 1, selectedFiles.length));
+      });
       selectedFiles.forEach((file, index) => {
         const document = createdUploads[index].document;
         uppy?.addFile({
@@ -910,8 +1019,10 @@ function HomeContent() {
           ),
         );
       }
+      const message = friendlyRequestMessage(requestError, "This file could not be uploaded. Check your connection and retry.");
       setUploadState("failed");
-      setError((requestError as Error).message);
+      setUploadRecoveryNotice("Your selected files are still in the queue. Retry when you are ready.");
+      setUploadFileErrors(Object.fromEntries(selectedFiles.map((file) => [fileKey(file), message])));
     } finally {
       uppy?.destroy();
     }
@@ -938,7 +1049,7 @@ function HomeContent() {
       setDocuments((current) => current.filter((document) => document.id !== documentId));
       setDocumentNotice({ error: false, message: "Document deleted." });
     } catch (requestError) {
-      setDocumentNotice({ error: true, message: (requestError as Error).message });
+      setDocumentNotice({ error: true, message: friendlyRequestMessage(requestError, "We couldn’t complete that action. Check your connection and try again.") });
     } finally {
       folderActionInFlight.current = false;
       setFolderActionBusy(false);
@@ -957,11 +1068,20 @@ function HomeContent() {
     }
   }
 
-  async function downloadDocument(document: FlyDocument) {
-    if (!session || !document.shareUrl) return;
+  async function copyDocumentLink(link: string) {
+    try {
+      await navigator.clipboard.writeText(link);
+      setDocumentNotice({ error: false, message: "Link copied." });
+    } catch {
+      setDocumentNotice({ error: true, message: "We couldn’t copy the link. Allow clipboard access and try again." });
+    }
+  }
+
+  async function downloadDocument(fileDocument: FlyDocument) {
+    if (!session || !fileDocument.shareUrl) return;
     setDocumentNotice(null);
     try {
-      const token = new URL(document.shareUrl, window.location.origin).pathname.split("/").filter(Boolean).at(-1);
+      const token = new URL(fileDocument.shareUrl, window.location.origin).pathname.split("/").filter(Boolean).at(-1);
       if (!token) throw new Error("The document share link is invalid.");
       const result = await api<{ downloadUrl: string }>(
         "/shares/" + encodeURIComponent(decodeURIComponent(token)),
@@ -976,7 +1096,7 @@ function HomeContent() {
       link.click();
       link.remove();
     } catch (requestError) {
-      setDocumentNotice({ error: true, message: (requestError as Error).message });
+      setDocumentNotice({ error: true, message: friendlyRequestMessage(requestError, "We couldn’t complete that action. Check your connection and try again.") });
     }
   }
 
@@ -984,6 +1104,7 @@ function HomeContent() {
     document: TemporaryShareDocument,
     accessToken: string,
   ) {
+    temporaryShareTrigger.current = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
     setTemporaryShareBusyDocumentId(document.id);
     setError("");
     setDocumentNotice(null);
@@ -1003,7 +1124,7 @@ function HomeContent() {
     } catch (requestError) {
       const message = (requestError as Error).message;
       if (showDocuments) setDocumentNotice({ error: true, message });
-      else setError(message);
+      else setError(friendlyRequestMessage(requestError, "We couldn’t create a share link. Check your connection and try again."));
     } finally {
       setTemporaryShareBusyDocumentId(null);
     }
@@ -1092,7 +1213,7 @@ function HomeContent() {
     } catch (requestError) {
       setDocumentNotice({ error: true, message: action === "copy"
         ? "The links could not be copied. Please allow clipboard access and try again."
-        : (requestError as Error).message });
+        : friendlyRequestMessage(requestError, "We couldn’t complete that action. Check your connection and try again.") });
     } finally {
       folderActionInFlight.current = false;
       setFolderActionBusy(false);
@@ -1121,27 +1242,37 @@ function HomeContent() {
   }
 
   function showDocumentsView() {
-    const aircraft = categories.find((category) => category.code === "AIRCRAFT");
     setShowDocuments(true);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
-    if (aircraft) {
-      setOpenCategoryId(aircraft.id);
-      setOpenFolderKey(null);
-      setExpandedDocumentCategories((current) => Array.from(new Set([...current, "root", aircraft.id])));
-    }
+    setOpenCategoryId(null);
+    setOpenFolderKey(null);
+    setExpandedDocumentCategories((current) => Array.from(new Set([...current, "root"])));
     if (session) void loadDocuments(session);
+  }
+
+  function closeMobileMenu() {
+    setMobileMenuOpen(false);
+    window.setTimeout(() => mobileMenuTrigger.current?.focus(), 0);
+  }
+
+  function closeTemporaryShare() {
+    setTemporaryShare(null);
+    window.setTimeout(() => temporaryShareTrigger.current?.focus(), 0);
   }
 
   function prepareAuthDialog() {
     setAuthStep("email");
     setAuthError("");
+    setAuthEmailError("");
+    setAuthCodeError("");
     setOtpCode("");
     setAcceptedLegal(false);
     setAuthOpen(true);
   }
 
   function openAuth() {
+    authTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const guestUpload = activeUploads.find((upload) =>
       upload.accessToken.startsWith("gst_"),
     );
@@ -1159,7 +1290,10 @@ function HomeContent() {
   function closeAuth() {
     setAuthOpen(false);
     setAuthError("");
+    setAuthEmailError("");
+    setAuthCodeError("");
     setPendingGuestClaim(null);
+    window.setTimeout(() => authTrigger.current?.focus(), 0);
   }
 
   function logOut() {
@@ -1282,6 +1416,7 @@ function HomeContent() {
           <button
             className="mobile-menu-button"
             onClick={() => {
+              mobileMenuTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
               setAccountMenuOpen(false);
               setMobileMenuOpen((open) => !open);
             }}
@@ -1297,37 +1432,46 @@ function HomeContent() {
         <div
           className="mobile-navigation-overlay"
           role="presentation"
-          onMouseDown={() => setMobileMenuOpen(false)}
+          onMouseDown={closeMobileMenu}
         >
           <aside
-            className="mobile-navigation"
+            ref={mobileNavigation}
+            className={`mobile-navigation ${session ? "is-authenticated" : "is-guest"}`}
             role="dialog"
             aria-modal="true"
             aria-label="Navigation"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="mobile-navigation-top">
-              <Brand />
-              <button
+              <Brand figmaTopbar />
+              <div className="mobile-navigation-actions">
+                {session && <span className="mobile-navigation-avatar" aria-hidden="true">{userInitials.slice(0, 2)}</span>}
+                <button
                 type="button"
                 className="mobile-navigation-close"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMobileMenu}
                 aria-label="Close navigation menu"
               >
-                ×
+                <Image src="/close.svg" alt="" width={24} height={24} aria-hidden="true" />
               </button>
+              </div>
             </div>
             <div className="mobile-product-navigation">
               <nav aria-label="Mobile product navigation">
                 <button type="button" className={!showDocuments ? "nav-active" : ""} onClick={showUploadView}>Upload</button>
-                {!session && <button type="button" className={showDocuments ? "nav-active" : ""} onClick={showDocumentsView}>My Documents</button>}
+                <button type="button" className={showDocuments ? "nav-active" : ""} onClick={showDocumentsView}>My Documents</button>
               </nav>
-              {session && folderNavigation}
             </div>
             {session ? (
               <div className="mobile-session">
-                <span>{userDisplayName}</span>
-                <button type="button" onClick={logOut}>Log out</button>
+                <div className="mobile-session-identity">
+                  <Image src="/mobile-menu-account.svg" alt="" width={24} height={24} aria-hidden="true" />
+                  <span>{userDisplayName}</span>
+                </div>
+                <button type="button" onClick={logOut}>
+                  <Image src="/mobile-menu-logout.svg" alt="" width={24} height={24} aria-hidden="true" />
+                  <span>Log out</span>
+                </button>
               </div>
             ) : (
               <button
@@ -1358,7 +1502,7 @@ function HomeContent() {
               <Link href="/terms" prefetch={false}>Terms and Conditions</Link>
             </nav>
           </aside>}
-          <section className="documents-view" aria-labelledby="documents-title" aria-busy={documentsLoading || folderActionBusy}>
+          <section className={`documents-view ${openFolder ? "is-folder-open" : openCategory ? "is-category-open" : "is-documents-root"}`} aria-labelledby="documents-title" aria-busy={documentsLoading || folderActionBusy}>
             <nav className="folder-breadcrumbs" aria-label="Folder path">
               <ol>
                 <li>{openCategory
@@ -1373,9 +1517,9 @@ function HomeContent() {
             <div className="app-section-heading">
               <div className="documents-heading-main">
                 <div className="documents-title-row">
-                  {openFolder && <button className="folder-back-button" type="button"
-                    aria-label="Back to category"
-                    onClick={() => navigateDocuments(openFolder.category.id, null)}>
+                  {openCategory && <button className="folder-back-button" type="button"
+                    aria-label={openFolder ? "Back to category" : "Back to My Documents"}
+                    onClick={() => navigateDocuments(openFolder ? openFolder.category.id : null, null)}>
                     <Image src="/file-list-back.svg" alt="" width={24} height={24} aria-hidden="true" />
                   </button>}
                   <h1 id="documents-title" ref={documentsHeading} tabIndex={-1}>
@@ -1392,6 +1536,11 @@ function HomeContent() {
                 <span>Upload document</span>
               </button>
             </div>
+            {session && !openCategory && <div className="mobile-documents-navigation">
+              <DocumentsNavigation categories={categoryFolders} active={showDocuments}
+                categoryId={openCategoryId} folderKey={openFolder?.key ?? null}
+                expanded={expandedDocumentCategories} onToggle={toggleDocumentCategory} onNavigate={navigateDocuments} monochrome />
+            </div>}
             {documentNotice && <div className={"documents-notice " + (documentNotice.error ? "is-error" : "is-success")}
               role={documentNotice.error ? "alert" : "status"}>
               <span className="documents-notice-mark" aria-hidden="true">{documentNotice.error ? "!" : "✓"}</span>
@@ -1434,13 +1583,13 @@ function HomeContent() {
                           </div>
                           <div className="file-row-actions" aria-label="File actions">
                             <button type="button" title="Copy link" aria-label="Copy link" disabled={!document.shareUrl}
-                              onClick={() => document.shareUrl && void copyShareLink(document.shareUrl)}>
+                              onClick={() => document.shareUrl && void copyDocumentLink(document.shareUrl)}>
                               <Image src="/file-list-link.svg" alt="" width={24} height={24} aria-hidden="true" />
                             </button>
-                            <button type="button" title="QR & short link" aria-label="QR & short link"
+                            <button className="file-action-qr" type="button" title="QR & short link" aria-label="QR & short link"
                               disabled={!TEMPORARY_SHARE_ENABLED || !document.shareUrl || temporaryShareBusyDocumentId === document.id}
                               onClick={() => document.shareUrl && void openTemporaryShare(document, session.accessToken)}>
-                              <span className="file-list-qr-icon" aria-hidden="true"><i /><i /><i /><b /><b /><b /><b /><b /></span>
+                              <Image src="/folder-menu-qr.svg" alt="" width={24} height={24} aria-hidden="true" />
                             </button>
                             <button type="button" title="Download file" aria-label="Download file" disabled={!document.shareUrl}
                               onClick={() => void downloadDocument(document)}>
@@ -1533,6 +1682,41 @@ function HomeContent() {
           </aside>
 
           <div className="workspace-main">
+            <section className="mobile-document-details" aria-labelledby="mobile-document-details-title">
+              <h2 id="mobile-document-details-title">Document details</h2>
+              <div className="mobile-category-list" role="list" aria-label="Category">
+                {CATEGORY_CARD_CATALOG.map((card) => {
+                  const category = categories.find((item) => item.code === card.code);
+                  const isSelected = category
+                    ? category.id === categoryId
+                    : card.code === "AIRCRAFT" && !categoryId;
+                  const imageSource = isSelected
+                    ? MOBILE_CATEGORY_CARD_SELECTED_IMAGES[card.code]
+                    : MOBILE_CATEGORY_CARD_IMAGES[card.code];
+
+                  if (!imageSource) return null;
+
+                  return (
+                    <button
+                      key={card.code}
+                      type="button"
+                      className={"mobile-category-card" + (isSelected ? " is-selected" : "")}
+                      aria-pressed={isSelected}
+                      disabled={!category}
+                      onClick={() => {
+                        if (!category) return;
+                        setCategoryId(category.id);
+                        if (isJustDocument(category)) setMsn("");
+                      }}
+                    >
+                      <Image src={imageSource} alt="" width={216} height={78} aria-hidden="true" />
+                      <span>{card.name}</span>
+                      {isSelected && <Image className="mobile-category-check" src="/circle-check.svg" alt="" width={24} height={24} aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
             <div className="workspace-intro">
               <p className="eyebrow">Secure document transfer</p>
               <h1 id="upload-title">Upload an aviation file</h1>
@@ -1608,7 +1792,9 @@ function HomeContent() {
                 <label className="field category-field">
                   <span>Category <i>*</i></span>
                   <select
+                    ref={categorySelect}
                     aria-label="Category"
+                    aria-invalid={Boolean(detailsError) && !categoryId}
                     value={categoryId}
                     disabled={categories.length === 0}
                     onChange={(event) => {
@@ -1641,6 +1827,9 @@ function HomeContent() {
                     <span>{identifierField(selectedCategory).label} <i>*</i></span>
                     <div className="msn-input-control">
                       <input
+                        ref={identifierInput}
+                        aria-invalid={Boolean(detailsError)}
+                        aria-describedby={detailsError ? "document-details-error" : undefined}
                         value={msn}
                         onChange={(event) => setMsn(event.target.value)}
                         placeholder={identifierField(selectedCategory).placeholder}
@@ -1662,6 +1851,7 @@ function HomeContent() {
                     </small>
                   </label>
                 )}
+                {detailsError && <p id="document-details-error" className="field-error" role="alert">{detailsError}</p>}
 
                 <button className="button button-primary continue-button" onClick={continueToUpload}>
                   Continue to file upload
@@ -1729,21 +1919,24 @@ function HomeContent() {
 
                 <div className="upload-drop-area">
                   <button
-                    className={`app-drop-zone ${selectedFiles.length ? "file-selected" : ""}`}
+                    className={"app-drop-zone " + (selectedFiles.length ? "file-selected " : "") + (isDraggingFiles ? "is-dragging" : "")}
                     disabled={uploadBusy}
                     onClick={() => fileInput.current?.click()}
+                    onDragEnter={(event) => { event.preventDefault(); setIsDraggingFiles(true); }}
                     onDragOver={(event) => event.preventDefault()}
-                    onDrop={dropFile}
+                    onDragLeave={(event) => { if (event.currentTarget === event.target) setIsDraggingFiles(false); }}
+                    onDrop={(event) => { setIsDraggingFiles(false); dropFile(event); }}
+                    aria-describedby="upload-dropzone-help"
                   >
                     <span className="upload-icon" aria-hidden="true">
                       <Image src="/upload-streamline.svg" alt="" width={24} height={24} />
                     </span>
                     <span>
-                      <strong>Choose files or drag &amp; drop them here</strong>
-                      <small>
+                      <strong>{isDraggingFiles ? "Drop files to add them" : "Choose files or drag & drop them here"}</strong>
+                      <small id="upload-dropzone-help">
                         {session
-                          ? `Maximum ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file`
-                          : "Maximum 100 MB per file"}
+                          ? "Supported: PDF, image, video, or archive · Maximum " + AUTHENTICATED_MAX_FILE_SIZE_LABEL + " per file"
+                          : "Supported: PDF, image, video, or archive · Maximum 100 MB per file"}
                       </small>
                     </span>
                   </button>
@@ -1761,6 +1954,7 @@ function HomeContent() {
                           <strong>{file.name}</strong>
                           <small>{formatBytes(file.size)}</small>
                         </div>
+                        {uploadFileErrors[fileKey(file)] && <p className="upload-file-error" role="alert">{uploadFileErrors[fileKey(file)]}</p>}
                         {!uploadBusy && (
                           <button
                             type="button"
@@ -1770,6 +1964,9 @@ function HomeContent() {
                           >
                             <Image src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
                           </button>
+                        )}
+                        {!uploadBusy && uploadFileErrors[fileKey(file)] && (
+                          <button type="button" className="upload-file-retry" onClick={() => void startUpload()} aria-label={"Retry " + file.name}>Retry</button>
                         )}
                       </div>
                     ))}
@@ -1843,7 +2040,7 @@ function HomeContent() {
                       <strong>
                         {uploadState === "preparing" && "Preparing secure upload"}
                         {uploadState === "uploading" &&
-                          `Uploading ${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"} · ${uploadProgress}%`}
+                          ("Uploading " + Math.min(completedUploadCount + 1, selectedFiles.length) + " of " + selectedFiles.length + " files · " + uploadProgress + "%")}
                         {uploadState === "processing" && "Verifying files"}
                       </strong>
                       <span>
@@ -1852,7 +2049,15 @@ function HomeContent() {
                           : "Files are sent directly to private object storage.")}
                       </span>
                     </div>
-                    <div className="progress-track">
+                    <div
+                      className="progress-track"
+                      role="progressbar"
+                      aria-label="Upload progress"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={uploadState === "processing" ? 100 : Math.round(uploadProgress)}
+                      aria-valuetext={uploadState === "preparing" ? "Preparing secure upload" : uploadState === "processing" ? "Verifying files" : "Uploading " + Math.min(completedUploadCount + 1, selectedFiles.length) + " of " + selectedFiles.length + " files"}
+                    >
                       <span
                         style={{
                           width:
@@ -1968,21 +2173,22 @@ function HomeContent() {
           <div
             className="overlay"
             role="presentation"
-            onMouseDown={() => setTemporaryShare(null)}
+            onMouseDown={closeTemporaryShare}
           >
             <section
+              ref={temporaryShareDialog}
               className="dialog temporary-share-dialog"
               role="dialog"
               aria-modal="true"
               aria-labelledby="temporary-share-title"
               onMouseDown={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
-                if (event.key === "Escape") setTemporaryShare(null);
+                if (event.key === "Escape") closeTemporaryShare();
               }}
             >
               <div className="dialog-top">
                 <h2 id="temporary-share-title">Share</h2>
-                <button className="close" onClick={() => setTemporaryShare(null)} aria-label="Close">
+                <button className="close" onClick={closeTemporaryShare} aria-label="Close">
                   <Image src="/close.svg" alt="" width={24} height={24} />
                 </button>
               </div>
@@ -2044,6 +2250,7 @@ function HomeContent() {
       {authOpen && (
         <div className="overlay" role="presentation" onMouseDown={closeAuth}>
           <section
+            ref={authDialog}
             className="dialog login-dialog"
             role="dialog"
             aria-modal="true"
@@ -2067,7 +2274,7 @@ function HomeContent() {
             )}
 
             {authStep === "email" ? (
-              <form onSubmit={requestOtp}>
+              <form onSubmit={requestOtp} noValidate>
                 <h2 id="auth-title">
                   {pendingGuestClaim ? "Save to My Documents" : "Log in"}
                 </h2>
@@ -2079,23 +2286,27 @@ function HomeContent() {
                 <label>
                   Email
                   <input
+                    ref={emailInput}
                     autoFocus
                     type="email"
                     required
+                    aria-invalid={Boolean(authEmailError)}
+                    aria-describedby={authEmailError ? "auth-email-error" : undefined}
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="name@company.com"
                   />
                 </label>
+                {authEmailError && <p id="auth-email-error" className="field-error" role="alert">{authEmailError}</p>}
                 <button
                   className="primary-button"
-                  disabled={authBusy || !email.trim()}
+                  disabled={authBusy}
                 >
                   {authBusy ? "Sending…" : "Get one-time code"}
                 </button>
               </form>
             ) : (
-              <form onSubmit={verifyOtp}>
+              <form onSubmit={verifyOtp} noValidate>
                 <button
                   type="button"
                   className="back-link"
@@ -2114,8 +2325,11 @@ function HomeContent() {
                 <label>
                   One-time code
                   <input
+                    ref={otpInput}
                     autoFocus
                     className="otp-input"
+                    aria-invalid={Boolean(authCodeError)}
+                    aria-describedby={authCodeError ? "auth-code-error" : undefined}
                     inputMode="numeric"
                     pattern="[0-9]{6}"
                     maxLength={6}
@@ -2145,9 +2359,10 @@ function HomeContent() {
                     .
                   </span>
                 </label>
+{authCodeError && <p id="auth-code-error" className="field-error" role="alert">{authCodeError}</p>}
                 <button
                   className="primary-button"
-                  disabled={authBusy || otpCode.length !== 6 || !acceptedLegal}
+                  disabled={authBusy}
                 >
                   {authBusy ? "Verifying…" : "Verify and continue"}
                 </button>

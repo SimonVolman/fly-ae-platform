@@ -12,6 +12,7 @@ type Props = {
   expanded: string[];
   onToggle: (id: string) => void;
   onNavigate: (categoryId: string | null, folderKey: string | null) => void;
+  monochrome?: boolean;
 };
 
 const CATEGORY_ILLUSTRATIONS: Record<string, { src: string; activeSrc: string; width: number; height: number }> = {
@@ -22,8 +23,16 @@ const CATEGORY_ILLUSTRATIONS: Record<string, { src: string; activeSrc: string; w
   JUST_DOCUMENT: { src: "/documents-category-just-document.svg", activeSrc: "/documents-category-just-document-active.svg", width: 67, height: 83 },
 };
 
+const MOBILE_CATEGORY_ILLUSTRATIONS: Record<string, { src: string; width: number; height: number }> = {
+  AIRCRAFT: { src: "/mobile-documents-aircraft.svg", width: 216, height: 80 },
+  APU: { src: "/mobile-documents-apu.svg", width: 216, height: 80 },
+  ENGINE: { src: "/mobile-documents-engine.svg", width: 216, height: 80 },
+  LANDING_GEAR: { src: "/mobile-documents-landing-gear.svg", width: 216, height: 80 },
+  JUST_DOCUMENT: { src: "/mobile-documents-just-document.svg", width: 216, height: 80 },
+};
+
 export function DocumentsNavigation({
-  categories, active, categoryId, folderKey, expanded, onToggle, onNavigate,
+  categories, active, categoryId, folderKey, expanded, onToggle, onNavigate, monochrome = false,
 }: Props) {
   const id = useId();
   const rootOpen = expanded.includes("root");
@@ -48,19 +57,21 @@ export function DocumentsNavigation({
           );
           const open = expanded.includes(category.category.id);
           const illustration = CATEGORY_ILLUSTRATIONS[category.category.code];
+          const mobileIllustration = MOBILE_CATEGORY_ILLUSTRATIONS[category.category.code];
+          const displayIllustration = monochrome && mobileIllustration ? mobileIllustration : illustration;
           return (
             <li key={category.key}>
               <div
                 className={`documents-navigation-row ${selected ? "is-ancestor" : ""} ${selected && !folderKey ? "is-current" : ""}`}
                 data-category-code={category.category.code}
               >
-                {illustration && (
+                {displayIllustration && (
                   <Image
                     className="documents-category-illustration"
-                    src={selected ? illustration.activeSrc : illustration.src}
+                    src={monochrome ? displayIllustration.src : selected ? illustration.activeSrc : illustration.src}
                     alt=""
-                    width={illustration.width}
-                    height={illustration.height}
+                    width={displayIllustration.width}
+                    height={displayIllustration.height}
                     aria-hidden="true"
                   />
                 )}
