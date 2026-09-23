@@ -1,5 +1,7 @@
 import vinext from "vinext";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+import { type IncomingMessage, type ServerResponse } from "node:http";
+import { request as httpsRequest } from "node:https";
 import hostingConfig from "../../.openai/hosting.json";
 import { sites } from "./sites-vite-plugin";
 
@@ -10,6 +12,44 @@ const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const remoteApiProxyTarget = process.env.FLY_REMOTE_API_PROXY;
+
+const localSignedStorageProxy: Plugin = {
+  name: "local-signed-storage-proxy",
+  configureServer(server) {
+    server.middlewares.use("/__s3_proxy", (request: IncomingMessage, response: ServerResponse) => {
+      const signedUrl = new URL(request.url ?? "", "http://localhost").searchParams.get("url");
+      if (!signedUrl) {
+        response.writeHead(400).end("Missing signed upload URL.");
+        return;
+      }
+
+      let target: URL;
+      try {
+        target = new URL(signedUrl);
+      } catch {
+        response.writeHead(400).end("Invalid signed upload URL.");
+        return;
+      }
+      if (target.protocol !== "https:" || !target.hostname.endsWith(".amazonaws.com")) {
+        response.writeHead(400).end("Unsupported signed upload host.");
+        return;
+      }
+
+      const headers = { ...request.headers };
+      delete headers.connection;
+      delete headers.host;
+      delete headers.origin;
+      delete headers.referer;
+      const requestToStorage = httpsRequest(target, { headers, method: request.method }, (storageResponse) => {
+        response.writeHead(storageResponse.statusCode ?? 502, storageResponse.headers);
+        storageResponse.pipe(response);
+      });
+      requestToStorage.once("error", () => response.writeHead(502).end("Storage upload failed."));
+      request.pipe(requestToStorage);
+    });
+  },
+};
 
 const localBindingConfig = {
   main: "./worker/index.ts",
@@ -44,10 +84,21 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
-    server: isCodexSeatbeltSandbox
-      ? { watch: { useFsEvents: false, usePolling: true } }
-      : undefined,
+    server: {
+      ...(isCodexSeatbeltSandbox ? { watch: { useFsEvents: false, usePolling: true } } : {}),
+      ...(remoteApiProxyTarget ? {
+        proxy: {
+          "/api/v1": {
+            changeOrigin: true,
+            headers: { origin: remoteApiProxyTarget },
+            secure: true,
+            target: remoteApiProxyTarget,
+          },
+        },
+      } : {}),
+    },
     plugins: [
+      ...(remoteApiProxyTarget ? [localSignedStorageProxy] : []),
       vinext(),
       sites(),
       cloudflare({
