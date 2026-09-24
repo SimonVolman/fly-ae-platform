@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { apiRequestError, type ApiProblem } from "./api-error";
+import { ApiRequestError, apiRequestError, type ApiProblem } from "./api-error";
 import {
   logoutBrowserSession,
   refreshBrowserSession,
