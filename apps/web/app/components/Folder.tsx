@@ -116,17 +116,21 @@ export function FolderActions({ folder, busy, temporaryShareEnabled, onAction, r
               : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
             items[next]?.focus();
           }}>
+          {!available && <p id={`${id}-availability`} className="visually-hidden">Sharing actions are available after approval.</p>}
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
+            aria-describedby={!available ? `${id}-availability` : undefined}
             onClick={() => choose("copy")}>
             <Image className="folder-context-menu-icon" src="/folder-menu-link.svg" alt="" width={24} height={24} aria-hidden="true" />
             <span>Copy link</span>
           </button>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available || !temporaryShareEnabled}
+            aria-describedby={!available ? `${id}-availability` : undefined}
             onClick={() => choose("qr")}>
             <Image className="folder-context-menu-icon" src="/folder-menu-qr.svg" alt="" width={24} height={24} aria-hidden="true" />
             <span>QR & short link</span>
           </button>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
+            aria-describedby={!available ? `${id}-availability` : undefined}
             onClick={() => choose("download")}>
             <Image className="folder-context-menu-icon" src="/folder-menu-download.svg" alt="" width={24} height={24} aria-hidden="true" />
             <span>Download</span>

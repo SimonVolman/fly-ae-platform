@@ -140,7 +140,7 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /createMultipartUpload/);
   assert.match(page, /type="file"\s*\n\s*multiple/);
   assert.match(page, /maxNumberOfFiles: selectedFiles\.length/);
-  assert.match(page, /Upload \$\{selectedFiles\.length\} files securely/);
+  assert.match(page, /"Upload securely"/);
   assert.match(page, /auth\/otp\/verify/);
   assert.doesNotMatch(page, /auth\/telegram|Continue with Telegram|Open Telegram bot/);
   assert.match(

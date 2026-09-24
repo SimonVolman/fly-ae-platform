@@ -138,7 +138,7 @@ test("sidebar, cards, breadcrumbs and back button navigate the same folder hiera
   assert.equal(heading(), "Aircraft");
   assert.equal(button("Collapse Aircraft").getAttribute("aria-expanded"), "true");
   await click(button("Open 123, 2 documents"));
-  assert.equal(heading(), "123");
+  assert.equal(heading(), "Aircraft / 123");
   assert.equal(container.querySelectorAll(".document-item").length, 2);
   assert.equal(container.querySelector('.documents-sidebar [aria-current="page"]').textContent.replace(/\s/g, ""), "1232");
   assert.equal(container.querySelector('.folder-breadcrumbs [aria-current="page"]').textContent, "123");
@@ -148,19 +148,17 @@ test("sidebar, cards, breadcrumbs and back button navigate the same folder hiera
   assert.equal(heading(), "My Documents");
   await click(button("Expand Engine"));
   await click(container.querySelectorAll(".documents-navigation-folder")[1]);
-  assert.equal(heading(), "123");
+  assert.equal(heading(), "Engine / 123");
   assert.match(container.querySelector(".document-table").textContent, /engine.pdf/);
   assert.doesNotMatch(container.querySelector(".document-table").textContent, /a.pdf/);
 });
 
-test("mobile navigation exposes nested categories and closes after choosing a folder", async () => {
+test("mobile document navigation exposes nested categories and chooses a folder", async () => {
   await openLibrary();
-  await click(button("Open navigation menu"));
-  const navigation = container.querySelector(".mobile-navigation");
+  const navigation = container.querySelector(".mobile-documents-navigation");
   await click(button("Expand Just Document", navigation));
   await click(button("General documents1", navigation));
-  assert.equal(heading(), "General documents");
-  assert.equal(container.querySelector(".mobile-navigation"), null);
+  assert.equal(heading(), "Just Document / General documents");
   assert.match(container.querySelector(".document-table").textContent, /general.pdf/);
 });
 
@@ -169,18 +167,18 @@ test("folder menu supports keyboard navigation, Escape focus return and outside 
   const trigger = button("Actions for Aircraft");
   await key(trigger, "ArrowDown");
   assert.ok(menu());
-  assert.equal(document.activeElement.textContent, "Copy links");
+  assert.equal(document.activeElement.textContent, "Copy link");
   await key(document.activeElement, "ArrowDown");
-  assert.equal(document.activeElement.textContent, "Download files");
+  assert.equal(document.activeElement.textContent, "QR & short link");
   await key(document.activeElement, "End");
-  assert.equal(document.activeElement.textContent, "Delete all documents");
+  assert.equal(document.activeElement.textContent, "Delete all");
   await key(document.activeElement, "Home");
-  assert.equal(document.activeElement.textContent, "Copy links");
+  assert.equal(document.activeElement.textContent, "Copy link");
   await key(document.activeElement, "Escape");
   assert.equal(menu(), null);
   assert.equal(document.activeElement, trigger);
   await key(trigger, "ArrowUp");
-  assert.equal(document.activeElement.textContent, "Delete all documents");
+  assert.equal(document.activeElement.textContent, "Delete all");
   await key(document.activeElement, "Escape");
   await click(trigger);
   await pointer(document.getElementById("outside"), "pointerdown");
@@ -213,14 +211,13 @@ test("copy and download include approved documents only, and report success", as
   records.push({ ...makeDocument("pending", aircraft, "123", "PROCESSING"), shareUrl: "https://fly.ae/s/pending" });
   await openLibrary();
   await click(button("Actions for Aircraft"));
-  assert.match(menu().textContent, /links include file names, with one link per approved document/);
-  await click(button("Copy links", menu()));
+  await click(button("Copy link", menu()));
   assert.deepEqual(copied, [
     "Aircraft — 2 documents\n\n1. a.pdf\nhttps://fly.ae/s/a\n\n2. b.pdf\nhttps://fly.ae/s/b",
   ]);
   assert.match(container.querySelector('[role="status"]').textContent, /Copied 2 labeled document links from “Aircraft”/);
   await click(button("Actions for Aircraft"));
-  await click(button("Download files", menu()));
+  await click(button("Download", menu()));
   assert.deepEqual(downloads, ["https://download.example.com/a.pdf", "https://download.example.com/b.pdf"]);
   assert.deepEqual(requests.filter(({ path }) => path.startsWith("/shares/")).map(({ authorization }) => authorization), ["Bearer test-only-token", "Bearer test-only-token"]);
 });
@@ -241,7 +238,7 @@ test("approved document creates a short link and local QR without exposing the s
     [{ path: "/documents/a/temporary-share", method: "POST", authorization: "Bearer test-only-token" }],
   );
 
-  assert.match(dialog.textContent, /Short link/);
+  assert.match(dialog.textContent, /fly\.ae\/7K9D-P4QX/);
   assert.doesNotMatch(dialog.textContent, /Secret code/);
   await click(button("Copy short link", dialog));
   assert.deepEqual(copied, ["http://localhost:3000/s/7K9D-P4QX"]);
@@ -282,39 +279,39 @@ test("unapproved folder actions are explained and disabled", async () => {
   records = [makeDocument("pending", aircraft, "123", "PENDING")];
   await openLibrary();
   await click(button("Actions for Aircraft"));
-  assert.equal(button("Copy links", menu()).disabled, true);
-  assert.equal(button("Download files", menu()).disabled, true);
+  assert.equal(button("Copy link", menu()).disabled, true);
+  assert.equal(button("QR & short link", menu()).disabled, true);
+  assert.equal(button("Download", menu()).disabled, true);
   assert.match(menu().textContent, /available after approval/);
-  assert.equal(document.activeElement.textContent, "Delete all documents");
+  assert.equal(document.activeElement.textContent, "Delete all");
 });
 
 test("deletion requires confirmation, retains failed files and recovers from deleting the last folder", async () => {
   records = [makeDocument("a"), makeDocument("b")];
   await openLibrary();
   await click(button("Open Aircraft, 2 documents"));
-  await click(button("Open 123, 2 documents"));
   await click(button("Actions for 123"));
-  await click(button("Delete all documents", menu()));
+  await click(button("Delete all", menu()));
   assert.equal(requests.filter((request) => request.method === "DELETE").length, 0);
   window.confirm = () => true;
   rejectDeletes.add("b");
   await click(button("Actions for 123"));
-  await click(button("Delete all documents", menu()));
-  assert.equal(heading(), "123");
-  assert.equal(container.querySelectorAll(".document-item").length, 1);
+  await click(button("Delete all", menu()));
+  assert.equal(heading(), "Aircraft");
+  assert.equal(container.querySelectorAll(".document-folder-tile").length, 1);
   assert.match(container.querySelector('[role="alert"]').textContent, /1 could not be deleted/);
   rejectDeletes.clear();
   await click(button("Actions for 123"));
-  await click(button("Delete all documents", menu()));
-  assert.equal(heading(), "My Documents");
-  assert.match(container.textContent, /No documents yet/);
+  await click(button("Delete all", menu()));
+  assert.equal(heading(), "Aircraft");
+  assert.match(container.textContent, /There is no documents yet/);
   assert.equal(container.querySelectorAll(".document-folder-tile").length, 0);
 });
 
 test("long press opens actions without navigation and is cancelled by scrolling or movement", async () => {
   const folder = folderItem(groupDocumentsIntoFolders([makeDocument("a")])[0]);
   let opened = 0;
-  await mount(React.createElement(FolderCard, { folder, busy: false, onOpen: () => opened++, onAction() {} }));
+  await mount(React.createElement(FolderCard, { folder, busy: false, temporaryShareEnabled: true, onOpen: () => opened++, onAction() {} }));
   const target = button("Open 123, 1 document");
   await pointer(target, "pointerdown");
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 580)); });
@@ -354,9 +351,9 @@ test("a delayed refresh cannot bring deleted documents back", async () => {
   await click(button("Open Aircraft, 1 document"));
   await click(button("Open 123, 1 document"));
   window.confirm = () => true;
-  await click(button("Delete", container.querySelector(".document-item")));
-  assert.match(container.textContent, /No documents yet/);
+  await click(button("Delete file", container.querySelector(".document-item")));
+  assert.match(container.textContent, /There is no documents yet/);
   await act(async () => resolveRefresh(Response.json([makeDocument("a")])));
-  assert.match(container.textContent, /No documents yet/);
+  assert.match(container.textContent, /There is no documents yet/);
   assert.equal(container.querySelectorAll(".document-folder-tile").length, 0);
 });
