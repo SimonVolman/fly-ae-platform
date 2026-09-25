@@ -138,8 +138,8 @@ test("UI-008 unavailable share link explains the failure", async ({ page }) => {
   await captureCheckpoint(page, test.info(), "08-share-link-error");
 });
 
-test("UI-009 authenticated user can select a file for upload", async ({ page }) => {
-  await installApiMock(page, { authenticated: true });
+test("UI-009 authenticated user can upload and share a file", async ({ page }) => {
+  const mock = await installApiMock(page, { authenticated: true, uploadSucceeds: true });
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Open account menu" })).toBeVisible();
   await page.getByLabel("MSN").fill("A6-NEW-009");
@@ -151,6 +151,16 @@ test("UI-009 authenticated user can select a file for upload", async ({ page }) 
   await expect(page.getByText("tablet-engine-manual.pdf", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload securely" })).toBeEnabled();
   await captureCheckpoint(page, test.info(), "09-upload-file-selected");
+  await page.getByRole("button", { name: "Upload securely" }).click();
+  await expect(page.getByText("Your secure link is ready", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("https://fly.ae/s/uploaded-document", { exact: true })).toBeVisible();
+  await captureCheckpoint(page, test.info(), "09-upload-approved");
+  await page.getByRole("button", { name: "QR & short link", exact: true }).click();
+  const shareDialog = page.getByRole("dialog", { name: "Share" });
+  await expect(shareDialog).toBeVisible();
+  await expect(shareDialog.getByLabel("QR code for temporary share link")).toBeVisible();
+  await captureCheckpoint(page, test.info(), "09-upload-qr-share");
+  expect(mock.unexpectedApiRequests).toEqual([]);
 });
 
 test("UI-010 approved document opens QR sharing", async ({ page }) => {

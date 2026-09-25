@@ -32,23 +32,13 @@ import {
   type Category, type FlyDocument, type FolderViewItem,
 } from "./document-library";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
+import { storageUploadUrl } from "./upload-url";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
 function localStorageProxyUrl(signedUrl: string) {
-  if (API_URL.startsWith("/")) {
-    return "/__s3_proxy?url=" + encodeURIComponent(signedUrl);
-  }
-  try {
-    const apiUrl = new URL(API_URL);
-    const usesLocalApi = apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1";
-    return usesLocalApi
-      ? apiUrl.origin + "/__s3_proxy?url=" + encodeURIComponent(signedUrl)
-      : signedUrl;
-  } catch {
-    return signedUrl;
-  }
+  return storageUploadUrl(signedUrl, API_URL, window.location.hostname);
 }
 
 const DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;

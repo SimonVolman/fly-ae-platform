@@ -8,6 +8,7 @@ export type ApiScenario = {
   authenticated?: boolean;
   otpRequestStatus?: number;
   documentsFailUntilReleased?: boolean;
+  uploadSucceeds?: boolean;
 };
 
 export type ApiMockControls = {
@@ -64,12 +65,32 @@ function json(status: number, body: unknown, headers: Record<string, string> = {
 
 export async function installApiMock(page: Page, scenario: ApiScenario = {}) {
   let documentsReleased = !scenario.documentsFailUntilReleased;
+  let uploadedDocument: (typeof documents)[number] | null = null;
   const unexpectedApiRequests: string[] = [];
 
   await page.route("**/*", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const method = request.method();
+
+    if (
+      scenario.uploadSucceeds &&
+      ((url.origin === "https://storage.test" && (method === "OPTIONS" || method === "PUT")) ||
+        (url.origin === BASE_ORIGIN && url.pathname === "/__s3_proxy" && method === "PUT"))
+    ) {
+      await route.fulfill({
+        status: method === "OPTIONS" ? 204 : 200,
+        body: "",
+        headers: {
+          "Access-Control-Allow-Origin": BASE_ORIGIN,
+          "Access-Control-Allow-Methods": "PUT, OPTIONS",
+          "Access-Control-Allow-Headers": "*",
+          "Access-Control-Expose-Headers": "ETag",
+          ETag: '"test-upload-etag"',
+        },
+      });
+      return;
+    }
 
     if (url.origin !== BASE_ORIGIN) {
       await route.abort("blockedbyclient");
@@ -124,8 +145,67 @@ export async function installApiMock(page: Page, scenario: ApiScenario = {}) {
       if (!documentsReleased) {
         await route.fulfill(json(503, { detail: "Document service is temporarily unavailable." }));
       } else {
-        await route.fulfill(json(200, documents));
+        await route.fulfill(json(200, uploadedDocument ? [...documents, uploadedDocument] : documents));
       }
+      return;
+    }
+
+    if (path === "/documents" && method === "POST" && scenario.uploadSucceeds) {
+      const requestBody = request.postDataJSON() as {
+        categoryId: string;
+        msn: string;
+        filename: string;
+        mimeType: string;
+        sizeBytes: number;
+      };
+      uploadedDocument = {
+        id: "uploaded-document",
+        category: categories.find((category) => category.id === requestBody.categoryId) ?? categories[0],
+        msn: requestBody.msn,
+        filename: requestBody.filename,
+        mimeType: requestBody.mimeType,
+        sizeBytes: requestBody.sizeBytes,
+        status: "CREATED",
+        shareUrl: null,
+        createdAt: "2026-09-25T00:00:00Z",
+      };
+      await route.fulfill(json(201, uploadedDocument));
+      return;
+    }
+
+    if (path === "/documents/uploaded-document/multipart" && method === "POST" && scenario.uploadSucceeds) {
+      await route.fulfill(json(201, {
+        uploadId: "test-upload-id",
+        key: "users/test/documents/uploaded-document/tablet-engine-manual.pdf",
+        expiresAt: "2099-01-01T00:00:00Z",
+      }));
+      return;
+    }
+
+    if (
+      path === "/documents/uploaded-document/multipart/test-upload-id/parts/1" &&
+      method === "GET" && scenario.uploadSucceeds
+    ) {
+      await route.fulfill(json(200, { url: "https://storage.test/uploaded-document/part-1", headers: {} }));
+      return;
+    }
+
+    if (
+      path === "/documents/uploaded-document/multipart/test-upload-id/complete" &&
+      method === "POST" && scenario.uploadSucceeds && uploadedDocument
+    ) {
+      uploadedDocument = { ...uploadedDocument, status: "PENDING" };
+      await route.fulfill(json(200, uploadedDocument));
+      return;
+    }
+
+    if (path === "/documents/uploaded-document" && method === "GET" && scenario.uploadSucceeds && uploadedDocument) {
+      uploadedDocument = {
+        ...uploadedDocument,
+        status: "APPROVED",
+        shareUrl: "https://fly.ae/s/uploaded-document",
+      };
+      await route.fulfill(json(200, uploadedDocument));
       return;
     }
 
