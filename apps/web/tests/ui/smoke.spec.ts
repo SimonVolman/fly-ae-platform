@@ -35,7 +35,7 @@ async function openDocuments(page: Parameters<typeof installApiMock>[0]) {
 }
 
 function aircraftCategoryButton(page: Parameters<typeof installApiMock>[0]) {
-  return test.info().project.name === "mobile-chromium"
+  return test.info().project.name !== "desktop-chromium"
     ? page.getByRole("button", { name: "Aircraft 2 documents", exact: true })
     : page.getByRole("button", { name: "Open Aircraft, 2 documents", exact: true });
 }
@@ -44,12 +44,12 @@ test("UI-001 upload home renders in the browser", async ({ page }) => {
   await installApiMock(page);
   await page.goto("/");
   await expect(page.getByRole("region", { name: "Upload an aviation file" })).toBeVisible();
-  if (test.info().project.name === "mobile-chromium") {
+  if (test.info().project.name !== "desktop-chromium") {
     await expect(page.getByRole("list", { name: "Category" })).toBeVisible();
   } else {
     await expect(page.getByRole("button", { name: "Aircraft", exact: true })).toBeVisible();
   }
-  if (test.info().project.name === "mobile-chromium") {
+  if (test.info().project.name !== "desktop-chromium") {
     await expect(page.getByRole("heading", { name: "Document details" })).toBeVisible();
   } else {
     await expect(page.getByRole("heading", { name: "File upload" })).toBeVisible();
@@ -98,7 +98,7 @@ test("UI-005 folder navigation reaches the document list", async ({ page }) => {
 });
 
 test("UI-006 folder actions stay within the desktop viewport", async ({ page }) => {
-  test.skip(test.info().project.name === "mobile-chromium", "Folder action trigger is displayed in the desktop library.");
+  test.skip(test.info().project.name !== "desktop-chromium", "Folder action trigger is displayed in the desktop library.");
   await installApiMock(page, { authenticated: true });
   await page.goto("/");
   await openDocuments(page);
@@ -136,4 +136,32 @@ test("UI-008 unavailable share link explains the failure", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Document not found" })).toBeVisible();
   await expect(page.getByText("This share link is unavailable.", { exact: true })).toBeVisible();
   await captureCheckpoint(page, test.info(), "08-share-link-error");
+});
+
+test("UI-009 authenticated user can select a file for upload", async ({ page }) => {
+  await installApiMock(page, { authenticated: true });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Open account menu" })).toBeVisible();
+  await page.getByLabel("MSN").fill("A6-NEW-009");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "tablet-engine-manual.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n% deterministic UI test file\n"),
+  });
+  await expect(page.getByText("tablet-engine-manual.pdf", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Upload securely" })).toBeEnabled();
+  await captureCheckpoint(page, test.info(), "09-upload-file-selected");
+});
+
+test("UI-010 approved document opens QR sharing", async ({ page }) => {
+  await installApiMock(page, { authenticated: true });
+  await page.goto("/");
+  await openDocuments(page);
+  await aircraftCategoryButton(page).click();
+  await page.getByRole("button", { name: "Open A6-FLY-001, 2 documents" }).click();
+  await page.getByRole("button", { name: "QR & short link", exact: true }).first().click();
+  const shareDialog = page.getByRole("dialog", { name: "Share" });
+  await expect(shareDialog).toBeVisible();
+  await expect(shareDialog.getByLabel("QR code for temporary share link")).toBeVisible();
+  await captureCheckpoint(page, test.info(), "10-qr-share");
 });

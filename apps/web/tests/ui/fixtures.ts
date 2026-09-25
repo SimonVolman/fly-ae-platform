@@ -69,6 +69,7 @@ export async function installApiMock(page: Page, scenario: ApiScenario = {}) {
   await page.route("**/*", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    const method = request.method();
 
     if (url.origin !== BASE_ORIGIN) {
       await route.abort("blockedbyclient");
@@ -81,7 +82,6 @@ export async function installApiMock(page: Page, scenario: ApiScenario = {}) {
     }
 
     const path = url.pathname.slice("/api/v1".length);
-    const method = request.method();
 
     if (path === "/categories" && method === "GET") {
       await route.fulfill(json(200, categories));
@@ -126,6 +126,15 @@ export async function installApiMock(page: Page, scenario: ApiScenario = {}) {
       } else {
         await route.fulfill(json(200, documents));
       }
+      return;
+    }
+
+    if (/^\/documents\/[^/]+\/temporary-share$/.test(path) && method === "POST") {
+      await route.fulfill(json(200, {
+        code: "FLY8SAFE",
+        shortUrl: "https://fly.ae/FLY8-SAFE",
+        expiresAt: new Date(Date.now() + 15 * 60 * 1_000).toISOString(),
+      }));
       return;
     }
 

@@ -51,6 +51,15 @@ export default defineConfig({
         deviceScaleFactor: 1,
       },
     },
+    {
+      name: "tablet-chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 820, height: 1180 },
+        hasTouch: true,
+        deviceScaleFactor: 1,
+      },
+    },
   ],
   webServer: process.env.UI_BASE_URL ? undefined : {
     command: "npm run dev --workspace @fly-ae/web -- -H 127.0.0.1 -p 4173",
