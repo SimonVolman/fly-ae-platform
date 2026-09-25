@@ -34,12 +34,18 @@ async function openDocuments(page: Parameters<typeof installApiMock>[0]) {
   await expect(page.getByRole("heading", { name: "My Documents" })).toBeVisible();
 }
 
+function aircraftCategoryButton(page: Parameters<typeof installApiMock>[0]) {
+  return test.info().project.name === "mobile-chromium"
+    ? page.getByRole("button", { name: "Aircraft 2 documents", exact: true })
+    : page.getByRole("button", { name: "Open Aircraft, 2 documents", exact: true });
+}
+
 test("UI-001 upload home renders in the browser", async ({ page }) => {
   await installApiMock(page);
   await page.goto("/");
   await expect(page.getByRole("region", { name: "Upload an aviation file" })).toBeVisible();
   if (test.info().project.name === "mobile-chromium") {
-    await expect(page.getByLabel("Category")).toBeVisible();
+    await expect(page.getByRole("list", { name: "Category" })).toBeVisible();
   } else {
     await expect(page.getByRole("button", { name: "Aircraft", exact: true })).toBeVisible();
   }
@@ -67,7 +73,7 @@ test("UI-003 OTP rate limit is shown in the login dialog", async ({ page }) => {
   await openLogin(page);
   await page.getByLabel("Email").fill("pilot@example.com");
   await page.getByRole("button", { name: "Get one-time code" }).click();
-  await expect(page.getByRole("alert")).toContainText("Try again in 47 minutes");
+  await expect(page.getByText("Too many requests. Try again in 47 minutes.", { exact: true })).toBeVisible();
   await captureCheckpoint(page, test.info(), "03-login-rate-limit");
 });
 
@@ -76,7 +82,7 @@ test("UI-004 authenticated user can open My Documents", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Open account menu" })).toBeVisible();
   await openDocuments(page);
-  await expect(page.getByRole("button", { name: "Open Aircraft, 2 documents" })).toBeVisible();
+  await expect(aircraftCategoryButton(page)).toBeVisible();
   await captureCheckpoint(page, test.info(), "04-document-library");
 });
 
@@ -84,7 +90,7 @@ test("UI-005 folder navigation reaches the document list", async ({ page }) => {
   await installApiMock(page, { authenticated: true });
   await page.goto("/");
   await openDocuments(page);
-  await page.getByRole("button", { name: "Open Aircraft, 2 documents" }).click();
+  await aircraftCategoryButton(page).click();
   await page.getByRole("button", { name: "Open A6-FLY-001, 2 documents" }).click();
   await expect(page.getByRole("heading", { name: "A6-FLY-001" })).toBeVisible();
   await expect(page.getByText("aircraft-manual.pdf", { exact: true })).toBeVisible();
@@ -92,14 +98,13 @@ test("UI-005 folder navigation reaches the document list", async ({ page }) => {
 });
 
 test("UI-006 folder actions stay within the desktop viewport", async ({ page }) => {
+  test.skip(test.info().project.name === "mobile-chromium", "Folder action trigger is displayed in the desktop library.");
   await installApiMock(page, { authenticated: true });
   await page.goto("/");
   await openDocuments(page);
-  await page.getByRole("button", { name: "Open Aircraft, 2 documents" }).click();
-  const actions = page.getByRole("button", { name: "Actions for Aircraft" });
-  await expect(actions).toBeVisible();
-  await actions.click();
-  const menu = page.getByRole("menu", { name: "Aircraft actions" });
+  await aircraftCategoryButton(page).click();
+  await page.getByRole("button", { name: "Open A6-FLY-001, 2 documents" }).click({ button: "right" });
+  const menu = page.getByRole("menu", { name: "A6-FLY-001 actions" });
   await expect(menu).toBeVisible();
   const box = await menu.boundingBox();
   expect(box).not.toBeNull();
@@ -116,11 +121,12 @@ test("UI-007 document list error can recover with Try again", async ({ page }) =
   const mock = await installApiMock(page, { authenticated: true, documentsFailUntilReleased: true });
   await page.goto("/");
   await openDocuments(page);
-  await expect(page.getByRole("alert")).toContainText("temporarily unavailable");
+  const errorNotice = page.locator(".documents-notice.is-error");
+  await expect(errorNotice).toContainText("We couldn’t load your documents");
   await captureCheckpoint(page, test.info(), "07-document-load-error");
   mock.releaseDocuments();
-  await page.getByRole("alert").getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("button", { name: "Open Aircraft, 2 documents" })).toBeVisible();
+  await errorNotice.getByRole("button", { name: "Try again" }).click();
+  await expect(aircraftCategoryButton(page)).toBeVisible();
   await captureCheckpoint(page, test.info(), "07-document-load-recovered");
 });
 

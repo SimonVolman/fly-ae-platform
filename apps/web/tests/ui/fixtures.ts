@@ -1,6 +1,8 @@
 import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
 
-const BASE_ORIGIN = "http://127.0.0.1:4173";
+const BASE_ORIGIN = new URL(
+  process.env.UI_BASE_URL ?? "http://127.0.0.1:4173",
+).origin;
 
 export type ApiScenario = {
   authenticated?: boolean;

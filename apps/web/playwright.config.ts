@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const webRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(webRoot, "../..");
-const baseURL = "http://127.0.0.1:4173";
+const baseURL = process.env.UI_BASE_URL ?? "http://127.0.0.1:4173";
 const resultsDirectory = resolve(repositoryRoot, "artifacts/ui/results");
 const reportDirectory = resolve(repositoryRoot, "artifacts/ui/report");
 
@@ -52,7 +52,7 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
+  webServer: process.env.UI_BASE_URL ? undefined : {
     command: "npm run dev --workspace @fly-ae/web -- -H 127.0.0.1 -p 4173",
     cwd: repositoryRoot,
     url: baseURL,
