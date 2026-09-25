@@ -15,7 +15,8 @@
     "test:ui": "playwright test -c playwright.config.ts",
     "test:ui:desktop": "playwright test -c playwright.config.ts --project=desktop-chromium",
     "test:ui:mobile": "playwright test -c playwright.config.ts --project=mobile-chromium",
-    "test:ui:screenshots": "UI_SCREENSHOTS=1 playwright test -c playwright.config.ts",
+    "test:ui:screenshots": "UI_SCREENSHOTS=1 playwright test -c playwright.config.ts && node scripts/build-ui-pdf.mjs",
+    "test:ui:pdf": "node scripts/build-ui-pdf.mjs",
     "test:ui:report": "playwright show-report ../../artifacts/ui/report",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
