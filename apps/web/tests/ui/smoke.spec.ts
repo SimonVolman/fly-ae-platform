@@ -160,6 +160,18 @@ test("UI-009 authenticated user can upload and share a file", async ({ page }) =
   await expect(shareDialog).toBeVisible();
   await expect(shareDialog.getByLabel("QR code for temporary share link")).toBeVisible();
   await captureCheckpoint(page, test.info(), "09-upload-qr-share");
+  await shareDialog.getByRole("button", { name: "Close" }).click();
+  await openDocuments(page);
+  const uploadedAircraftCategory = test.info().project.name !== "desktop-chromium"
+    ? page.getByRole("button", { name: "Aircraft 3 documents", exact: true })
+    : page.getByRole("button", { name: "Open Aircraft, 3 documents", exact: true });
+  await uploadedAircraftCategory.click();
+  await page.getByRole("button", { name: "Open A6-NEW-009, 1 document" }).click();
+  await expect(page.getByText("tablet-engine-manual.pdf", { exact: true })).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete file" }).click();
+  await expect(page.getByText("Document deleted.", { exact: true })).toBeVisible();
+  await expect(page.getByText("tablet-engine-manual.pdf", { exact: true })).not.toBeVisible();
   expect(mock.unexpectedApiRequests).toEqual([]);
 });
 

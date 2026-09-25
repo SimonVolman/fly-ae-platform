@@ -209,6 +209,12 @@ export async function installApiMock(page: Page, scenario: ApiScenario = {}) {
       return;
     }
 
+    if (path === "/documents/uploaded-document" && method === "DELETE" && scenario.uploadSucceeds) {
+      uploadedDocument = null;
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
+
     if (/^\/documents\/[^/]+\/temporary-share$/.test(path) && method === "POST") {
       await route.fulfill(json(200, {
         code: "FLY8SAFE",
