@@ -1504,7 +1504,7 @@ footer a {
   padding-top: 16px;
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .documents-workspace:not(.has-document-navigation) .documents-view {
     padding: 16px;
   }
@@ -3026,7 +3026,7 @@ footer a {
   border-top: 4px solid var(--color-danger);
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .upload-workspace {
     background: var(--color-canvas);
     display: grid;
@@ -3275,7 +3275,7 @@ footer a {
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .upload-panel {
     background: #fff;
     border: 1px solid #d9dee8;
@@ -3407,7 +3407,7 @@ footer a {
   }
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .upload-panel.step-panel-pending,
   .describe-panel.step-panel-complete {
     display: none;
@@ -4034,7 +4034,7 @@ footer a {
 
 
 /* Figma guest-upload states (desktop service page). */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .upload-panel .selected-upload-list {
     margin: 0;
     max-width: none;
@@ -4247,7 +4247,7 @@ footer a {
 }
 
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .upload-panel .card-heading { align-items: flex-start; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .clear-upload { align-items: center; background: transparent; border: 0; color: #a7aab3; cursor: pointer; display: inline-flex; font-family: var(--font-sans); font-size: 16px; font-weight: 600; gap: 4px; letter-spacing: 0.05px; line-height: normal; padding: 0; }
   .clear-upload img { display: block; height: 24px; width: 24px; }
@@ -4260,7 +4260,7 @@ footer a {
   .upload-panel.upload-complete .remove-upload { display: none; }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .upload-panel .upload-drop-area {
     background:
       repeating-linear-gradient(90deg, #c9cdd8 0 9px, transparent 9px 18px) top / 18px 2px repeat-x,
@@ -4666,7 +4666,7 @@ footer a {
 
 
 /* Figma 678:505 — mission block on the desktop Upload page. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .workspace-main > .mission-section {
     display: flex;
     flex-direction: column;
@@ -4778,7 +4778,7 @@ footer a {
   }
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .mission-section {
     display: flex;
     flex-direction: column;
@@ -4800,7 +4800,7 @@ footer a {
 
 
 /* Exact asset orientation and warning mark from Figma node 696:866. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .mission-aircraft { transform: scaleX(-1); }
 
   .mission-notice-neutral {
@@ -4830,7 +4830,7 @@ footer a {
 
 
 /* About layout refinement: full Upload column width and compact notice cards. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .workspace-main > .mission-section {
     align-items: stretch;
     width: 100%;
@@ -4867,7 +4867,7 @@ footer a {
 
 
 /* Enforce the desktop About geometry after the base section styles. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .workspace-main > .mission-section {
     align-items: stretch !important;
     display: flex !important;
@@ -4902,14 +4902,14 @@ footer a {
 
 
 /* User-provided About background. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .workspace-main > .mission-section .mission-hero { padding: 32px !important; }
   .workspace-main > .mission-section .mission-aircraft { transform: none !important; }
 }
 
 
 /* Full-bleed mirrored background in the About hero. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .workspace-main > .mission-section .mission-aircraft {
     bottom: 0;
     height: 100%;
@@ -4923,7 +4923,7 @@ footer a {
 
 
 /* Keep mission copy readable above its background image. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .workspace-main > .mission-section .mission-hero {
     isolation: isolate;
     padding: 32px !important;
@@ -4951,7 +4951,7 @@ footer a {
 
 
 /* Mission hero: content-driven height and unfiltered full-bleed background. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .workspace-main > .mission-section .mission-hero {
     height: auto;
     min-height: 334px;
@@ -4989,7 +4989,7 @@ footer a {
 
 
 /* Keep the desktop category sidebar fully visible in short viewports. */
-@media (min-width: 1100px) and (max-height: 600px) {
+@media (min-width: 1025px) and (max-height: 600px) {
   .desktop-category-sidebar {
     min-height: calc(100svh - 48px);
     overflow: hidden;
@@ -5019,7 +5019,7 @@ footer a {
 
 
 /* Desktop upload uses a fixed viewport: only the working area scrolls. */
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .product-app {
     height: 100dvh;
     min-height: 0;
@@ -5385,13 +5385,13 @@ footer a {
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .upload-panel .card-heading p.upload-aviation-copy {
     margin-top: 4px;
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .upload-panel > .upload-button {
     align-self: center;
     background: #14213d;
@@ -5416,7 +5416,7 @@ footer a {
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .upload-panel .app-drop-zone.file-selected {
     height: auto;
     min-height: 232px;
@@ -6073,7 +6073,7 @@ footer a {
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1025px) {
   .documents-workspace.has-document-navigation .document-folder-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
@@ -6268,7 +6268,7 @@ footer a {
   display: none;
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .upload-workspace {
     min-height: 0;
     padding: 0 0 64px;
@@ -6885,7 +6885,7 @@ footer a {
 
 
 /* Mobile-specific mission artwork. */
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .mission-hero {
     background: #fff url("/mission-mobile-background.png") center bottom / cover no-repeat;
     padding-bottom: 80px;
@@ -7581,7 +7581,7 @@ footer a {
 
 
 /* Figma 753:1313–753:1759 — mobile File upload states. */
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .upload-panel .card-heading {
     margin-bottom: 16px;
   }
@@ -7682,7 +7682,7 @@ footer a {
 
 
 /* Figma 753:1611 — full-height guest upload card on mobile. */
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .upload-panel .guest-upload-options {
     border-color: #1d5ed4;
     min-height: 418px;
@@ -7731,7 +7731,7 @@ footer a {
 
 
 /* Compact guest upload card on mobile: no decorative engine artwork. */
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .upload-panel .guest-upload-options {
     min-height: 0;
   }
@@ -7747,7 +7747,7 @@ footer a {
 
 
 /* Mobile upload progress: decorative engine is a background, not a layout element. */
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .upload-panel .upload-progress {
     background: linear-gradient(#fff, #fff) padding-box, linear-gradient(90deg, #1d5ed4, #20bdd2) border-box;
     border: 3px solid transparent;
@@ -7922,7 +7922,7 @@ select:focus-visible,
   }
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .close,
   .folder-back-button,
   .remove-upload,
@@ -7943,7 +7943,7 @@ select:focus-visible,
 
 
 /* Keep file actions within the mobile upload dropblock. */
-@media (max-width: 1099px) {
+@media (max-width: 1024px) {
   .upload-panel .selected-upload-list {
     overflow: hidden;
   }
@@ -7992,5 +7992,24 @@ select:focus-visible,
   .documents-workspace.has-document-navigation .documents-notice-close {
     justify-self: end;
     transform: translateX(12px);
+  }
+}
+
+
+/* Mission is full width in the mobile layout. */
+@media (max-width: 1024px) {
+  .upload-workspace .workspace-main > .mission-section {
+    align-self: stretch;
+    box-sizing: border-box;
+    margin-inline: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  .upload-workspace .workspace-main > .mission-section > .mission-hero,
+  .upload-workspace .workspace-main > .mission-section > .mission-notices {
+    box-sizing: border-box;
+    max-width: none;
+    width: 100%;
   }
 }
