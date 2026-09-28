@@ -1950,23 +1950,27 @@ function HomeContent() {
                       >
                         <Image className="selected-check" src="/check-circle.svg" alt="" width={30} height={30} aria-hidden="true" />
                         <Image className="selected-file-icon" src="/doc.svg" alt="" width={24} height={24} aria-hidden="true" />
-                        <div>
-                          <strong>{file.name}</strong>
-                          <small>{formatBytes(file.size)}</small>
+                        <div className="selected-upload-details">
+                          <div className="selected-upload-file-meta">
+                            <strong>{file.name}</strong>
+                            <small>{formatBytes(file.size)}</small>
+                          </div>
+                          {uploadFileErrors[fileKey(file)] && <p className="upload-file-error" role="alert">{uploadFileErrors[fileKey(file)]}</p>}
                         </div>
-                        {uploadFileErrors[fileKey(file)] && <p className="upload-file-error" role="alert">{uploadFileErrors[fileKey(file)]}</p>}
                         {!uploadBusy && (
-                          <button
-                            type="button"
-                            className="remove-upload"
-                            onClick={() => removeSelectedFile(index)}
-                            aria-label={`Remove ${file.name}`}
-                          >
-                            <Image src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
-                          </button>
-                        )}
-                        {!uploadBusy && uploadFileErrors[fileKey(file)] && (
-                          <button type="button" className="upload-file-retry" onClick={() => void startUpload()} aria-label={"Retry " + file.name}>Retry</button>
+                          <div className="selected-upload-actions">
+                            <button
+                              type="button"
+                              className="remove-upload"
+                              onClick={() => removeSelectedFile(index)}
+                              aria-label={"Remove " + file.name}
+                            >
+                              <Image src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
+                            </button>
+                            {uploadFileErrors[fileKey(file)] && (
+                              <button type="button" className="upload-file-retry" onClick={() => void startUpload()} aria-label={"Retry " + file.name}>Retry</button>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}

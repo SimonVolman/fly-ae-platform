@@ -8013,3 +8013,57 @@ select:focus-visible,
     width: 100%;
   }
 }
+
+
+/* Keep upload errors with their corresponding file metadata. */
+.selected-upload-row > .selected-upload-details {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.selected-upload-row > .selected-upload-details > .selected-upload-file-meta {
+  align-items: baseline;
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+  width: 100%;
+}
+
+.selected-upload-row > .selected-upload-details .upload-file-error {
+  font-size: 12px;
+  line-height: 16px;
+  margin: 0;
+}
+
+@media (max-width: 1024px) {
+  .upload-panel .selected-upload-row > .selected-upload-details {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .upload-panel .selected-upload-row > .selected-upload-details > .selected-upload-file-meta {
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.selected-upload-row {
+  grid-template-columns: 22px 24px minmax(0, 1fr) auto;
+}
+
+.selected-upload-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  justify-self: end;
+}
+
+@media (max-width: 1024px) {
+  .upload-panel .selected-upload-row {
+    grid-template-columns: 30px 24px minmax(0, 1fr) auto;
+  }
+}
