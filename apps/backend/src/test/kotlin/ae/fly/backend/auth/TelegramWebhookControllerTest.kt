@@ -2,6 +2,7 @@ package ae.fly.backend.auth
 
 import ae.fly.backend.api.ApiProblem
 import ae.fly.backend.config.TelegramProperties
+import ae.fly.backend.config.WebProperties
 import ae.fly.backend.security.RateLimiter
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -15,6 +16,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import java.time.Clock
 
 class TelegramWebhookControllerTest {
     private val telegram = TelegramProperties(
@@ -32,7 +34,12 @@ class TelegramWebhookControllerTest {
     fun `email is the only login channel even when the bot is enabled`() {
         val mvc = MockMvcBuilders.standaloneSetup(
             controller,
-            OtpController(mock(OtpService::class.java), limiter),
+            OtpController(
+                mock(OtpService::class.java),
+                limiter,
+                RefreshSessionCookie(WebProperties()),
+                Clock.systemUTC(),
+            ),
         ).build()
 
         mvc.perform(get("/api/v1/auth/otp/options"))

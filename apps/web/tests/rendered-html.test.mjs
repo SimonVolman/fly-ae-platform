@@ -140,7 +140,7 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /createMultipartUpload/);
   assert.match(page, /type="file"\s*\n\s*multiple/);
   assert.match(page, /maxNumberOfFiles: selectedFiles\.length/);
-  assert.match(page, /Upload \$\{selectedFiles\.length\} files securely/);
+  assert.match(page, /Upload securely/);
   assert.match(page, /auth\/otp\/verify/);
   assert.doesNotMatch(page, /auth\/telegram|Continue with Telegram|Open Telegram bot/);
   assert.match(
@@ -173,7 +173,8 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /NLG \| LH_MLG \| RH_MLG \| SHIPSET/);
   assert.doesNotMatch(page, /role="radiogroup"/);
   assert.match(page, /Unrelated materials may be/);
-  assert.match(page, /sessionStorage/);
+  assert.doesNotMatch(page, /sessionStorage\.setItem/);
+  assert.match(page, /refreshBrowserSession/);
   assert.match(page, /APPROVED/);
   assert.match(layout, /title:\s*"fly\.ae/);
   assert.match(layout, /favicon-v2\.svg/);
@@ -186,7 +187,7 @@ test("removes the disposable starter preview", async () => {
   assert.match(css, /\.wizard-flow\s*\{[^}]*max-width:\s*818px/s);
   assert.match(css, /\.brand-logo/);
   assert.match(css, /\.mission-section/);
-  assert.match(css, /@media \(min-width: 1100px\)/);
+  assert.match(css, /@media \(max-width: 1024px\)/);
   assert.match(css, /\.describe-panel\s*\{[^}]*grid-column:\s*1/s);
   assert.match(css, /\.upload-panel\.step-panel-pending/);
   assert.match(css, /--font-sans:\s*"Titillium Web"/);

@@ -7,11 +7,6 @@ on:
         description: Type deploy-fly.ae to replace maintenance with the application
         required: true
         type: string
-      enable_telegram_otp:
-        description: Enable Telegram bot notifications and admin commands (requires Secrets Manager values)
-        required: true
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -23,4 +18,3 @@ jobs:
     uses: ./.github/workflows/deploy-fly-ae.yml
     with:
       release_mode: application
-      enable_telegram_otp: ${{ inputs.enable_telegram_otp }}

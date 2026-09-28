@@ -1,0 +1,47 @@
+name: Browser UI tests
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ui-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui:
+    name: Chromium UI tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npm exec --workspace @fly-ae/web -- playwright install --with-deps chromium
+
+      - name: Run browser UI tests
+        run: npm run test:ui:screenshots
+
+      - name: Upload UI artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fly-ae-ui-artifacts
+          path: artifacts/ui/
+          if-no-files-found: warn
+          retention-days: 14

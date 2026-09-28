@@ -49,7 +49,9 @@ fly:
     session-secret: ${FLY_SESSION_SECRET}
     otp-pepper: ${FLY_OTP_PEPPER}
     share-encryption-secret: ${FLY_SHARE_ENCRYPTION_SECRET}
-    session-ttl: 12h
+    session-ttl: ${FLY_ACCESS_TOKEN_TTL:15m}
+    refresh-session-ttl: ${FLY_REFRESH_SESSION_TTL:30d}
+    refresh-reuse-grace: ${FLY_REFRESH_REUSE_GRACE:30s}
     guest-session-ttl: ${FLY_GUEST_SESSION_TTL:12h}
     otp-ttl: 10m
     otp-max-attempts: 5

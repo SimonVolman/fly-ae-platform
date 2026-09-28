@@ -8,6 +8,7 @@ import ae.fly.backend.domain.Document
 import ae.fly.backend.domain.DocumentStatus
 import ae.fly.backend.domain.GuestSession
 import ae.fly.backend.domain.OtpCode
+import ae.fly.backend.domain.RefreshSession
 import ae.fly.backend.domain.ShareToken
 import ae.fly.backend.domain.TermsAcceptance
 import ae.fly.backend.domain.TelegramLoginRequest
@@ -19,6 +20,7 @@ import ae.fly.backend.persistence.dynamodb.DynamoDbConfig
 import ae.fly.backend.persistence.dynamodb.DynamoDocumentRepository
 import ae.fly.backend.persistence.dynamodb.DynamoGuestSessionRepository
 import ae.fly.backend.persistence.dynamodb.DynamoOtpCodeRepository
+import ae.fly.backend.persistence.dynamodb.DynamoRefreshSessionRepository
 import ae.fly.backend.persistence.dynamodb.DynamoShareTokenRepository
 import ae.fly.backend.persistence.dynamodb.DynamoTermsAcceptanceRepository
 import ae.fly.backend.persistence.dynamodb.DynamoTelegramLoginRequestRepository
@@ -86,11 +88,33 @@ class DynamoRepositoryIntegrationTest {
         val telegramLoginRequests = DynamoTelegramLoginRequestRepository(client, properties)
         val terms = DynamoTermsAcceptanceRepository(client, properties)
         val shares = DynamoShareTokenRepository(client, documents, properties)
+        val refreshSessions = DynamoRefreshSessionRepository(client, properties)
         val now = Instant.parse("2026-08-02T12:00:00Z")
 
         val user = users.save(User(email = "pilot@fly.ae", createdAt = now, updatedAt = now))
         assertEquals(user.id, users.findByEmail("pilot@fly.ae")?.id)
         assertTrue(users.existsById(user.id))
+
+        val refresh = refreshSessions.save(
+            RefreshSession(
+                userId = user.id,
+                tokenHash = "first-refresh-token-hash",
+                expiresAt = now.plusSeconds(86_400),
+                createdAt = now,
+            ),
+        )
+        assertEquals(refresh.id, refreshSessions.findByTokenHash(refresh.tokenHash)?.id)
+        val successor = RefreshSession(
+            userId = user.id,
+            familyId = refresh.familyId,
+            tokenHash = "second-refresh-token-hash",
+            expiresAt = refresh.expiresAt,
+            createdAt = now.plusSeconds(1),
+        )
+        assertTrue(refreshSessions.rotate(refresh.id, now.plusSeconds(1), successor))
+        assertEquals(successor.id, refreshSessions.findById(refresh.id)?.successorId)
+        refreshSessions.revokeFamily(refresh.familyId, now.plusSeconds(2))
+        assertNotNull(refreshSessions.findById(successor.id)?.revokedAt)
         val telegramUser = users.save(
             User(
                 telegramUserId = 991,
