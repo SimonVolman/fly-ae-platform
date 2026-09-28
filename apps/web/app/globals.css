@@ -8082,3 +8082,60 @@ select:focus-visible,
   align-self: start;
   min-height: 32px;
 }
+
+/* Place file actions on the primary row and surface its error below. */
+.selected-upload-row {
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selected-upload-row > .selected-upload-primary {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 22px 24px minmax(0, 1fr) auto;
+  min-height: 32px;
+  width: 100%;
+}
+
+.selected-upload-row > .selected-upload-primary > .selected-check,
+.selected-upload-row > .selected-upload-primary > .selected-file-icon {
+  margin-top: 0;
+}
+
+.selected-upload-row > .selected-upload-primary > .selected-upload-actions {
+  align-self: center;
+}
+
+.selected-upload-row > .upload-file-error {
+  align-self: stretch;
+  background: #fff0f1;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  margin: 0 0 0 70px;
+  padding: 4px;
+}
+
+@media (max-width: 1024px) {
+  .upload-panel .selected-upload-row > .selected-upload-primary {
+    gap: 12px;
+    grid-template-columns: 30px 24px minmax(0, 1fr) auto;
+  }
+
+  .upload-panel .selected-upload-row > .upload-file-error {
+    margin-left: 78px;
+  }
+}
+
+@media (max-width: 820px) {
+  .upload-panel .selected-upload-row > .selected-upload-primary {
+    gap: 9px;
+  }
+
+  .upload-panel .selected-upload-row > .upload-file-error {
+    margin-left: 72px;
+  }
+}
