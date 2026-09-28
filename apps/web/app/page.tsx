@@ -477,6 +477,7 @@ function HomeContent() {
   const [folderActionBusy, setFolderActionBusy] = useState(false);
   const [documentNotice, setDocumentNotice] = useState<{ error: boolean; message: string } | null>(null);
   const [temporaryShare, setTemporaryShare] = useState<TemporaryShare | null>(null);
+  const [mobileFileActionDocument, setMobileFileActionDocument] = useState<FlyDocument | null>(null);
   const [temporaryShareBusyDocumentId, setTemporaryShareBusyDocumentId] = useState<string | null>(null);
   const [temporaryShareNow, setTemporaryShareNow] = useState(() => Date.now());
   const [copyNotice, setCopyNotice] = useState("");
@@ -493,9 +494,11 @@ function HomeContent() {
   const authDialog = useRef<HTMLElement>(null);
   const mobileNavigation = useRef<HTMLElement>(null);
   const temporaryShareDialog = useRef<HTMLElement>(null);
+  const mobileFileActionDialog = useRef<HTMLElement>(null);
   const authTrigger = useRef<HTMLElement | null>(null);
   const mobileMenuTrigger = useRef<HTMLElement | null>(null);
   const temporaryShareTrigger = useRef<HTMLElement | null>(null);
+  const mobileFileActionTrigger = useRef<HTMLElement | null>(null);
 
   const loadDocuments = useCallback(async (currentSession: Session) => {
     if (folderActionInFlight.current) return;
@@ -552,7 +555,7 @@ function HomeContent() {
   }, [temporaryShare]);
 
   useEffect(() => {
-    const activeDialog = temporaryShare ? temporaryShareDialog.current : authOpen ? authDialog.current : mobileMenuOpen ? mobileNavigation.current : null;
+    const activeDialog = mobileFileActionDocument ? mobileFileActionDialog.current : temporaryShare ? temporaryShareDialog.current : authOpen ? authDialog.current : mobileMenuOpen ? mobileNavigation.current : null;
     if (!activeDialog) return;
 
     const focusable = () => Array.from(activeDialog.querySelectorAll<HTMLElement>(
@@ -562,7 +565,8 @@ function HomeContent() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (temporaryShare) closeTemporaryShare();
+        if (mobileFileActionDocument) closeMobileFileActionMenu();
+        else if (temporaryShare) closeTemporaryShare();
         else if (authOpen) closeAuth();
         else closeMobileMenu();
         return;
@@ -577,7 +581,7 @@ function HomeContent() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [authOpen, mobileMenuOpen, temporaryShare]);
+  }, [authOpen, mobileFileActionDocument, mobileMenuOpen, temporaryShare]);
 
   function continueToUpload() {
     setDetailsError("");
@@ -1256,6 +1260,16 @@ function HomeContent() {
     window.setTimeout(() => mobileMenuTrigger.current?.focus(), 0);
   }
 
+  function openMobileFileActionMenu(fileDocument: FlyDocument) {
+    mobileFileActionTrigger.current = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
+    setMobileFileActionDocument(fileDocument);
+  }
+
+  function closeMobileFileActionMenu() {
+    setMobileFileActionDocument(null);
+    window.setTimeout(() => mobileFileActionTrigger.current?.focus(), 0);
+  }
+
   function closeTemporaryShare() {
     setTemporaryShare(null);
     window.setTimeout(() => temporaryShareTrigger.current?.focus(), 0);
@@ -1582,23 +1596,24 @@ function HomeContent() {
                             </div>
                           </div>
                           <div className="file-row-actions" aria-label="File actions">
-                            <button type="button" title="Copy link" aria-label="Copy link" disabled={!document.shareUrl}
+                            <button className="mobile-file-action-secondary" type="button" title="Copy link" aria-label="Copy link" disabled={!document.shareUrl}
                               onClick={() => document.shareUrl && void copyDocumentLink(document.shareUrl)}>
                               <Image src="/file-list-link.svg" alt="" width={24} height={24} aria-hidden="true" />
                             </button>
-                            <button className="file-action-qr" type="button" title="QR & short link" aria-label="QR & short link"
+                            <button className="file-action-qr mobile-file-action-secondary" type="button" title="QR & short link" aria-label="QR & short link"
                               disabled={!TEMPORARY_SHARE_ENABLED || !document.shareUrl || temporaryShareBusyDocumentId === document.id}
                               onClick={() => document.shareUrl && void openTemporaryShare(document, session.accessToken)}>
                               <Image src="/folder-menu-qr.svg" alt="" width={24} height={24} aria-hidden="true" />
                             </button>
-                            <button type="button" title="Download file" aria-label="Download file" disabled={!document.shareUrl}
+                            <button className="mobile-file-action-download" type="button" title="Download file" aria-label="Download file" disabled={!document.shareUrl}
                               onClick={() => void downloadDocument(document)}>
                               <Image src="/file-list-download.svg" alt="" width={24} height={24} aria-hidden="true" />
                             </button>
-                            <button className="danger-action" type="button" title="Delete file" aria-label="Delete file" disabled={folderActionBusy}
+                            <button className="danger-action mobile-file-action-secondary" type="button" title="Delete file" aria-label="Delete file" disabled={folderActionBusy}
                               onClick={() => void deleteDocument(document.id)}>
                               <Image src="/file-list-delete.svg" alt="" width={24} height={24} aria-hidden="true" />
                             </button>
+                            <button className="mobile-file-action-menu" type="button" aria-label={"More actions for " + document.filename} onClick={() => openMobileFileActionMenu(document)}><span aria-hidden="true">⋯</span></button>
                           </div>
                         </article>
                       ))}
@@ -2171,6 +2186,20 @@ function HomeContent() {
           <Link href="/privacy" prefetch={false}>Privacy</Link>
         </nav>
       </footer>
+
+      {mobileFileActionDocument && session && (
+        <div className="overlay mobile-file-actions-overlay" role="presentation" onMouseDown={closeMobileFileActionMenu}>
+          <section ref={mobileFileActionDialog} className="mobile-file-actions-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-file-actions-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="mobile-file-actions-heading">
+              <strong id="mobile-file-actions-title" title={mobileFileActionDocument.filename}>{mobileFileActionDocument.filename}</strong>
+              <button type="button" aria-label="Close file actions" onClick={closeMobileFileActionMenu}>×</button>
+            </div>
+            <button type="button" disabled={!mobileFileActionDocument.shareUrl} onClick={() => { if (mobileFileActionDocument.shareUrl) void copyDocumentLink(mobileFileActionDocument.shareUrl); closeMobileFileActionMenu(); }}>Copy link</button>
+            <button type="button" disabled={!TEMPORARY_SHARE_ENABLED || !mobileFileActionDocument.shareUrl || temporaryShareBusyDocumentId === mobileFileActionDocument.id} onClick={() => { if (mobileFileActionDocument.shareUrl) void openTemporaryShare(mobileFileActionDocument, session.accessToken); closeMobileFileActionMenu(); }}>Show QR</button>
+            <button className="danger-action" type="button" disabled={folderActionBusy} onClick={() => { void deleteDocument(mobileFileActionDocument.id); closeMobileFileActionMenu(); }}>Delete</button>
+          </section>
+        </div>
+      )}
 
       {temporaryShare && (() => {
         const secondsRemaining = Math.max(
