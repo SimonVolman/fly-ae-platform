@@ -2194,9 +2194,9 @@ function HomeContent() {
               <strong id="mobile-file-actions-title" title={mobileFileActionDocument.filename}>{mobileFileActionDocument.filename}</strong>
               <button type="button" aria-label="Close file actions" onClick={closeMobileFileActionMenu}>×</button>
             </div>
-            <button type="button" disabled={!mobileFileActionDocument.shareUrl} onClick={() => { if (mobileFileActionDocument.shareUrl) void copyDocumentLink(mobileFileActionDocument.shareUrl); closeMobileFileActionMenu(); }}>Copy link</button>
-            <button type="button" disabled={!TEMPORARY_SHARE_ENABLED || !mobileFileActionDocument.shareUrl || temporaryShareBusyDocumentId === mobileFileActionDocument.id} onClick={() => { if (mobileFileActionDocument.shareUrl) void openTemporaryShare(mobileFileActionDocument, session.accessToken); closeMobileFileActionMenu(); }}>Show QR</button>
-            <button className="danger-action" type="button" disabled={folderActionBusy} onClick={() => { void deleteDocument(mobileFileActionDocument.id); closeMobileFileActionMenu(); }}>Delete</button>
+            <button type="button" disabled={!mobileFileActionDocument.shareUrl} onClick={() => { if (mobileFileActionDocument.shareUrl) void copyDocumentLink(mobileFileActionDocument.shareUrl); closeMobileFileActionMenu(); }}><Image src="/file-list-link.svg" alt="" width={24} height={24} aria-hidden="true" /><span>Copy link</span></button>
+            <button type="button" disabled={!TEMPORARY_SHARE_ENABLED || !mobileFileActionDocument.shareUrl || temporaryShareBusyDocumentId === mobileFileActionDocument.id} onClick={() => { if (mobileFileActionDocument.shareUrl) void openTemporaryShare(mobileFileActionDocument, session.accessToken); closeMobileFileActionMenu(); }}><Image src="/folder-menu-qr.svg" alt="" width={24} height={24} aria-hidden="true" /><span>Show QR</span></button>
+            <button className="danger-action" type="button" disabled={folderActionBusy} onClick={() => { void deleteDocument(mobileFileActionDocument.id); closeMobileFileActionMenu(); }}><Image src="/file-list-delete.svg" alt="" width={24} height={24} aria-hidden="true" /><span>Delete</span></button>
           </section>
         </div>
       )}

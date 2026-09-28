@@ -8347,3 +8347,15 @@ select:focus-visible,
     opacity: .4;
   }
 }
+
+@media (max-width: 820px) {
+  .mobile-file-actions-sheet > button {
+    gap: 12px;
+  }
+
+  .mobile-file-actions-sheet > button img {
+    flex: 0 0 24px;
+    height: 24px;
+    width: 24px;
+  }
+}
