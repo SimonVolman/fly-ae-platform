@@ -1957,7 +1957,7 @@ function HomeContent() {
                           <Image className="selected-file-icon" src="/doc.svg" alt="" width={24} height={24} aria-hidden="true" />
                           <div className="selected-upload-details">
                             <div className="selected-upload-file-meta">
-                              <strong>{file.name}</strong>
+                              <strong title={file.name}>{file.name}</strong>
                               <small>{formatBytes(file.size)}</small>
                             </div>
                           </div>

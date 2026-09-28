@@ -8236,3 +8236,17 @@ select:focus-visible,
     transform: none;
   }
 }
+
+/* Keep long upload filenames on one line and expose the full name on hover. */
+.selected-upload-file-meta {
+  min-width: 0;
+  width: 100%;
+}
+
+.selected-upload-file-meta > strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
