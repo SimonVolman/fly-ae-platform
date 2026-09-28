@@ -1949,7 +1949,11 @@ function HomeContent() {
                         key={`${file.name}:${file.size}:${file.lastModified}`}
                       >
                         <div className="selected-upload-primary">
-                          <Image className="selected-check" src="/check-circle.svg" alt="" width={30} height={30} aria-hidden="true" />
+                          {uploadFileErrors[fileKey(file)] ? (
+                            <span className="selected-upload-status is-error" aria-hidden="true">!</span>
+                          ) : (
+                            <Image className="selected-check" src="/check-circle.svg" alt="" width={30} height={30} aria-hidden="true" />
+                          )}
                           <Image className="selected-file-icon" src="/doc.svg" alt="" width={24} height={24} aria-hidden="true" />
                           <div className="selected-upload-details">
                             <div className="selected-upload-file-meta">
