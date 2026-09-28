@@ -166,6 +166,18 @@ npm run lint
 npm run test:web
 ```
 
+Живой UI smoke на Dev (Chromium, без OTP):
+
+```bash
+npm run test:dev:ui
+```
+
+Сценарий на desktop, tablet и mobile загружает тестовый PDF как гость,
+проверяет QR, обычную и короткую share-ссылки, скачивает файл и затем удаляет
+его. После удаления он проверяет отзыв обеих ссылок. Снимки и `results.json`
+сохраняются в `artifacts/ui/dev-live-YYYY-MM-DD/`. Для другого стенда можно
+задать `FLY_DEV_URL`, для другого каталога снимков - `FLY_UI_ARTIFACT_DIR`.
+
 Backend unit tests и PostgreSQL/Flyway Testcontainers test:
 
 ```bash

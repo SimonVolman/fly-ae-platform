@@ -21,6 +21,7 @@
     "test:ui:mobile": "npm run test:ui:mobile --workspace @fly-ae/web",
     "test:ui:screenshots": "npm run test:ui:screenshots --workspace @fly-ae/web",
     "test:ui:report": "npm run test:ui:report --workspace @fly-ae/web",
+    "test:dev:ui": "node scripts/dev-live-ui-report.mjs",
     "test:backend": "./apps/backend/gradlew -p apps/backend test",
     "happy-path": "node scripts/happy-path.mjs",
     "happy-path:guest": "node scripts/guest-happy-path.mjs",

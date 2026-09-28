@@ -8,11 +8,12 @@ import {
 import { createPortal } from "react-dom";
 import { documentCount, shareableDocuments, type FolderViewItem } from "../document-library";
 
-export type FolderAction = "copy" | "download" | "delete";
+export type FolderAction = "copy" | "qr" | "download" | "delete";
 type ActionsHandle = { openAt: (x: number, y: number, origin: HTMLElement) => void };
 type ActionsProps = {
   folder: FolderViewItem;
   busy: boolean;
+  temporaryShareEnabled: boolean;
   onAction: (action: FolderAction, folder: FolderViewItem) => void;
   className?: string;
   ref?: Ref<ActionsHandle>;
@@ -23,7 +24,7 @@ export function DocumentIcon({ name }: { name: "link" | "download" | "bin" | "ba
   return <span className={`document-icon document-icon-${name}`} aria-hidden="true" />;
 }
 
-export function FolderActions({ folder, busy, onAction, className, ref, onOpenChange }: ActionsProps) {
+export function FolderActions({ folder, busy, temporaryShareEnabled, onAction, className, ref, onOpenChange }: ActionsProps) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -116,25 +117,33 @@ export function FolderActions({ folder, busy, onAction, className, ref, onOpenCh
               : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
             items[next]?.focus();
           }}>
-          <p className="folder-menu-title" role="presentation">{folder.label}</p>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
-            onClick={() => choose("copy")}><DocumentIcon name="link" /><span>Copy links</span></button>
+            onClick={() => choose("copy")}>
+            <Image className="folder-context-menu-icon" src="/folder-menu-link.svg" alt="" width={24} height={24} aria-hidden="true" />
+            <span>Copy link</span>
+          </button>
+          <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available || !temporaryShareEnabled}
+            onClick={() => choose("qr")}>
+            <Image className="folder-context-menu-icon" src="/folder-menu-qr.svg" alt="" width={24} height={24} aria-hidden="true" />
+            <span>QR & short link</span>
+          </button>
           <button type="button" role="menuitem" tabIndex={-1} disabled={busy || !available}
-            onClick={() => choose("download")}><DocumentIcon name="download" /><span>Download files</span></button>
-          {available > 0 && <p className="folder-menu-hint" role="presentation">
-            Copied links include file names, with one link per approved document.
-          </p>}
-          {!available && <p className="folder-menu-hint" role="presentation">Links and downloads are available after approval.</p>}
-          <div className="folder-menu-separator" role="separator" />
+            onClick={() => choose("download")}>
+            <Image className="folder-context-menu-icon" src="/folder-menu-download.svg" alt="" width={24} height={24} aria-hidden="true" />
+            <span>Download</span>
+          </button>
           <button className="danger-action" type="button" role="menuitem" tabIndex={-1} disabled={busy}
-            onClick={() => choose("delete")}><DocumentIcon name="bin" /><span>Delete all documents</span></button>
+            onClick={() => choose("delete")}>
+            <Image className="folder-context-menu-icon" src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
+            <span>Delete all</span>
+          </button>
         </div>, document.body,
       )}
     </>
   );
 }
 
-export function FolderCard({ folder, busy, onOpen, onAction }: Omit<ActionsProps, "className" | "ref" | "onOpenChange"> & {
+export function FolderCard({ folder, busy, temporaryShareEnabled, onOpen, onAction }: Omit<ActionsProps, "className" | "ref" | "onOpenChange"> & {
   onOpen: (folder: FolderViewItem) => void;
 }) {
   const actions = useRef<ActionsHandle>(null);
@@ -194,10 +203,12 @@ export function FolderCard({ folder, busy, onOpen, onAction }: Omit<ActionsProps
           onOpen(folder);
         }}>
         <Image className="folder-art" src="/folder.svg" alt="" width={204} height={152} draggable={false} />
-        <strong className="folder-tile-label">{folder.label}</strong>
-        <span className="folder-tile-meta">{documentCount(folder.documents.length)}</span>
+        <span className="folder-tile-text">
+          <strong className="folder-tile-label">{folder.label}</strong>
+          <span className="folder-tile-meta">{documentCount(folder.documents.length)}</span>
+        </span>
       </button>
-      <FolderActions ref={actions} folder={folder} busy={busy} onAction={onAction} onOpenChange={setSelected} />
+      <FolderActions ref={actions} folder={folder} busy={busy} temporaryShareEnabled={temporaryShareEnabled} onAction={onAction} onOpenChange={setSelected} />
     </article>
   );
 }

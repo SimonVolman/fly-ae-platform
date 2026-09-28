@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { apiRequestError, type ApiProblem } from "./api-error";
+import { ApiRequestError, apiRequestError, type ApiProblem } from "./api-error";
 import {
   logoutBrowserSession,
   refreshBrowserSession,
@@ -25,16 +25,35 @@ import { Brand } from "./components/Brand";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { Mission } from "./components/Mission";
 import { DocumentsNavigation } from "./components/DocumentsNavigation";
-import { DocumentIcon, FolderActions, FolderCard, type FolderAction } from "./components/Folder";
+import { FolderActions, FolderCard, type FolderAction } from "./components/Folder";
 import {
   categoryItem, documentCount, folderItem, folderLabel, groupDocumentsIntoFolders,
   groupFoldersIntoCategories, resolveFolderLocation, shareableDocuments, folderShareText,
-  type Category, type DocumentStatus, type FlyDocument, type FolderViewItem,
+  type Category, type FlyDocument, type FolderViewItem,
 } from "./document-library";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./legal";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+
+function localStorageProxyUrl(signedUrl: string) {
+  if (API_URL.startsWith("/")) {
+    const hostname = window.location.hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1"
+      ? "/__s3_proxy?url=" + encodeURIComponent(signedUrl)
+      : signedUrl;
+  }
+  try {
+    const apiUrl = new URL(API_URL);
+    const usesLocalApi = apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1";
+    return usesLocalApi
+      ? apiUrl.origin + "/__s3_proxy?url=" + encodeURIComponent(signedUrl)
+      : signedUrl;
+  } catch {
+    return signedUrl;
+  }
+}
+
 const DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
 const configuredAuthenticatedMaxFileSize = Number(
   process.env.NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES,
@@ -113,6 +132,22 @@ const CATEGORY_CARD_SELECTED_IMAGES: Record<string, string> = {
   ENGINE: "/category-engine-active.svg",
   LANDING_GEAR: "/category-landing-gear-active.svg",
   JUST_DOCUMENT: "/category-just-document-active.svg",
+};
+
+const MOBILE_CATEGORY_CARD_IMAGES: Record<string, string> = {
+  AIRCRAFT: "/mobile-category-aircraft.svg",
+  APU: "/mobile-category-apu.svg",
+  ENGINE: "/mobile-category-engine.svg",
+  LANDING_GEAR: "/mobile-category-landing-gear.svg",
+  JUST_DOCUMENT: "/mobile-category-just-document.svg",
+};
+
+const MOBILE_CATEGORY_CARD_SELECTED_IMAGES: Record<string, string> = {
+  AIRCRAFT: "/mobile-category-aircraft-active.svg",
+  APU: "/mobile-category-apu-active.svg",
+  ENGINE: "/mobile-category-engine-active.svg",
+  LANDING_GEAR: "/mobile-category-landing-gear-active.svg",
+  JUST_DOCUMENT: "/mobile-category-just-document-active.svg",
 };
 
 const CATEGORY_CARD_CATALOG = [
@@ -385,18 +420,22 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function statusLabel(status: DocumentStatus) {
-  const labels: Record<DocumentStatus, string> = {
-    CREATED: "Ready to upload",
-    UPLOADING: "Uploading",
-    PENDING: "Pending",
-    PROCESSING: "Processing",
-    APPROVED: "Approved",
-    REJECTED: "Rejected",
-    FAILED: "Failed",
-    DELETED: "Deleted",
-  };
-  return labels[status];
+function friendlyRequestMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 429) return error.message;
+    if (error.status >= 500) return fallback;
+    if (error.message && error.message !== "Request failed.") return error.message;
+  }
+
+  const message = error instanceof Error ? error.message : "";
+  if (!message || /request failed|failed to fetch|networkerror/i.test(message)) {
+    return fallback;
+  }
+  return message;
+}
+
+function fileKey(file: File) {
+  return file.name + ":" + file.size + ":" + file.lastModified;
 }
 
 function isJustDocument(category?: Category) {
@@ -427,6 +466,12 @@ function HomeContent() {
     useState<GuestDocumentClaim | null>(null);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
+  const [authEmailError, setAuthEmailError] = useState("");
+  const [authCodeError, setAuthCodeError] = useState("");
+  const [detailsError, setDetailsError] = useState("");
+  const [uploadFileErrors, setUploadFileErrors] = useState<Record<string, string>>({});
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const [completedUploadCount, setCompletedUploadCount] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
   const [authStep, setAuthStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -445,6 +490,7 @@ function HomeContent() {
   const [folderActionBusy, setFolderActionBusy] = useState(false);
   const [documentNotice, setDocumentNotice] = useState<{ error: boolean; message: string } | null>(null);
   const [temporaryShare, setTemporaryShare] = useState<TemporaryShare | null>(null);
+  const [mobileFileActionDocument, setMobileFileActionDocument] = useState<FlyDocument | null>(null);
   const [temporaryShareBusyDocumentId, setTemporaryShareBusyDocumentId] = useState<string | null>(null);
   const [temporaryShareNow, setTemporaryShareNow] = useState(() => Date.now());
   const [copyNotice, setCopyNotice] = useState("");
@@ -455,6 +501,18 @@ function HomeContent() {
   const fileInput = useRef<HTMLInputElement>(null);
   const stepTwo = useRef<HTMLElement>(null);
   const stepThree = useRef<HTMLElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
+  const otpInput = useRef<HTMLInputElement>(null);
+  const identifierInput = useRef<HTMLInputElement>(null);
+  const categorySelect = useRef<HTMLSelectElement>(null);
+  const authDialog = useRef<HTMLElement>(null);
+  const mobileNavigation = useRef<HTMLElement>(null);
+  const temporaryShareDialog = useRef<HTMLElement>(null);
+  const mobileFileActionDialog = useRef<HTMLElement>(null);
+  const authTrigger = useRef<HTMLElement | null>(null);
+  const mobileMenuTrigger = useRef<HTMLElement | null>(null);
+  const temporaryShareTrigger = useRef<HTMLElement | null>(null);
+  const mobileFileActionTrigger = useRef<HTMLElement | null>(null);
 
   const loadDocuments = useCallback(async (currentSession: Session) => {
     if (folderActionInFlight.current) return;
@@ -463,9 +521,11 @@ function HomeContent() {
     setDocumentsLoadError("");
     try {
       const result = await api<FlyDocument[]>("/documents", {}, currentSession.accessToken);
-      if (request === documentRequest.current) setDocuments(result);
+      if (request === documentRequest.current) {
+        setDocuments(result);
+      }
     } catch (requestError) {
-      if (request === documentRequest.current) setDocumentsLoadError((requestError as Error).message);
+      if (request === documentRequest.current) setDocumentsLoadError(friendlyRequestMessage(requestError, "We couldn’t load your documents. Check your connection and try again."));
     } finally {
       if (request === documentRequest.current) setDocumentsLoading(false);
     }
@@ -481,7 +541,7 @@ function HomeContent() {
             : result[0]?.id || "",
         );
       })
-      .catch((requestError: Error) => setError(requestError.message));
+      .catch((requestError: Error) => setError(friendlyRequestMessage(requestError, "We couldn’t load document categories. Refresh the page and try again.")));
 
     // A prior release persisted an access token in tab storage. Never reuse it:
     // the persistent session is an HttpOnly cookie and access stays in memory.
@@ -545,12 +605,46 @@ function HomeContent() {
     return () => window.clearInterval(timer);
   }, [temporaryShare]);
 
+  useEffect(() => {
+    const activeDialog = mobileFileActionDocument ? mobileFileActionDialog.current : temporaryShare ? temporaryShareDialog.current : authOpen ? authDialog.current : mobileMenuOpen ? mobileNavigation.current : null;
+    if (!activeDialog) return;
+
+    const focusable = () => Array.from(activeDialog.querySelectorAll<HTMLElement>(
+      "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
+    ));
+    window.setTimeout(() => focusable()[0]?.focus(), 0);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (mobileFileActionDocument) closeMobileFileActionMenu();
+        else if (temporaryShare) closeTemporaryShare();
+        else if (authOpen) closeAuth();
+        else closeMobileMenu();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const elements = focusable();
+      if (!elements.length) return;
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [authOpen, mobileFileActionDocument, mobileMenuOpen, temporaryShare]);
+
   function continueToUpload() {
-    setError("");
-    if (!categoryId || (!isJustDocument(selectedCategory) && !msn.trim())) {
-      setError(
-        `Select a document category and enter the ${identifierField(selectedCategory).label}.`,
-      );
+    setDetailsError("");
+    if (!categoryId) {
+      setDetailsError("Choose a document category to continue.");
+      window.setTimeout(() => categorySelect.current?.focus(), 0);
+      return;
+    }
+    if (!isJustDocument(selectedCategory) && !msn.trim()) {
+      const field = identifierField(selectedCategory).label;
+      setDetailsError("Enter the " + field + " to continue.");
+      window.setTimeout(() => identifierInput.current?.focus(), 0);
       return;
     }
     setUploadState(selectedFiles.length ? "ready" : "idle");
@@ -562,17 +656,26 @@ function HomeContent() {
 
   async function requestOtp(event: FormEvent) {
     event.preventDefault();
-    setAuthBusy(true);
     setAuthError("");
+    setAuthEmailError("");
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
+      setAuthEmailError("Enter a valid email address.");
+      window.setTimeout(() => emailInput.current?.focus(), 0);
+      return;
+    }
+    setAuthBusy(true);
     try {
       await api<void>("/auth/otp/request", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
+      setEmail(normalizedEmail);
       setOtpCode("");
       setAuthStep("code");
     } catch (requestError) {
-      setAuthError((requestError as Error).message);
+      setAuthEmailError(friendlyRequestMessage(requestError, "We couldn’t send the code. Check your connection and try again."));
+      window.setTimeout(() => emailInput.current?.focus(), 0);
     } finally {
       setAuthBusy(false);
     }
@@ -580,9 +683,18 @@ function HomeContent() {
 
   async function verifyOtp(event: FormEvent) {
     event.preventDefault();
-    if (!acceptedLegal) return;
-    setAuthBusy(true);
     setAuthError("");
+    setAuthCodeError("");
+    if (!acceptedLegal) {
+      setAuthCodeError("Accept the Terms and Privacy Policy to continue.");
+      return;
+    }
+    if (otpCode.length !== 6) {
+      setAuthCodeError("Enter the six-digit code from your email.");
+      window.setTimeout(() => otpInput.current?.focus(), 0);
+      return;
+    }
+    setAuthBusy(true);
     try {
       const nextSession = await api<Session>("/auth/otp/verify", {
         method: "POST",
@@ -615,7 +727,8 @@ function HomeContent() {
       );
       await loadDocuments(nextSession);
     } catch (requestError) {
-      setAuthError((requestError as Error).message);
+      setAuthCodeError(friendlyRequestMessage(requestError, "We couldn’t verify the code. Check it and try again."));
+      window.setTimeout(() => otpInput.current?.focus(), 0);
     } finally {
       setAuthBusy(false);
     }
@@ -686,7 +799,7 @@ function HomeContent() {
   }
 
   function clearSelectedFiles() {
-    if (uploadBusy) return;
+    if (uploadBusy && workflowStep !== 3) return;
     setSelectedFiles([]);
     setUploadState("idle");
     setUploadProgress(0);
@@ -746,6 +859,8 @@ function HomeContent() {
     }
     setError("");
     setUploadProgress(0);
+    setCompletedUploadCount(0);
+    setUploadFileErrors({});
     setUploadRecoveryNotice("");
     setUploadState("preparing");
     setWorkflowStep(2);
@@ -835,7 +950,7 @@ function HomeContent() {
           );
           return {
             method: "PUT" as const,
-            url: signed.url,
+            url: localStorageProxyUrl(signed.url),
             headers: signed.headers,
           };
         },
@@ -876,6 +991,9 @@ function HomeContent() {
         setUploadState("uploading");
         setUploadProgress(progress);
         setUploadRecoveryNotice("");
+      });
+      uppy.on("upload-success", () => {
+        setCompletedUploadCount((current) => Math.min(current + 1, selectedFiles.length));
       });
       selectedFiles.forEach((file, index) => {
         const document = createdUploads[index].document;
@@ -956,8 +1074,10 @@ function HomeContent() {
           ),
         );
       }
+      const message = friendlyRequestMessage(requestError, "This file could not be uploaded. Check your connection and retry.");
       setUploadState("failed");
-      setError((requestError as Error).message);
+      setUploadRecoveryNotice("Your selected files are still in the queue. Retry when you are ready.");
+      setUploadFileErrors(Object.fromEntries(selectedFiles.map((file) => [fileKey(file), message])));
     } finally {
       uppy?.destroy();
     }
@@ -984,7 +1104,7 @@ function HomeContent() {
       setDocuments((current) => current.filter((document) => document.id !== documentId));
       setDocumentNotice({ error: false, message: "Document deleted." });
     } catch (requestError) {
-      setDocumentNotice({ error: true, message: (requestError as Error).message });
+      setDocumentNotice({ error: true, message: friendlyRequestMessage(requestError, "We couldn’t complete that action. Check your connection and try again.") });
     } finally {
       folderActionInFlight.current = false;
       setFolderActionBusy(false);
@@ -1003,10 +1123,43 @@ function HomeContent() {
     }
   }
 
+  async function copyDocumentLink(link: string) {
+    try {
+      await navigator.clipboard.writeText(link);
+      setDocumentNotice({ error: false, message: "Link copied." });
+    } catch {
+      setDocumentNotice({ error: true, message: "We couldn’t copy the link. Allow clipboard access and try again." });
+    }
+  }
+
+  async function downloadDocument(fileDocument: FlyDocument) {
+    if (!session || !fileDocument.shareUrl) return;
+    setDocumentNotice(null);
+    try {
+      const token = new URL(fileDocument.shareUrl, window.location.origin).pathname.split("/").filter(Boolean).at(-1);
+      if (!token) throw new Error("The document share link is invalid.");
+      const result = await api<{ downloadUrl: string }>(
+        "/shares/" + encodeURIComponent(decodeURIComponent(token)),
+        {},
+        session.accessToken,
+      );
+      const link = document.createElement("a");
+      link.href = result.downloadUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (requestError) {
+      setDocumentNotice({ error: true, message: friendlyRequestMessage(requestError, "We couldn’t complete that action. Check your connection and try again.") });
+    }
+  }
+
   async function openTemporaryShare(
     document: TemporaryShareDocument,
     accessToken: string,
   ) {
+    temporaryShareTrigger.current = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
     setTemporaryShareBusyDocumentId(document.id);
     setError("");
     setDocumentNotice(null);
@@ -1026,7 +1179,7 @@ function HomeContent() {
     } catch (requestError) {
       const message = (requestError as Error).message;
       if (showDocuments) setDocumentNotice({ error: true, message });
-      else setError(message);
+      else setError(friendlyRequestMessage(requestError, "We couldn’t create a share link. Check your connection and try again."));
     } finally {
       setTemporaryShareBusyDocumentId(null);
     }
@@ -1077,6 +1230,9 @@ function HomeContent() {
           error: false,
           message: `Copied ${available.length} labeled document ${available.length === 1 ? "link" : "links"} from “${folder.label}”.`,
         });
+      } else if (action === "qr") {
+        if (!available.length) throw new Error("No approved share links are available yet.");
+        await openTemporaryShare(available[0], session.accessToken);
       } else if (action === "download") {
         if (!available.length) throw new Error("No approved documents are available to download yet.");
         const downloads = await Promise.all(available.map(async (document) => {
@@ -1112,7 +1268,7 @@ function HomeContent() {
     } catch (requestError) {
       setDocumentNotice({ error: true, message: action === "copy"
         ? "The links could not be copied. Please allow clipboard access and try again."
-        : (requestError as Error).message });
+        : friendlyRequestMessage(requestError, "We couldn’t complete that action. Check your connection and try again.") });
     } finally {
       folderActionInFlight.current = false;
       setFolderActionBusy(false);
@@ -1144,18 +1300,44 @@ function HomeContent() {
     setShowDocuments(true);
     setMobileMenuOpen(false);
     setAccountMenuOpen(false);
+    setOpenCategoryId(null);
+    setOpenFolderKey(null);
+    setExpandedDocumentCategories((current) => Array.from(new Set([...current, "root"])));
     if (session) void loadDocuments(session);
+  }
+
+  function closeMobileMenu() {
+    setMobileMenuOpen(false);
+    window.setTimeout(() => mobileMenuTrigger.current?.focus(), 0);
+  }
+
+  function openMobileFileActionMenu(fileDocument: FlyDocument) {
+    mobileFileActionTrigger.current = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
+    setMobileFileActionDocument(fileDocument);
+  }
+
+  function closeMobileFileActionMenu() {
+    setMobileFileActionDocument(null);
+    window.setTimeout(() => mobileFileActionTrigger.current?.focus(), 0);
+  }
+
+  function closeTemporaryShare() {
+    setTemporaryShare(null);
+    window.setTimeout(() => temporaryShareTrigger.current?.focus(), 0);
   }
 
   function prepareAuthDialog() {
     setAuthStep("email");
     setAuthError("");
+    setAuthEmailError("");
+    setAuthCodeError("");
     setOtpCode("");
     setAcceptedLegal(false);
     setAuthOpen(true);
   }
 
   function openAuth() {
+    authTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const guestUpload = activeUploads.find((upload) =>
       upload.accessToken.startsWith("gst_"),
     );
@@ -1173,7 +1355,10 @@ function HomeContent() {
   function closeAuth() {
     setAuthOpen(false);
     setAuthError("");
+    setAuthEmailError("");
+    setAuthCodeError("");
     setPendingGuestClaim(null);
+    window.setTimeout(() => authTrigger.current?.focus(), 0);
   }
 
   function clearSessionView() {
@@ -1215,7 +1400,7 @@ function HomeContent() {
     (upload) => upload.document.status === "APPROVED" && upload.document.shareUrl,
   );
   const documentFolders = groupDocumentsIntoFolders(documents);
-  const categoryFolders = groupFoldersIntoCategories(documentFolders);
+  const categoryFolders = groupFoldersIntoCategories(documentFolders, categories);
   const { category: openCategory, folder: openFolder } = resolveFolderLocation(categoryFolders, openCategoryId, openFolderKey);
   useLayoutEffect(() => {
     if (showDocuments && !mobileMenuOpen) documentsHeading.current?.focus();
@@ -1224,7 +1409,7 @@ function HomeContent() {
   const currentFolderItem = openFolder ? folderItem(openFolder) : openCategory ? categoryItem(openCategory) : null;
   const folderNavigation = (
     <DocumentsNavigation categories={categoryFolders} active={showDocuments}
-      categoryId={openCategory?.category.id ?? null} folderKey={openFolder?.key ?? null}
+      categoryId={openCategoryId} folderKey={openFolder?.key ?? null}
       expanded={expandedDocumentCategories} onToggle={toggleDocumentCategory} onNavigate={navigateDocuments} />
   );
   const userDisplayName =
@@ -1306,6 +1491,7 @@ function HomeContent() {
           <button
             className="mobile-menu-button"
             onClick={() => {
+              mobileMenuTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
               setAccountMenuOpen(false);
               setMobileMenuOpen((open) => !open);
             }}
@@ -1321,37 +1507,46 @@ function HomeContent() {
         <div
           className="mobile-navigation-overlay"
           role="presentation"
-          onMouseDown={() => setMobileMenuOpen(false)}
+          onMouseDown={closeMobileMenu}
         >
           <aside
-            className="mobile-navigation"
+            ref={mobileNavigation}
+            className={`mobile-navigation ${session ? "is-authenticated" : "is-guest"}`}
             role="dialog"
             aria-modal="true"
             aria-label="Navigation"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="mobile-navigation-top">
-              <Brand />
-              <button
+              <Brand figmaTopbar />
+              <div className="mobile-navigation-actions">
+                {session && <span className="mobile-navigation-avatar" aria-hidden="true">{userInitials.slice(0, 2)}</span>}
+                <button
                 type="button"
                 className="mobile-navigation-close"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMobileMenu}
                 aria-label="Close navigation menu"
               >
-                ×
+                <Image src="/close.svg" alt="" width={24} height={24} aria-hidden="true" />
               </button>
+              </div>
             </div>
             <div className="mobile-product-navigation">
               <nav aria-label="Mobile product navigation">
                 <button type="button" className={!showDocuments ? "nav-active" : ""} onClick={showUploadView}>Upload</button>
-                {!session && <button type="button" className={showDocuments ? "nav-active" : ""} onClick={showDocumentsView}>My Documents</button>}
+                <button type="button" className={showDocuments ? "nav-active" : ""} onClick={showDocumentsView}>My Documents</button>
               </nav>
-              {session && folderNavigation}
             </div>
             {session ? (
               <div className="mobile-session">
-                <span>{userDisplayName}</span>
-                <button type="button" onClick={logOut}>Log out</button>
+                <div className="mobile-session-identity">
+                  <Image src="/mobile-menu-account.svg" alt="" width={24} height={24} aria-hidden="true" />
+                  <span>{userDisplayName}</span>
+                </div>
+                <button type="button" onClick={logOut}>
+                  <Image src="/mobile-menu-logout.svg" alt="" width={24} height={24} aria-hidden="true" />
+                  <span>Log out</span>
+                </button>
               </div>
             ) : (
               <button
@@ -1375,8 +1570,14 @@ function HomeContent() {
 
       {showDocuments ? (
         <div className={`documents-workspace ${session ? "has-document-navigation" : ""}`}>
-          {session && <aside className="documents-sidebar" aria-label="Documents sidebar">{folderNavigation}</aside>}
-          <section className="documents-view" aria-labelledby="documents-title" aria-busy={documentsLoading || folderActionBusy}>
+          {session && <aside className="documents-sidebar" aria-label="Documents sidebar">
+            {folderNavigation}
+            <nav className="documents-sidebar-legal" aria-label="Legal">
+              <Link href="/privacy" prefetch={false}>Privacy Policy</Link>
+              <Link href="/terms" prefetch={false}>Terms and Conditions</Link>
+            </nav>
+          </aside>}
+          <section className={`documents-view ${openFolder ? "is-folder-open" : openCategory ? "is-category-open" : "is-documents-root"}`} aria-labelledby="documents-title" aria-busy={documentsLoading || folderActionBusy}>
             <nav className="folder-breadcrumbs" aria-label="Folder path">
               <ol>
                 <li>{openCategory
@@ -1392,31 +1593,55 @@ function HomeContent() {
               <div className="documents-heading-main">
                 <div className="documents-title-row">
                   {openCategory && <button className="folder-back-button" type="button"
-                    aria-label={`Back to ${openFolder ? openCategory.category.name : "My Documents"}`}
-                    onClick={() => navigateDocuments(openFolder ? openCategory.category.id : null, null)}>
-                    <DocumentIcon name="back" />
+                    aria-label={openFolder ? "Back to category" : "Back to My Documents"}
+                    onClick={() => navigateDocuments(openFolder ? openFolder.category.id : null, null)}>
+                    <Image src="/file-list-back.svg" alt="" width={24} height={24} aria-hidden="true" />
                   </button>}
                   <h1 id="documents-title" ref={documentsHeading} tabIndex={-1}>
-                    {openFolder ? folderLabel(openFolder) : openCategory?.category.name ?? "My Documents"}
+                    {openFolder ? <>
+                      <span className="folder-category-title">{openFolder.category.name}</span>
+                      <span className="folder-path-title"> / {folderLabel(openFolder)}</span>
+                    </> : openCategory?.category.name ?? "My Documents"}
                   </h1>
                   {currentFolderItem && <FolderActions className="folder-heading-action" folder={currentFolderItem} busy={folderActionBusy}
+                    temporaryShareEnabled={TEMPORARY_SHARE_ENABLED}
                     onAction={(action, folder) => void performFolderAction(action, folder)} />}
                 </div>
                 {session && <p className="documents-summary">{documentCount(currentFolderItem?.documents.length ?? documents.filter((document) => document.status !== "DELETED").length)}</p>}
               </div>
-              <button className="button button-primary" onClick={showUploadView}>Upload document</button>
+              <button className="button button-primary documents-upload-button" onClick={showUploadView}>
+                <Image src="/file-list-plus.svg" alt="" width={24} height={24} aria-hidden="true" />
+                <span>Upload document</span>
+              </button>
             </div>
-            {documentNotice && <p className={`documents-notice ${documentNotice.error ? "is-error" : ""}`}
-              role={documentNotice.error ? "alert" : "status"}>{documentNotice.message}</p>}
+            {session && !openCategory && <div className="mobile-documents-navigation">
+              <DocumentsNavigation categories={categoryFolders} active={showDocuments}
+                categoryId={openCategoryId} folderKey={openFolder?.key ?? null}
+                expanded={expandedDocumentCategories} onToggle={toggleDocumentCategory} onNavigate={navigateDocuments} monochrome />
+            </div>}
+            {documentNotice && <div className={"documents-notice " + (documentNotice.error ? "is-error" : "is-success")}
+              role={documentNotice.error ? "alert" : "status"}>
+              <span className="documents-notice-mark" aria-hidden="true">{documentNotice.error ? "!" : "✓"}</span>
+              <span className="documents-notice-message">{documentNotice.message}</span>
+              <button className="documents-notice-close" type="button" aria-label="Dismiss message"
+                onClick={() => setDocumentNotice(null)}>×</button>
+            </div>}
             {session && documentsLoadError && <div className="documents-notice is-error" role="alert">
-              <span>{documentsLoadError}</span>
-              <button type="button" onClick={() => void loadDocuments(session)}>Try again</button>
+              <span className="documents-notice-mark" aria-hidden="true">!</span>
+              <span className="documents-notice-message">{documentsLoadError}</span>
+              <div className="documents-notice-controls">
+                <button className="documents-notice-action" type="button" onClick={() => void loadDocuments(session)}>Try again</button>
+                <button className="documents-notice-close" type="button" aria-label="Dismiss message"
+                  onClick={() => setDocumentsLoadError("")}>×</button>
+              </div>
             </div>}
             {!session ? (
-              <div className="empty-app-state">
-                <h2>Log in to view your documents</h2>
-                <p>My Documents is available after you sign in.</p>
-                <button className="button button-primary" onClick={openAuth}>Log in</button>
+              <div className="empty-app-state documents-login-state">
+                <div className="documents-login-copy">
+                  <h2>Log in to view your documents</h2>
+                  <p>My Documents is available after you log in</p>
+                </div>
+                <button className="button button-primary documents-login-button" onClick={openAuth}>Login</button>
               </div>
             ) : documentsLoading && !documents.length ? (
               <div className="empty-app-state" role="status">Loading documents…</div>
@@ -1427,35 +1652,46 @@ function HomeContent() {
                     <div className="document-table">
                       {openFolder.documents.map((document) => (
                         <article className="document-item" key={document.id}>
-                          <DocumentIcon name="file" />
-                          <div className="document-name">
-                            <strong title={document.filename}>{document.filename}</strong>
-                            <span>{formatBytes(document.sizeBytes)}</span>
+                          <div className="file-row-main">
+                            <Image className="file-row-icon" src="/file-list-doc.svg" alt="" width={21} height={24} aria-hidden="true" />
+                            <div className="document-name">
+                              <strong title={document.filename}>{document.filename}</strong>
+                              <span>{formatBytes(document.sizeBytes)}</span>
+                            </div>
                           </div>
-                          <span className={`document-status status-${document.status.toLowerCase()}`}>
-                            <i aria-hidden="true" />{statusLabel(document.status)}
-                          </span>
-                          <div className="document-actions">
-                            {document.shareUrl && <button onClick={() => void copyShareLink(document.shareUrl!)}>Copy link</button>}
-                            {TEMPORARY_SHARE_ENABLED && document.shareUrl && (
-                              <button
-                                disabled={temporaryShareBusyDocumentId === document.id}
-                                onClick={() => void openTemporaryShare(document, session.accessToken)}
-                              >
-                                {temporaryShareBusyDocumentId === document.id ? "Creating…" : "QR & short link"}
-                              </button>
-                            )}
-                            <button className="danger-action" disabled={folderActionBusy} onClick={() => void deleteDocument(document.id)}>Delete</button>
+                          <div className="file-row-actions" aria-label="File actions">
+                            <button className="mobile-file-action-secondary" type="button" title="Copy link" aria-label="Copy link" disabled={!document.shareUrl}
+                              onClick={() => document.shareUrl && void copyDocumentLink(document.shareUrl)}>
+                              <Image src="/file-list-link.svg" alt="" width={24} height={24} aria-hidden="true" />
+                            </button>
+                            <button className="file-action-qr mobile-file-action-secondary" type="button" title="QR & short link" aria-label="QR & short link"
+                              disabled={!TEMPORARY_SHARE_ENABLED || !document.shareUrl || temporaryShareBusyDocumentId === document.id}
+                              onClick={() => document.shareUrl && void openTemporaryShare(document, session.accessToken)}>
+                              <Image src="/folder-menu-qr.svg" alt="" width={24} height={24} aria-hidden="true" />
+                            </button>
+                            <button className="mobile-file-action-download" type="button" title="Download file" aria-label="Download file" disabled={!document.shareUrl}
+                              onClick={() => void downloadDocument(document)}>
+                              <Image src="/file-list-download.svg" alt="" width={24} height={24} aria-hidden="true" />
+                            </button>
+                            <button className="danger-action mobile-file-action-secondary" type="button" title="Delete file" aria-label="Delete file" disabled={folderActionBusy}
+                              onClick={() => void deleteDocument(document.id)}>
+                              <Image src="/file-list-delete.svg" alt="" width={24} height={24} aria-hidden="true" />
+                            </button>
+                            <button className="mobile-file-action-menu" type="button" aria-label={"More actions for " + document.filename} onClick={() => openMobileFileActionMenu(document)}><span aria-hidden="true">⋯</span></button>
                           </div>
                         </article>
                       ))}
                     </div>
                   </section>
-                ) : (
+                ) : visibleFolderItems.length ? (
                   <div className="document-folder-grid">
-                    {visibleFolderItems.map((folder) => <FolderCard key={folder.key} folder={folder} busy={folderActionBusy}
+                    {visibleFolderItems.map((folder) => <FolderCard key={folder.key} folder={folder} busy={folderActionBusy} temporaryShareEnabled={TEMPORARY_SHARE_ENABLED}
                       onOpen={(item) => navigateDocuments(item.categoryId, item.folderKey)}
                       onAction={(action, item) => void performFolderAction(action, item)} />)}
+                  </div>
+                ) : (
+                  <div className="documents-empty-category-state" role="status">
+                    <p>No documents yet</p>
                   </div>
                 )}
               </div>
@@ -1525,6 +1761,41 @@ function HomeContent() {
           </aside>
 
           <div className="workspace-main">
+            <section className="mobile-document-details" aria-labelledby="mobile-document-details-title">
+              <h2 id="mobile-document-details-title">Document details</h2>
+              <div className="mobile-category-list" role="list" aria-label="Category">
+                {CATEGORY_CARD_CATALOG.map((card) => {
+                  const category = categories.find((item) => item.code === card.code);
+                  const isSelected = category
+                    ? category.id === categoryId
+                    : card.code === "AIRCRAFT" && !categoryId;
+                  const imageSource = isSelected
+                    ? MOBILE_CATEGORY_CARD_SELECTED_IMAGES[card.code]
+                    : MOBILE_CATEGORY_CARD_IMAGES[card.code];
+
+                  if (!imageSource) return null;
+
+                  return (
+                    <button
+                      key={card.code}
+                      type="button"
+                      className={"mobile-category-card" + (isSelected ? " is-selected" : "")}
+                      aria-pressed={isSelected}
+                      disabled={!category}
+                      onClick={() => {
+                        if (!category) return;
+                        setCategoryId(category.id);
+                        if (isJustDocument(category)) setMsn("");
+                      }}
+                    >
+                      <Image src={imageSource} alt="" width={216} height={78} aria-hidden="true" />
+                      <span>{card.name}</span>
+                      {isSelected && <Image className="mobile-category-check" src="/circle-check.svg" alt="" width={24} height={24} aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
             <div className="workspace-intro">
               <p className="eyebrow">Secure document transfer</p>
               <h1 id="upload-title">Upload an aviation file</h1>
@@ -1579,11 +1850,11 @@ function HomeContent() {
               </article>
             )}
 
-            {workflowStep < 3 && (
+            {(workflowStep < 3 || approvedUploads.length > 0) && (
               <section
                 className={`workflow-card wizard-panel describe-panel ${
                   workflowStep === 2 ? "step-panel-complete" : ""
-                }`}
+                } ${workflowStep === 3 ? "workflow-complete" : ""}`}
               >
                 <div className="card-heading">
                   <span>01</span>
@@ -1600,7 +1871,9 @@ function HomeContent() {
                 <label className="field category-field">
                   <span>Category <i>*</i></span>
                   <select
+                    ref={categorySelect}
                     aria-label="Category"
+                    aria-invalid={Boolean(detailsError) && !categoryId}
                     value={categoryId}
                     disabled={categories.length === 0}
                     onChange={(event) => {
@@ -1631,17 +1904,33 @@ function HomeContent() {
                 ) : (
                   <label className="field msn-field">
                     <span>{identifierField(selectedCategory).label} <i>*</i></span>
-                    <input
-                      value={msn}
-                      onChange={(event) => setMsn(event.target.value)}
-                      placeholder={identifierField(selectedCategory).placeholder}
-                      maxLength={64}
-                    />
+                    <div className="msn-input-control">
+                      <input
+                        ref={identifierInput}
+                        aria-invalid={Boolean(detailsError)}
+                        aria-describedby={detailsError ? "document-details-error" : undefined}
+                        value={msn}
+                        onChange={(event) => setMsn(event.target.value)}
+                        placeholder={identifierField(selectedCategory).placeholder}
+                        maxLength={64}
+                      />
+                      {msn.length > 0 && (
+                        <button
+                          type="button"
+                          className="clear-msn"
+                          aria-label="Clear MSN"
+                          onClick={() => setMsn("")}
+                        >
+                          <Image src="/clear-field.svg" alt="" width={24} height={24} aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
                     <small className="identifier-examples">
                       {identifierField(selectedCategory).helper}
                     </small>
                   </label>
                 )}
+                {detailsError && <p id="document-details-error" className="field-error" role="alert">{detailsError}</p>}
 
                 <button className="button button-primary continue-button" onClick={continueToUpload}>
                   Continue to file upload
@@ -1667,11 +1956,11 @@ function HomeContent() {
               </article>
             )}
 
-            {workflowStep < 3 && (
+            {(workflowStep < 3 || approvedUploads.length > 0) && (
               <section
                 className={`workflow-card wizard-panel upload-panel ${
                   workflowStep === 1 ? "step-panel-pending" : ""
-                }`}
+                } ${workflowStep === 3 ? "upload-complete" : ""}`}
                 ref={stepTwo}
               >
                 <div className="card-heading">
@@ -1681,13 +1970,16 @@ function HomeContent() {
                     <p>
                       PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · multiple files allowed.
                     </p>
+                    <p className="upload-aviation-copy">
+                      Please upload only materials related to aviation components, every file is subject to verification.
+                    </p>
                   </div>
                   {selectedFiles.length > 0 && (
                     <button
                       type="button"
                       className="clear-upload"
                       onClick={clearSelectedFiles}
-                      disabled={uploadBusy}
+                      disabled={uploadBusy && workflowStep !== 3}
                     >
                       <Image src="/arrow-reload.svg" alt="" width={24} height={24} aria-hidden="true" />
                       <span>Clear</span>
@@ -1706,26 +1998,74 @@ function HomeContent() {
 
                 <div className="upload-drop-area">
                   <button
-                    className={`app-drop-zone ${selectedFiles.length ? "file-selected" : ""}`}
+                    className={"app-drop-zone " + (selectedFiles.length ? "file-selected " : "") + (isDraggingFiles ? "is-dragging" : "")}
                     disabled={uploadBusy}
                     onClick={() => fileInput.current?.click()}
+                    onDragEnter={(event) => { event.preventDefault(); setIsDraggingFiles(true); }}
                     onDragOver={(event) => event.preventDefault()}
-                    onDrop={dropFile}
+                    onDragLeave={(event) => { if (event.currentTarget === event.target) setIsDraggingFiles(false); }}
+                    onDrop={(event) => { setIsDraggingFiles(false); dropFile(event); }}
+                    aria-describedby="upload-dropzone-help"
                   >
                     <span className="upload-icon" aria-hidden="true">
                       <Image src="/upload-streamline.svg" alt="" width={24} height={24} />
                     </span>
                     <span>
-                      <strong>Choose files or drag &amp; drop them here</strong>
-                      <small>
+                      <strong>{isDraggingFiles ? "Drop files to add them" : "Choose files or drag & drop them here"}</strong>
+                      <small id="upload-dropzone-help">
                         {session
-                          ? `Maximum ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per file`
-                          : "Maximum 100 MB per file"}
+                          ? "Supported: PDF, image, video, or archive · Maximum " + AUTHENTICATED_MAX_FILE_SIZE_LABEL + " per file"
+                          : "Supported: PDF, image, video, or archive · Maximum 100 MB per file"}
                       </small>
                     </span>
                   </button>
 
-                  <aside className="upload-security-notice" aria-label="File privacy and access">
+                {selectedFiles.length > 0 && (
+                  <div className="selected-upload-list" aria-label="Selected files">
+                    {selectedFiles.map((file, index) => (
+                      <div
+                        className="selected-upload-row"
+                        key={`${file.name}:${file.size}:${file.lastModified}`}
+                      >
+                        <div className="selected-upload-primary">
+                          {uploadFileErrors[fileKey(file)] ? (
+                            <span className="selected-upload-status is-error" aria-hidden="true">!</span>
+                          ) : (
+                            <Image className="selected-check" src="/check-circle.svg" alt="" width={30} height={30} aria-hidden="true" />
+                          )}
+                          <Image className="selected-file-icon" src="/doc.svg" alt="" width={24} height={24} aria-hidden="true" />
+                          <div className="selected-upload-details">
+                            <div className="selected-upload-file-meta">
+                              <strong title={file.name}>{file.name}</strong>
+                              <small>{formatBytes(file.size)}</small>
+                            </div>
+                          </div>
+                          {!uploadBusy && (
+                            <div className="selected-upload-actions">
+                              <button
+                                type="button"
+                                className="remove-upload"
+                                onClick={() => removeSelectedFile(index)}
+                                aria-label={"Remove " + file.name}
+                              >
+                                <Image src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
+                              </button>
+                              {uploadFileErrors[fileKey(file)] && (
+                                <button type="button" className="upload-file-retry" onClick={() => void startUpload()} aria-label={"Retry " + file.name}>Retry</button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {uploadFileErrors[fileKey(file)] && (
+                          <p className="upload-file-error" role="alert">{uploadFileErrors[fileKey(file)]}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                </div>
+
+                <aside className="upload-security-notice" aria-label="File privacy and access">
                     <Image
                       className="upload-security-icon"
                       src="/security-shield.svg"
@@ -1739,35 +2079,6 @@ function HomeContent() {
                       <p>Only you and those you share the private link with can access your files. Your file contents are not accessible to unauthorized parties.</p>
                     </div>
                   </aside>
-                </div>
-
-                {selectedFiles.length > 0 && (
-                  <div className="selected-upload-list" aria-label="Selected files">
-                    {selectedFiles.map((file, index) => (
-                      <div
-                        className="selected-upload-row"
-                        key={`${file.name}:${file.size}:${file.lastModified}`}
-                      >
-                        <Image className="selected-check" src="/check-circle.svg" alt="" width={30} height={30} aria-hidden="true" />
-                        <Image className="selected-file-icon" src="/file-icon.svg" alt="" width={24} height={24} aria-hidden="true" />
-                        <div>
-                          <strong>{file.name}</strong>
-                          <small>{formatBytes(file.size)}</small>
-                        </div>
-                        {!uploadBusy && (
-                          <button
-                            type="button"
-                            className="remove-upload"
-                            onClick={() => removeSelectedFile(index)}
-                            aria-label={`Remove ${file.name}`}
-                          >
-                            <Image src="/delete-bin.svg" alt="" width={24} height={24} aria-hidden="true" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {!session && selectedFiles.length > 0 && !uploadBusy && (
                   <div className={`guest-upload-options ${acceptedGuestLegal ? "is-accepted" : ""}`}>
@@ -1806,7 +2117,7 @@ function HomeContent() {
                   </div>
                 )}
 
-                {uploadBusy && (
+                {uploadBusy && workflowStep !== 3 && (
                   <div className="upload-progress" aria-live="polite">
                     <Image
                       className="upload-progress-illustration"
@@ -1820,7 +2131,7 @@ function HomeContent() {
                       <strong>
                         {uploadState === "preparing" && "Preparing secure upload"}
                         {uploadState === "uploading" &&
-                          `Uploading ${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"} · ${uploadProgress}%`}
+                          ("Uploading " + Math.min(completedUploadCount + 1, selectedFiles.length) + " of " + selectedFiles.length + " files · " + uploadProgress + "%")}
                         {uploadState === "processing" && "Verifying files"}
                       </strong>
                       <span>
@@ -1829,7 +2140,15 @@ function HomeContent() {
                           : "Files are sent directly to private object storage.")}
                       </span>
                     </div>
-                    <div className="progress-track">
+                    <div
+                      className="progress-track"
+                      role="progressbar"
+                      aria-label="Upload progress"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={uploadState === "processing" ? 100 : Math.round(uploadProgress)}
+                      aria-valuetext={uploadState === "preparing" ? "Preparing secure upload" : uploadState === "processing" ? "Verifying files" : "Uploading " + Math.min(completedUploadCount + 1, selectedFiles.length) + " of " + selectedFiles.length + " files"}
+                    >
                       <span
                         style={{
                           width:
@@ -1842,25 +2161,7 @@ function HomeContent() {
                   </div>
                 )}
 
-                {selectedFiles.length > 0 && !uploadBusy && (
-                  <button
-                    className="button button-primary upload-button"
-                    disabled={
-                      !documentDetailsReady || (!session && !acceptedGuestLegal)
-                    }
-                    onClick={() => void startUpload()}
-                  >
-                    {documentDetailsReady
-                      ? selectedFiles.length === 1
-                        ? "Upload securely"
-                        : `Upload ${selectedFiles.length} files securely`
-                      : "Complete document details to upload"}
-                  </button>
-                )}
-              </section>
-            )}
-
-            {workflowStep === 3 && approvedUploads.length > 0 && (
+                {workflowStep === 3 && approvedUploads.length > 0 && (
               <section className="sharing-ready" aria-live="polite" ref={stepThree}>
                 <div className="sharing-ready-copy">
                   <strong>Your secure link is ready</strong>
@@ -1911,7 +2212,22 @@ function HomeContent() {
                   </span>
                 )}
               </section>
+                )}
+
+                {selectedFiles.length > 0 && !uploadBusy && (
+                  <button
+                    className="button button-primary upload-button"
+                    disabled={
+                      !documentDetailsReady || (!session && !acceptedGuestLegal)
+                    }
+                    onClick={() => void startUpload()}
+                  >
+                    {documentDetailsReady ? "Upload securely" : "Complete document details to upload"}
+                  </button>
+                )}
+              </section>
             )}
+
           </div>
 
           {error && (
@@ -1920,11 +2236,11 @@ function HomeContent() {
               <span>{error}</span>
             </div>
           )}
+
+          {!showDocuments && <Mission />}
           </div>
         </section>
       )}
-
-      <Mission />
 
       <footer className="product-footer">
         <Brand />
@@ -1935,6 +2251,20 @@ function HomeContent() {
         </nav>
       </footer>
 
+      {mobileFileActionDocument && session && (
+        <div className="overlay mobile-file-actions-overlay" role="presentation" onMouseDown={closeMobileFileActionMenu}>
+          <section ref={mobileFileActionDialog} className="mobile-file-actions-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-file-actions-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="mobile-file-actions-heading">
+              <strong id="mobile-file-actions-title" title={mobileFileActionDocument.filename}>{mobileFileActionDocument.filename}</strong>
+              <button type="button" aria-label="Close file actions" onClick={closeMobileFileActionMenu}>×</button>
+            </div>
+            <button type="button" disabled={!mobileFileActionDocument.shareUrl} onClick={() => { if (mobileFileActionDocument.shareUrl) void copyDocumentLink(mobileFileActionDocument.shareUrl); closeMobileFileActionMenu(); }}><Image src="/file-list-link.svg" alt="" width={24} height={24} aria-hidden="true" /><span>Copy link</span></button>
+            <button type="button" disabled={!TEMPORARY_SHARE_ENABLED || !mobileFileActionDocument.shareUrl || temporaryShareBusyDocumentId === mobileFileActionDocument.id} onClick={() => { if (mobileFileActionDocument.shareUrl) void openTemporaryShare(mobileFileActionDocument, session.accessToken); closeMobileFileActionMenu(); }}><Image src="/folder-menu-qr.svg" alt="" width={24} height={24} aria-hidden="true" /><span>Show QR</span></button>
+            <button className="danger-action" type="button" disabled={folderActionBusy} onClick={() => { void deleteDocument(mobileFileActionDocument.id); closeMobileFileActionMenu(); }}><Image src="/file-list-delete.svg" alt="" width={24} height={24} aria-hidden="true" /><span>Delete</span></button>
+          </section>
+        </div>
+      )}
+
       {temporaryShare && (() => {
         const secondsRemaining = Math.max(
           0,
@@ -1944,25 +2274,26 @@ function HomeContent() {
         const remainingTime = `${Math.floor(secondsRemaining / 60)}:${String(
           secondsRemaining % 60,
         ).padStart(2, "0")}`;
-        return (
+        const shortCode = temporaryShare.shortUrl.split("/").at(-1) || temporaryShare.shortUrl;        return (
           <div
             className="overlay"
             role="presentation"
-            onMouseDown={() => setTemporaryShare(null)}
+            onMouseDown={closeTemporaryShare}
           >
             <section
+              ref={temporaryShareDialog}
               className="dialog temporary-share-dialog"
               role="dialog"
               aria-modal="true"
               aria-labelledby="temporary-share-title"
               onMouseDown={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
-                if (event.key === "Escape") setTemporaryShare(null);
+                if (event.key === "Escape") closeTemporaryShare();
               }}
             >
               <div className="dialog-top">
                 <h2 id="temporary-share-title">Share</h2>
-                <button className="close" onClick={() => setTemporaryShare(null)} aria-label="Close">
+                <button className="close" onClick={closeTemporaryShare} aria-label="Close">
                   <Image src="/close.svg" alt="" width={24} height={24} />
                 </button>
               </div>
@@ -1971,25 +2302,35 @@ function HomeContent() {
                 <div className="temporary-share-qr" aria-label="QR code for temporary share link">
                   <QRCodeSVG
                     value={temporaryShare.shortUrl}
-                    size={220}
+                    size={162}
                     level="M"
-                    marginSize={2}
+                    marginSize={0}
                     title={`Open ${temporaryShare.filename}`}
                   />
                 </div>
+                <div className="temporary-share-code">
+                  <strong>{shortCode}</strong>
+                  <div>
+                    <b>Code</b>
+                    <span>{expired ? "expired" : `expire on ${remainingTime}`}</span>
+                  </div>
+                </div>
                 <div className="temporary-share-details">
-                  <div className="short-share-label">
-                    <strong>Short link</strong>
-                    <span>{expired ? "expired" : `expires in ${remainingTime}`}</span>
-                  </div>
-                  <div className="short-share-url">
-                    <code>{temporaryShare.shortUrl}</code>
-                  </div>
                   <p>
-                    Anyone with this short link can download the file until it
-                    expires.
+                    To use the code, enter <b>fly.ae/<a href={temporaryShare.shortUrl} target="_blank" rel="noreferrer">your code</a></b> into your browser&apos;s address bar or copy the link along with the code in the field and send it.
                   </p>
-                  {expired ? (
+                  <div className="short-share-url">
+                    <code><span>fly.ae/</span>{shortCode}</code>
+                    <button
+                      type="button"
+                      aria-label="Copy short link"
+                      disabled={expired}
+                      onClick={() => void copyShareLink(temporaryShare.shortUrl, "Short link copied")}
+                    >
+                      <Image src="/copy.svg" alt="" width={24} height={24} />
+                    </button>
+                  </div>
+                  {expired && (
                     <button
                       className="button short-share-action"
                       type="button"
@@ -2003,16 +2344,6 @@ function HomeContent() {
                         ? "Creating…"
                         : "Create new short link"}
                     </button>
-                  ) : (
-                    <button
-                      className="button short-share-action"
-                      type="button"
-                      onClick={() =>
-                        void copyShareLink(temporaryShare.shortUrl, "Short link copied")
-                      }
-                    >
-                      Copy short link
-                    </button>
                   )}
                 </div>
               </div>
@@ -2024,6 +2355,7 @@ function HomeContent() {
       {authOpen && (
         <div className="overlay" role="presentation" onMouseDown={closeAuth}>
           <section
+            ref={authDialog}
             className="dialog login-dialog"
             role="dialog"
             aria-modal="true"
@@ -2047,7 +2379,7 @@ function HomeContent() {
             )}
 
             {authStep === "email" ? (
-              <form onSubmit={requestOtp}>
+              <form onSubmit={requestOtp} noValidate>
                 <h2 id="auth-title">
                   {pendingGuestClaim ? "Save to My Documents" : "Log in"}
                 </h2>
@@ -2059,23 +2391,27 @@ function HomeContent() {
                 <label>
                   Email
                   <input
+                    ref={emailInput}
                     autoFocus
                     type="email"
                     required
+                    aria-invalid={Boolean(authEmailError)}
+                    aria-describedby={authEmailError ? "auth-email-error" : undefined}
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="name@company.com"
                   />
                 </label>
+                {authEmailError && <p id="auth-email-error" className="field-error" role="alert">{authEmailError}</p>}
                 <button
                   className="primary-button"
-                  disabled={authBusy || !email.trim()}
+                  disabled={authBusy}
                 >
                   {authBusy ? "Sending…" : "Get one-time code"}
                 </button>
               </form>
             ) : (
-              <form onSubmit={verifyOtp}>
+              <form onSubmit={verifyOtp} noValidate>
                 <button
                   type="button"
                   className="back-link"
@@ -2094,8 +2430,11 @@ function HomeContent() {
                 <label>
                   One-time code
                   <input
+                    ref={otpInput}
                     autoFocus
                     className="otp-input"
+                    aria-invalid={Boolean(authCodeError)}
+                    aria-describedby={authCodeError ? "auth-code-error" : undefined}
                     inputMode="numeric"
                     pattern="[0-9]{6}"
                     maxLength={6}
@@ -2125,9 +2464,10 @@ function HomeContent() {
                     .
                   </span>
                 </label>
+{authCodeError && <p id="auth-code-error" className="field-error" role="alert">{authCodeError}</p>}
                 <button
                   className="primary-button"
-                  disabled={authBusy || otpCode.length !== 6 || !acceptedLegal}
+                  disabled={authBusy}
                 >
                   {authBusy ? "Verifying…" : "Verify and continue"}
                 </button>

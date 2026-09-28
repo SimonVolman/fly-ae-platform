@@ -34,12 +34,24 @@ async function openDocuments(page: Parameters<typeof installApiMock>[0]) {
   await expect(page.getByRole("heading", { name: "My Documents" })).toBeVisible();
 }
 
+function isMobile() {
+  return test.info().project.name === "mobile-chromium";
+}
+
+async function openAircraft(page: Parameters<typeof installApiMock>[0]) {
+  if (isMobile()) {
+    await page.getByRole("button", { name: "Aircraft 2 documents" }).click();
+  } else {
+    await page.getByRole("button", { name: "Open Aircraft, 2 documents" }).click();
+  }
+}
+
 test("UI-001 upload home renders in the browser", async ({ page }) => {
   await installApiMock(page);
   await page.goto("/");
   await expect(page.getByRole("region", { name: "Upload an aviation file" })).toBeVisible();
   if (test.info().project.name === "mobile-chromium") {
-    await expect(page.getByLabel("Category")).toBeVisible();
+    await expect(page.getByRole("list", { name: "Category" })).toBeVisible();
   } else {
     await expect(page.getByRole("button", { name: "Aircraft", exact: true })).toBeVisible();
   }
@@ -76,7 +88,9 @@ test("UI-004 authenticated user can open My Documents", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Open account menu" })).toBeVisible();
   await openDocuments(page);
-  await expect(page.getByRole("button", { name: "Open Aircraft, 2 documents" })).toBeVisible();
+  await expect(isMobile()
+    ? page.getByRole("button", { name: "Aircraft 2 documents" })
+    : page.getByRole("button", { name: "Open Aircraft, 2 documents" })).toBeVisible();
   await captureCheckpoint(page, test.info(), "04-document-library");
 });
 
@@ -84,22 +98,24 @@ test("UI-005 folder navigation reaches the document list", async ({ page }) => {
   await installApiMock(page, { authenticated: true });
   await page.goto("/");
   await openDocuments(page);
-  await page.getByRole("button", { name: "Open Aircraft, 2 documents" }).click();
+  await openAircraft(page);
   await page.getByRole("button", { name: "Open A6-FLY-001, 2 documents" }).click();
-  await expect(page.getByRole("heading", { name: "A6-FLY-001" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Aircraft \/ A6-FLY-001/ })).toBeVisible();
   await expect(page.getByText("aircraft-manual.pdf", { exact: true })).toBeVisible();
   await captureCheckpoint(page, test.info(), "05-folder-documents");
 });
 
-test("UI-006 folder actions stay within the desktop viewport", async ({ page }) => {
+test("UI-006 folder actions stay within the viewport", async ({ page }) => {
   await installApiMock(page, { authenticated: true });
   await page.goto("/");
   await openDocuments(page);
-  await page.getByRole("button", { name: "Open Aircraft, 2 documents" }).click();
-  const actions = page.getByRole("button", { name: "Actions for Aircraft" });
+  await openAircraft(page);
+  if (isMobile()) await page.getByRole("button", { name: "Open A6-FLY-001, 2 documents" }).click();
+  const folderName = isMobile() ? "A6-FLY-001" : "Aircraft";
+  const actions = page.getByRole("button", { name: `Actions for ${folderName}` });
   await expect(actions).toBeVisible();
   await actions.click();
-  const menu = page.getByRole("menu", { name: "Aircraft actions" });
+  const menu = page.getByRole("menu", { name: `${folderName} actions` });
   await expect(menu).toBeVisible();
   const box = await menu.boundingBox();
   expect(box).not.toBeNull();
@@ -116,11 +132,13 @@ test("UI-007 document list error can recover with Try again", async ({ page }) =
   const mock = await installApiMock(page, { authenticated: true, documentsFailUntilReleased: true });
   await page.goto("/");
   await openDocuments(page);
-  await expect(page.getByRole("alert")).toContainText("temporarily unavailable");
+  await expect(page.getByRole("alert")).toContainText("We couldn’t load your documents");
   await captureCheckpoint(page, test.info(), "07-document-load-error");
   mock.releaseDocuments();
   await page.getByRole("alert").getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("button", { name: "Open Aircraft, 2 documents" })).toBeVisible();
+  await expect(isMobile()
+    ? page.getByRole("button", { name: "Aircraft 2 documents" })
+    : page.getByRole("button", { name: "Open Aircraft, 2 documents" })).toBeVisible();
   await captureCheckpoint(page, test.info(), "07-document-load-recovered");
 });
 

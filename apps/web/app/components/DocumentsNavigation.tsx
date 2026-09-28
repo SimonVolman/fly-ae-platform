@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useId } from "react";
 import { documentCount, folderLabel, type CategoryFolder } from "../document-library";
 
@@ -11,10 +12,27 @@ type Props = {
   expanded: string[];
   onToggle: (id: string) => void;
   onNavigate: (categoryId: string | null, folderKey: string | null) => void;
+  monochrome?: boolean;
+};
+
+const CATEGORY_ILLUSTRATIONS: Record<string, { src: string; activeSrc: string; width: number; height: number }> = {
+  AIRCRAFT: { src: "/documents-category-aircraft-default.svg", activeSrc: "/documents-category-aircraft-active.svg", width: 264, height: 103 },
+  APU: { src: "/documents-category-apu.svg", activeSrc: "/documents-category-apu-active.svg", width: 166, height: 124 },
+  ENGINE: { src: "/documents-category-engine.svg", activeSrc: "/documents-category-engine-active.svg", width: 162, height: 141 },
+  LANDING_GEAR: { src: "/documents-category-landing-gear.svg", activeSrc: "/documents-category-landing-gear-active.svg", width: 146, height: 121 },
+  JUST_DOCUMENT: { src: "/documents-category-just-document.svg", activeSrc: "/documents-category-just-document-active.svg", width: 67, height: 83 },
+};
+
+const MOBILE_CATEGORY_ILLUSTRATIONS: Record<string, { src: string; width: number; height: number }> = {
+  AIRCRAFT: { src: "/mobile-documents-aircraft.svg", width: 216, height: 80 },
+  APU: { src: "/mobile-documents-apu.svg", width: 216, height: 80 },
+  ENGINE: { src: "/mobile-documents-engine.svg", width: 216, height: 80 },
+  LANDING_GEAR: { src: "/mobile-documents-landing-gear.svg", width: 216, height: 80 },
+  JUST_DOCUMENT: { src: "/mobile-documents-just-document.svg", width: 216, height: 80 },
 };
 
 export function DocumentsNavigation({
-  categories, active, categoryId, folderKey, expanded, onToggle, onNavigate,
+  categories, active, categoryId, folderKey, expanded, onToggle, onNavigate, monochrome = false,
 }: Props) {
   const id = useId();
   const rootOpen = expanded.includes("root");
@@ -33,11 +51,30 @@ export function DocumentsNavigation({
       </div>
       <ul id={`${id}-categories`} hidden={!rootOpen}>
         {categories.map((category, index) => {
-          const selected = active && category.category.id === categoryId;
+          const selected = active && (
+            category.category.id === categoryId ||
+            (!categoryId && category.category.code === "AIRCRAFT")
+          );
           const open = expanded.includes(category.category.id);
+          const illustration = CATEGORY_ILLUSTRATIONS[category.category.code];
+          const mobileIllustration = MOBILE_CATEGORY_ILLUSTRATIONS[category.category.code];
+          const displayIllustration = monochrome && mobileIllustration ? mobileIllustration : illustration;
           return (
             <li key={category.key}>
-              <div className={`documents-navigation-row ${selected ? "is-ancestor" : ""} ${selected && !folderKey ? "is-current" : ""}`}>
+              <div
+                className={`documents-navigation-row ${selected ? "is-ancestor" : ""} ${selected && !folderKey ? "is-current" : ""}`}
+                data-category-code={category.category.code}
+              >
+                {displayIllustration && (
+                  <Image
+                    className="documents-category-illustration"
+                    src={monochrome ? displayIllustration.src : selected ? illustration.activeSrc : illustration.src}
+                    alt=""
+                    width={displayIllustration.width}
+                    height={displayIllustration.height}
+                    aria-hidden="true"
+                  />
+                )}
                 <button type="button" className="documents-disclosure"
                   aria-label={`${open ? "Collapse" : "Expand"} ${category.category.name}`}
                   aria-expanded={open} aria-controls={`${id}-${index}`}
@@ -49,7 +86,7 @@ export function DocumentsNavigation({
                   title={`${category.category.name} · ${documentCount(category.documents.length)}`}
                   onClick={() => onNavigate(category.category.id, null)}>
                   <span>{category.category.name}</span>
-                  <small aria-label={documentCount(category.documents.length)}>{category.documents.length}</small>
+                  <small>{documentCount(category.documents.length)}</small>
                 </button>
               </div>
               <ul id={`${id}-${index}`} hidden={!open}>
