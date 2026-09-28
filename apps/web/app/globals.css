@@ -4962,8 +4962,8 @@ footer a {
 
   .workspace-main > .mission-section .mission-aircraft {
     height: 100%;
-    object-fit: cover;
-    object-position: center;
+    object-fit: contain;
+    object-position: right bottom;
     width: 100%;
   }
 
