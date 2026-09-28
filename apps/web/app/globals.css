@@ -6750,7 +6750,7 @@ footer a {
     background: #fff;
     border: 1px solid #d9dee8;
     border-radius: 16px;
-    min-height: 508px;
+    min-height: clamp(380px, 42svh, 460px);
     overflow: hidden;
     padding: 24px 16px;
     position: relative;
