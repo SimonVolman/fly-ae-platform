@@ -8067,3 +8067,18 @@ select:focus-visible,
     grid-template-columns: 30px 24px minmax(0, 1fr) auto;
   }
 }
+
+/* Align file controls to the filename, not the error message below it. */
+.selected-upload-row {
+  align-items: start;
+}
+
+.selected-upload-row > .selected-check,
+.selected-upload-row > .selected-file-icon {
+  margin-top: 2px;
+}
+
+.selected-upload-actions {
+  align-self: start;
+  min-height: 32px;
+}
