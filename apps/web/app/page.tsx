@@ -38,7 +38,10 @@ const API_URL =
 
 function localStorageProxyUrl(signedUrl: string) {
   if (API_URL.startsWith("/")) {
-    return "/__s3_proxy?url=" + encodeURIComponent(signedUrl);
+    const hostname = window.location.hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1"
+      ? "/__s3_proxy?url=" + encodeURIComponent(signedUrl)
+      : signedUrl;
   }
   try {
     const apiUrl = new URL(API_URL);
