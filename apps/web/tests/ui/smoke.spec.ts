@@ -3,10 +3,8 @@ import { expect, installApiMock, test } from "./fixtures";
 
 async function openLogin(page: Parameters<typeof installApiMock>[0]) {
   await expect(page.getByRole("region", { name: "Upload an aviation file" })).toBeVisible();
-  const mobileButton = page.locator("button.mobile-login-button");
-  const button = (await mobileButton.isVisible())
-    ? mobileButton
-    : page.locator("button.desktop-login");
+  const button = page.locator("button.mobile-login-button:visible, button.desktop-login:visible").first();
+  await expect(button).toBeVisible();
   const dialog = page.getByRole("dialog");
   for (let attempt = 0; attempt < 2; attempt += 1) {
     await button.click();
