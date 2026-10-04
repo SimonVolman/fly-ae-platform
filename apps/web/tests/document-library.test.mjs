@@ -118,6 +118,36 @@ afterEach(async () => {
   originals.clear();
 });
 
+test("a returning user is shown session recovery until the cookie refresh completes", async () => {
+  const originalFetch = globalThis.fetch;
+  let finishRefresh;
+  global("fetch", (input, options) => {
+    if (new URL(input).pathname === "/api/v1/auth/session/refresh") {
+      return new Promise((resolve) => { finishRefresh = resolve; });
+    }
+    return originalFetch(input, options);
+  });
+  Object.defineProperty(window, "sessionStorage", {
+    configurable: true,
+    get() { throw new Error("Storage is disabled"); },
+  });
+
+  await mount(React.createElement(Home));
+  assert.ok(finishRefresh);
+  assert.equal(container.querySelector(".desktop-login"), null);
+  assert.match(container.querySelector(".session-restore-status").textContent, /Checking session/);
+  await click(button("My Documents", container.querySelector(".primary-nav")));
+  assert.match(container.querySelector(".documents-workspace").textContent, /Checking your session/);
+
+  await act(async () => finishRefresh(Response.json({
+    accessToken: "restored-token", expiresAt: "2099-01-01T00:00:00Z",
+    user: { id: "test", email: "test@example.com", displayName: "Test", authenticationMethod: "EMAIL" },
+  })));
+  assert.ok(container.querySelector('[aria-label="Open account menu"]'));
+  assert.equal(container.querySelector(".session-restore-status"), null);
+  assert.equal(container.querySelector(".documents-login-state"), null);
+});
+
 test("folders keep identical identifiers separate across categories and fall back after deletion", () => {
   const folders = groupDocumentsIntoFolders([...records, makeDocument("deleted", aircraft, "gone", "DELETED")]);
   const categories = groupFoldersIntoCategories(folders);
@@ -246,6 +276,8 @@ test("approved document creates a short link and local QR without exposing the s
 
   assert.match(dialog.textContent, /Code/);
   assert.doesNotMatch(dialog.textContent, /Secret code/);
+  assert.match(dialog.textContent, /fly\.ae\/s\/your code/);
+  assert.equal(dialog.querySelector(".short-share-url code").textContent, "fly.ae/s/7K9D-P4QX");
   await click(button("Copy short link", dialog));
   assert.deepEqual(copied, ["http://localhost:3000/s/7K9D-P4QX"]);
 });

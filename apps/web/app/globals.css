@@ -1379,6 +1379,18 @@ footer a {
   justify-self: end;
 }
 
+.session-restore-status {
+  color: var(--color-muted);
+  font-size: 13px;
+  min-width: 100px;
+  text-align: center;
+}
+
+.mobile-session-restore {
+  color: var(--color-muted);
+  padding: 20px 24px;
+}
+
 .mobile-login-button,
 .mobile-menu-button {
   display: none;

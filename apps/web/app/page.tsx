@@ -455,6 +455,7 @@ function HomeContent() {
   );
   const [msn, setMsn] = useState("");
   const [session, setSession] = useState<Session | null>(null);
+  const [authRestoring, setAuthRestoring] = useState(true);
   const [documents, setDocuments] = useState<FlyDocument[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
@@ -545,12 +546,19 @@ function HomeContent() {
 
     // A prior release persisted an access token in tab storage. Never reuse it:
     // the persistent session is an HttpOnly cookie and access stays in memory.
-    window.sessionStorage.removeItem("flyae:session");
+    try {
+      window.sessionStorage.removeItem("flyae:session");
+    } catch {
+      // Browser storage can be disabled; the HttpOnly refresh cookie still works.
+    }
     let mounted = true;
     void refreshBrowserSession(API_URL).then((result) => {
-      if (!mounted || result.kind !== "ok") return;
-      setSession(result.session);
-      void loadDocuments(result.session);
+      if (!mounted) return;
+      if (result.kind === "ok") {
+        setSession(result.session);
+        void loadDocuments(result.session);
+      }
+      setAuthRestoring(false);
     });
 
     const onRefreshed = (event: Event) => {
@@ -1474,6 +1482,8 @@ function HomeContent() {
                 </div>
               )}
             </div>
+          ) : authRestoring ? (
+            <span className="session-restore-status" role="status">Checking session…</span>
           ) : (
             <>
               <button className="text-button desktop-login" onClick={openAuth}>
@@ -1548,6 +1558,8 @@ function HomeContent() {
                   <span>Log out</span>
                 </button>
               </div>
+            ) : authRestoring ? (
+              <div className="mobile-session-restore" role="status">Checking session…</div>
             ) : (
               <button
                 type="button"
@@ -1635,7 +1647,9 @@ function HomeContent() {
                   onClick={() => setDocumentsLoadError("")}>×</button>
               </div>
             </div>}
-            {!session ? (
+            {authRestoring && !session ? (
+              <div className="empty-app-state" role="status">Checking your session…</div>
+            ) : !session ? (
               <div className="empty-app-state documents-login-state">
                 <div className="documents-login-copy">
                   <h2>Log in to view your documents</h2>
@@ -2274,7 +2288,8 @@ function HomeContent() {
         const remainingTime = `${Math.floor(secondsRemaining / 60)}:${String(
           secondsRemaining % 60,
         ).padStart(2, "0")}`;
-        const shortCode = temporaryShare.shortUrl.split("/").at(-1) || temporaryShare.shortUrl;        return (
+        const shortCode = temporaryShare.shortUrl.split("/").at(-1) || temporaryShare.shortUrl;
+        return (
           <div
             className="overlay"
             role="presentation"
@@ -2317,10 +2332,10 @@ function HomeContent() {
                 </div>
                 <div className="temporary-share-details">
                   <p>
-                    To use the code, enter <b>fly.ae/<a href={temporaryShare.shortUrl} target="_blank" rel="noreferrer">your code</a></b> into your browser&apos;s address bar or copy the link along with the code in the field and send it.
+                    To use the code, enter <b>fly.ae/s/<a href={temporaryShare.shortUrl} target="_blank" rel="noreferrer">your code</a></b> into your browser&apos;s address bar or copy the link along with the code in the field and send it.
                   </p>
                   <div className="short-share-url">
-                    <code><span>fly.ae/</span>{shortCode}</code>
+                    <code><span>fly.ae/s/</span>{shortCode}</code>
                     <button
                       type="button"
                       aria-label="Copy short link"
