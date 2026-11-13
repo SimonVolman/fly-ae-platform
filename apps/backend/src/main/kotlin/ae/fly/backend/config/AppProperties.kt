@@ -20,8 +20,8 @@ data class SecurityProperties(
 
 @ConfigurationProperties("fly.documents")
 data class DocumentProperties(
-    val authenticatedMaxFileSizeBytes: Long = 3_221_225_472,
-    val guestMaxFileSizeBytes: Long = 104_857_600,
+    val authenticatedMaxFileSizeBytes: Long = 16_106_127_360,
+    val guestMaxFileSizeBytes: Long = 16_106_127_360,
 )
 
 @ConfigurationProperties("fly.web")

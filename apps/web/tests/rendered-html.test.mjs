@@ -79,7 +79,9 @@ test("server-renders the fly.ae upload application", async () => {
   assert.match(html, /Continue to file upload/);
   assert.match(html, /<h2>File upload<\/h2>/);
   assert.match(html, /PDF, image, video, or archive/);
-  assert.match(html, /Maximum 100 MB per file/);
+  assert.match(html, /Maximum 15 GB per file/);
+  assert.match(html, /The same limit applies with or without signing in/);
+  assert.doesNotMatch(html, /100 MB|15 GB[^<]*after signing in/);
   assert.match(html, /Our mission/);
   assert.doesNotMatch(html, /<img[^>]+src="\/mission-aircraft/);
   assert.match(html, /My Documents/);
@@ -151,9 +153,8 @@ test("removes the disposable starter preview", async () => {
   assert.match(page, /documents\/\$\{claim\.documentId\}\/claim/);
   assert.match(page, /Save to My Documents/);
   assert.match(page, /guestAccessToken/);
-  assert.match(page, /GUEST_MAX_FILE_SIZE = 100 \* 1024 \* 1024/);
-  assert.match(page, /DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 \* 1024 \* 1024 \* 1024/);
-  assert.match(page, /NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES/);
+  assert.match(page, /DEFAULT_MAX_FILE_SIZE = 15 \* 1024 \* 1024 \* 1024/);
+  assert.match(page, /NEXT_PUBLIC_MAX_FILE_SIZE_BYTES/);
   assert.match(page, /workflowStep === 2/);
   assert.match(page, /workflowStep === 3/);
   assert.match(page, /className="sharing-ready"/);

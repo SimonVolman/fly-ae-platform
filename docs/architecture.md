@@ -66,7 +66,7 @@ User and cannot list My Documents.
 A user or guest selects a seeded category and submits MSN, filename, supported
 MIME type and byte size for each selected file. The backend creates one
 `Document(CREATED)` per file with exactly one owner and returns its identifier.
-Guest files are capped at 100 MiB each; authenticated files at 3 GiB each.
+Guest and authenticated files are both capped at 15 GiB each (16,106,127,360 bytes).
 
 ### 3. Multipart upload
 

@@ -54,19 +54,18 @@ function localStorageProxyUrl(signedUrl: string) {
   }
 }
 
-const DEFAULT_AUTHENTICATED_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024;
-const configuredAuthenticatedMaxFileSize = Number(
-  process.env.NEXT_PUBLIC_AUTHENTICATED_MAX_FILE_SIZE_BYTES,
+const DEFAULT_MAX_FILE_SIZE = 15 * 1024 * 1024 * 1024;
+const configuredMaxFileSize = Number(
+  process.env.NEXT_PUBLIC_MAX_FILE_SIZE_BYTES,
 );
-const AUTHENTICATED_MAX_FILE_SIZE =
-  Number.isSafeInteger(configuredAuthenticatedMaxFileSize) &&
-  configuredAuthenticatedMaxFileSize > 0
-    ? configuredAuthenticatedMaxFileSize
-    : DEFAULT_AUTHENTICATED_MAX_FILE_SIZE;
-const AUTHENTICATED_MAX_FILE_SIZE_LABEL = `${
-  AUTHENTICATED_MAX_FILE_SIZE / (1024 * 1024 * 1024)
+const MAX_FILE_SIZE =
+  Number.isSafeInteger(configuredMaxFileSize) &&
+  configuredMaxFileSize > 0
+    ? configuredMaxFileSize
+    : DEFAULT_MAX_FILE_SIZE;
+const MAX_FILE_SIZE_LABEL = `${
+  MAX_FILE_SIZE / (1024 * 1024 * 1024)
 } GB`;
-const GUEST_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const UPLOAD_PART_STALL_TIMEOUT_MS = 90 * 1000;
 const UPLOAD_PART_RETRY_DELAYS = [0, 1_000, 5_000, 15_000, 30_000];
 const MOBILE_SAFE_UPLOAD_CONCURRENCY = 2;
@@ -196,6 +195,7 @@ const SUPPORTED_UPLOAD_TYPES: Record<string, readonly string[]> = {
   "application/x-zip-compressed": ["zip"],
   "application/x-7z-compressed": ["7z"],
   "application/vnd.rar": ["rar"],
+  "application/x-rar": ["rar"],
   "application/x-rar-compressed": ["rar"],
   "application/x-tar": ["tar"],
   "application/gzip": ["gz", "tgz"],
@@ -752,15 +752,10 @@ function HomeContent() {
       );
       return;
     }
-    const maxFileSize = session
-      ? AUTHENTICATED_MAX_FILE_SIZE
-      : GUEST_MAX_FILE_SIZE;
-    const oversizedFile = files.find((file) => file.size > maxFileSize);
+    const oversizedFile = files.find((file) => file.size > MAX_FILE_SIZE);
     if (oversizedFile) {
       setError(
-        session
-          ? `${oversizedFile.name} is larger than the ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per-file limit.`
-          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`,
+        `${oversizedFile.name} is larger than the ${MAX_FILE_SIZE_LABEL} per-file limit.`,
       );
       return;
     }
@@ -847,15 +842,10 @@ function HomeContent() {
       setError("Accept the Terms and Privacy Policy to upload without email.");
       return;
     }
-    const maxFileSize = session
-      ? AUTHENTICATED_MAX_FILE_SIZE
-      : GUEST_MAX_FILE_SIZE;
-    const oversizedFile = selectedFiles.find((file) => file.size > maxFileSize);
+    const oversizedFile = selectedFiles.find((file) => file.size > MAX_FILE_SIZE);
     if (oversizedFile) {
       setError(
-        session
-          ? `${oversizedFile.name} is larger than the ${AUTHENTICATED_MAX_FILE_SIZE_LABEL} per-file limit.`
-          : `${oversizedFile.name} is larger than the 100 MB per-file guest limit. Log in to upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`,
+        `${oversizedFile.name} is larger than the ${MAX_FILE_SIZE_LABEL} per-file limit.`,
       );
       return;
     }
@@ -923,7 +913,7 @@ function HomeContent() {
         allowMultipleUploadBatches: false,
         restrictions: {
           allowedFileTypes: UPPY_ALLOWED_FILE_TYPES,
-          maxFileSize,
+          maxFileSize: MAX_FILE_SIZE,
           maxNumberOfFiles: selectedFiles.length,
         },
       });
@@ -1814,8 +1804,8 @@ function HomeContent() {
               <p className="eyebrow">Secure document transfer</p>
               <h1 id="upload-title">Upload an aviation file</h1>
               <p>
-                Upload a PDF, image, video, or archive up to {AUTHENTICATED_MAX_FILE_SIZE_LABEL} after signing in.
-                Guest uploads: up to 100 MB per file, no email required.
+                Upload a PDF, image, video, or archive up to {MAX_FILE_SIZE_LABEL} per file.
+                The same limit applies with or without signing in. No email required for guest uploads.
               </p>
             </div>
 
@@ -2027,9 +2017,7 @@ function HomeContent() {
                     <span>
                       <strong>{isDraggingFiles ? "Drop files to add them" : "Choose files or drag & drop them here"}</strong>
                       <small id="upload-dropzone-help">
-                        {session
-                          ? "Supported: PDF, image, video, or archive · Maximum " + AUTHENTICATED_MAX_FILE_SIZE_LABEL + " per file"
-                          : "Supported: PDF, image, video, or archive · Maximum 100 MB per file"}
+                        {"Supported: PDF, image, video, or archive (ZIP, RAR, 7Z, TAR, GZ, BZ2, XZ) · Maximum " + MAX_FILE_SIZE_LABEL + " per file"}
                       </small>
                     </span>
                   </button>
@@ -2401,7 +2389,7 @@ function HomeContent() {
                 <p className="info-box">
                   {pendingGuestClaim
                     ? "Verify your email to add this guest document to My Documents without uploading it again."
-                    : `Log in with your email to keep a My Documents history and upload files up to ${AUTHENTICATED_MAX_FILE_SIZE_LABEL}.`}
+                    : "Log in with your email to keep a My Documents history."}
                 </p>
                 <label>
                   Email
