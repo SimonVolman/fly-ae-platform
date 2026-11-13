@@ -544,7 +544,7 @@ components:
           format: date-time
         maxFileSizeBytes:
           type: integer
-          const: 104857600
+          const: 16106127360
     User:
       type: object
       required:

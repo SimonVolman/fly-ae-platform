@@ -58,8 +58,8 @@ fly:
     short-share-enabled: ${FLY_SHORT_SHARE_ENABLED:false}
     short-share-ttl: ${FLY_SHORT_SHARE_TTL:15m}
   documents:
-    authenticated-max-file-size-bytes: ${FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES:3221225472}
-    guest-max-file-size-bytes: ${FLY_GUEST_MAX_FILE_SIZE_BYTES:104857600}
+    authenticated-max-file-size-bytes: ${FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES:16106127360}
+    guest-max-file-size-bytes: ${FLY_GUEST_MAX_FILE_SIZE_BYTES:16106127360}
   web:
     allowed-origins: ${FLY_ALLOWED_ORIGINS:http://localhost:3000}
     public-base-url: ${FLY_PUBLIC_BASE_URL:http://localhost:3000}

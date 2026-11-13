@@ -70,7 +70,11 @@ Parameters:
     Default: local
   AuthenticatedMaxFileSizeBytes:
     Type: Number
-    Default: 3221225472
+    Default: 16106127360
+    MinValue: 104857600
+  GuestMaxFileSizeBytes:
+    Type: Number
+    Default: 16106127360
     MinValue: 104857600
   AccessTokenTtl:
     Type: String
@@ -280,6 +284,7 @@ Resources:
           FLY_ALLOWED_ORIGINS: !Sub https://${FrontendDomainName}
           FLY_MAINTENANCE_MODE: !Ref MaintenanceMode
           FLY_AUTHENTICATED_MAX_FILE_SIZE_BYTES: !Ref AuthenticatedMaxFileSizeBytes
+          FLY_GUEST_MAX_FILE_SIZE_BYTES: !Ref GuestMaxFileSizeBytes
           FLY_ACCESS_TOKEN_TTL: !Ref AccessTokenTtl
           FLY_REFRESH_SESSION_TTL: !Ref RefreshSessionTtl
           FLY_REFRESH_REUSE_GRACE: !Ref RefreshReuseGrace

@@ -40,8 +40,8 @@ let uploadId;
 try {
   const guest = await createGuest();
   accessToken = guest.accessToken;
-  if (!accessToken.startsWith("gst_") || guest.maxFileSizeBytes !== 104_857_600) {
-    throw new Error("Guest session does not expose the expected 100 MiB capability");
+  if (!accessToken.startsWith("gst_") || guest.maxFileSizeBytes !== 16_106_127_360) {
+    throw new Error("Guest session does not expose the expected 15 GiB capability");
   }
   const auth = { authorization: `Bearer ${accessToken}` };
   console.log("✓ UP-003-T01 guest session created without email");
@@ -58,10 +58,10 @@ try {
       msn: "A6-GUEST-LIMIT",
       filename: "too-large.pdf",
       mimeType: "application/pdf",
-      sizeBytes: 104_857_601,
+      sizeBytes: 16_106_127_361,
     }),
   });
-  console.log("✓ UP-003-T06 backend rejects guest metadata above 100 MiB with 413");
+  console.log("✓ UP-003-T06 backend rejects guest metadata above 15 GiB with 413");
 
   const document = await request("/documents", {
     method: "POST",

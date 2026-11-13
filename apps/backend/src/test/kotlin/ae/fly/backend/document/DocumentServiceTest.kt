@@ -73,10 +73,10 @@ class DocumentServiceTest {
     }
 
     @Test
-    fun `guest can create multiple documents up to one hundred mebibytes each`() {
+    fun `guest can create multiple documents up to fifteen gibibytes each`() {
         val first = service.create(
             AuthenticatedGuest(guestId),
-            request(sizeBytes = 104_857_600),
+            request(sizeBytes = 16_106_127_360),
         )
         val second = service.create(
             AuthenticatedGuest(guestId),
@@ -86,7 +86,7 @@ class DocumentServiceTest {
             ),
         )
 
-        assertEquals(104_857_600, first.sizeBytes)
+        assertEquals(16_106_127_360, first.sizeBytes)
         assertEquals(42_000_000, second.sizeBytes)
         assertTrue(first.filename.endsWith(".pdf"))
         assertNull(first.shareUrl)
@@ -141,39 +141,32 @@ class DocumentServiceTest {
     }
 
     @Test
-    fun `guest document above one hundred mebibytes returns payload too large`() {
+    fun `guest document above fifteen gibibytes returns payload too large`() {
         val error = assertThrows(ApiProblem::class.java) {
             service.create(
                 AuthenticatedGuest(guestId),
-                request(sizeBytes = 104_857_601),
+                request(sizeBytes = 16_106_127_361),
             )
         }
 
         assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, error.status)
-        assertEquals("This upload is limited to 100 MB.", error.message)
+        assertEquals("This upload is limited to 15 GB.", error.message)
     }
 
     @Test
-    fun `authenticated upload limit is reported in gigabytes`() {
+    fun `authenticated user can upload fifteen gibibytes but not one byte more`() {
         val user = User(id = UUID.randomUUID(), email = "owner@example.com")
         `when`(users.findById(user.id)).thenReturn(user)
-        val configuredService = DocumentService(
-            documents = documents,
-            categories = categories,
-            users = users,
-            guestSessions = guests,
-            guestSessionTokens = guestTokens,
-            objectStorage = storage,
-            shareTokens = shares,
-            webProperties = WebProperties(),
-            documentProperties = DocumentProperties(authenticatedMaxFileSizeBytes = 15L * 1024 * 1024 * 1024),
-            clock = clock,
+        val document = service.create(
+            AuthenticatedUser(user.id),
+            request(sizeBytes = 16_106_127_360),
         )
+        assertEquals(16_106_127_360, document.sizeBytes)
 
         val error = assertThrows(ApiProblem::class.java) {
-            configuredService.create(
+            service.create(
                 AuthenticatedUser(user.id),
-                request(sizeBytes = 15L * 1024 * 1024 * 1024 + 1),
+                request(sizeBytes = 16_106_127_361),
             )
         }
 

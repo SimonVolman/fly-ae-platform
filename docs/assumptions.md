@@ -9,9 +9,9 @@ available.
    installation is not required.
 2. **Multiple files per upload flow.** Each selected file receives its own
    `Document` record and protected share link after verification.
-3. **Supported aviation files, owner-specific limit.** Documents, images,
-   videos and common archives are accepted. Guest files are limited to 100 MiB;
-   authenticated uploads are limited to 3 GiB. The browser validates
+3. **Supported aviation files, shared limit.** Documents, images,
+   videos and common archives are accepted. Guest and authenticated uploads
+   are both limited to 15 GiB per file (16,106,127,360 bytes). The browser validates
    first; the backend repeats filename, MIME and size checks before signing and
    verifies the stored object after multipart completion.
 4. **Email OTP and scoped guest access.** A successful OTP verification returns
