@@ -81,7 +81,7 @@ beforeEach(() => {
   global("fetch", async (input, options = {}) => {
     const path = new URL(input).pathname.replace("/api/v1", "");
     if (path === "/auth/session/refresh") return Response.json({
-      accessToken: "test-only-token", expiresAt: "2099-01-01T00:00:00Z",
+      accessToken: "test-only-token", expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
       user: { id: "test", email: "test@example.com", displayName: "Test", authenticationMethod: "EMAIL" },
     });
     requests.push({ path, method: options.method ?? "GET", authorization: new Headers(options.headers).get("Authorization") });
@@ -140,7 +140,7 @@ test("a returning user is shown session recovery until the cookie refresh comple
   assert.match(container.querySelector(".documents-workspace").textContent, /Checking your session/);
 
   await act(async () => finishRefresh(Response.json({
-    accessToken: "restored-token", expiresAt: "2099-01-01T00:00:00Z",
+    accessToken: "restored-token", expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
     user: { id: "test", email: "test@example.com", displayName: "Test", authenticationMethod: "EMAIL" },
   })));
   assert.ok(container.querySelector('[aria-label="Open account menu"]'));
