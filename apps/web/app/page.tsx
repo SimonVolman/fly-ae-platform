@@ -195,6 +195,7 @@ const SUPPORTED_UPLOAD_TYPES: Record<string, readonly string[]> = {
   "application/x-zip-compressed": ["zip"],
   "application/x-7z-compressed": ["7z"],
   "application/vnd.rar": ["rar"],
+  "application/x-rar": ["rar"],
   "application/x-rar-compressed": ["rar"],
   "application/x-tar": ["tar"],
   "application/gzip": ["gz", "tgz"],
@@ -2016,7 +2017,7 @@ function HomeContent() {
                     <span>
                       <strong>{isDraggingFiles ? "Drop files to add them" : "Choose files or drag & drop them here"}</strong>
                       <small id="upload-dropzone-help">
-                        {"Supported: PDF, image, video, or archive · Maximum " + MAX_FILE_SIZE_LABEL + " per file"}
+                        {"Supported: PDF, image, video, or archive (ZIP, RAR, 7Z, TAR, GZ, BZ2, XZ) · Maximum " + MAX_FILE_SIZE_LABEL + " per file"}
                       </small>
                     </span>
                   </button>

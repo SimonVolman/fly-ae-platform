@@ -161,6 +161,35 @@ test("folders keep identical identifiers separate across categories and fall bac
   assert.equal(shareableDocuments([makeDocument("pending", aircraft, "123", "PROCESSING")]).length, 0);
 });
 
+for (const authenticated of [false, true]) {
+  for (const mimeType of ["application/vnd.rar", "application/x-rar", "application/x-rar-compressed", "application/octet-stream", ""]) {
+    test(`${authenticated ? "signed-in user" : "guest"} can select a 15 GiB RAR (${mimeType || "no MIME"}) but not one byte more`, async () => {
+      if (!authenticated) {
+        const originalFetch = globalThis.fetch;
+        global("fetch", (input, options) => new URL(input).pathname === "/api/v1/auth/session/refresh"
+          ? Promise.resolve(new Response(null, { status: 401 }))
+          : originalFetch(input, options));
+      }
+      await mount(React.createElement(Home));
+      const input = container.querySelector('input[type="file"]');
+      assert.ok(input.accept.split(",").includes(".rar"));
+      assert.match(container.querySelector("#upload-dropzone-help").textContent, /RAR.*Maximum 15 GB per file/);
+      async function choose(filename, size) {
+        const file = new window.File(["RAR test"], filename, { type: mimeType });
+        Object.defineProperty(file, "size", { value: size });
+        Object.defineProperty(input, "files", { value: [file], configurable: true });
+        await act(async () => input.dispatchEvent(new window.Event("change", { bubbles: true })));
+      }
+      await choose("aviation-records.RAR", 16_106_127_360);
+      assert.equal(container.querySelectorAll(".selected-upload-row").length, 1);
+      assert.equal(container.querySelector(".selected-upload-details strong").textContent, "aviation-records.RAR");
+      await choose("oversized-records.rar", 16_106_127_361);
+      assert.equal(container.querySelectorAll(".selected-upload-row").length, 1);
+      assert.match(container.textContent, /oversized-records\.rar is larger than the 15 GB per-file limit/);
+    });
+  }
+}
+
 test("sidebar, cards, breadcrumbs and back button navigate the same folder hierarchy", async () => {
   await openLibrary();
   assert.equal(container.querySelectorAll(".document-folder-tile").length, 3);
