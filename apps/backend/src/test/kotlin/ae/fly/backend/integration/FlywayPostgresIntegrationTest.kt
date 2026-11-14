@@ -17,7 +17,7 @@ class FlywayPostgresIntegrationTest {
             .load()
             .migrate()
 
-        assertEquals("14", result.targetSchemaVersion)
+        assertEquals("15", result.targetSchemaVersion)
 
         DriverManager.getConnection(
             postgres.jdbcUrl,
@@ -43,7 +43,7 @@ class FlywayPostgresIntegrationTest {
 
                 statement.executeQuery(
                     "select count(*) from pg_constraint " +
-                        "where conname = 'documents_one_per_guest'",
+                        "where conname in ('documents_one_per_guest', 'documents_supported_mime')",
                 ).use { rows ->
                     rows.next()
                     assertEquals(0, rows.getInt(1))
