@@ -78,7 +78,8 @@ test("server-renders the fly.ae upload application", async () => {
   }
   assert.match(html, /Continue to file upload/);
   assert.match(html, /<h2>File upload<\/h2>/);
-  assert.match(html, /PDF, image, video, or archive/);
+  assert.match(html, /All file formats accepted/);
+  assert.doesNotMatch(html, /<input[^>]*type="file"[^>]*accept=/);
   assert.match(html, /Maximum 15 GB per file/);
   assert.match(html, /The same limit applies with or without signing in/);
   assert.doesNotMatch(html, /100 MB|15 GB[^<]*after signing in/);

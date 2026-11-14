@@ -125,19 +125,28 @@ class DocumentServiceTest {
     }
 
     @Test
-    fun `filename extension must match the declared media type`() {
-        val error = assertThrows(ApiProblem::class.java) {
-            service.create(
-                AuthenticatedGuest(guestId),
-                request(
-                    sizeBytes = 5_000_000,
-                    filename = "inspection.jpg",
-                    mimeType = "video/mp4",
-                ),
-            )
+    fun `all owners can create Excel arbitrary and extensionless uploads`() {
+        val user = User(id = UUID.randomUUID(), email = "owner@example.com")
+        `when`(users.findById(user.id)).thenReturn(user)
+        Validation.buildDefaultValidatorFactory().use { factory ->
+            for (owner in listOf(AuthenticatedGuest(guestId), AuthenticatedUser(user.id))) {
+                for ((filename, mimeType) in listOf(
+                    "records.xlsx" to "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "records.xls" to "application/vnd.ms-excel",
+                    "records.xlsm" to "application/vnd.ms-excel.sheet.macroEnabled.12",
+                    "records.csv" to "text/csv",
+                    "records.custom" to "application/x-custom-format",
+                    "x" to "application/octet-stream",
+                    "renamed.rar" to "application/zip",
+                )) {
+                    val request = request(sizeBytes = 42, filename = filename, mimeType = mimeType)
+                    assertTrue(factory.validator.validate(request).isEmpty(), filename)
+                    val created = service.create(owner, request)
+                    assertEquals(filename, created.filename)
+                    assertEquals(mimeType, created.mimeType)
+                }
+            }
         }
-
-        assertEquals(HttpStatus.BAD_REQUEST, error.status)
     }
 
     @Test

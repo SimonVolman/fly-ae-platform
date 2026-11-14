@@ -113,6 +113,8 @@ class S3ObjectStorage(
         val request = GetObjectRequest.builder()
             .bucket(properties.bucket)
             .key(key)
+            .responseContentDisposition("attachment")
+            .responseContentType("application/octet-stream")
             .build()
         return presigner.presignGetObject(
             GetObjectPresignRequest.builder()

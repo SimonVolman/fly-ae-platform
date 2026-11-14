@@ -162,8 +162,18 @@ test("folders keep identical identifiers separate across categories and fall bac
 });
 
 for (const authenticated of [false, true]) {
-  for (const mimeType of ["application/vnd.rar", "application/x-rar", "application/x-rar-compressed", "application/octet-stream", ""]) {
-    test(`${authenticated ? "signed-in user" : "guest"} can select a 15 GiB RAR (${mimeType || "no MIME"}) but not one byte more`, async () => {
+  for (const [filename, mimeType] of [
+    ["aviation-records.RAR", "application/x-rar"],
+    ["records.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+    ["records.xls", "application/vnd.ms-excel"],
+    ["records.xlsm", "application/vnd.ms-excel.sheet.macroEnabled.12"],
+    ["records.csv", "text/csv"],
+    ["records.custom", "application/x-custom-format"],
+    ["records.custom", "application/octet-stream"],
+    ["x", ""],
+    ["renamed.rar", "application/zip"],
+  ]) {
+    test(`${authenticated ? "signed-in user" : "guest"} can select ${filename} up to 15 GiB (${mimeType || "no MIME"}) but not one byte more`, async () => {
       if (!authenticated) {
         const originalFetch = globalThis.fetch;
         global("fetch", (input, options) => new URL(input).pathname === "/api/v1/auth/session/refresh"
@@ -172,17 +182,17 @@ for (const authenticated of [false, true]) {
       }
       await mount(React.createElement(Home));
       const input = container.querySelector('input[type="file"]');
-      assert.ok(input.accept.split(",").includes(".rar"));
-      assert.match(container.querySelector("#upload-dropzone-help").textContent, /RAR.*Maximum 15 GB per file/);
+      assert.equal(input.accept, "");
+      assert.match(container.querySelector("#upload-dropzone-help").textContent, /All file formats accepted.*Maximum 15 GB per file/);
       async function choose(filename, size) {
         const file = new window.File(["RAR test"], filename, { type: mimeType });
         Object.defineProperty(file, "size", { value: size });
         Object.defineProperty(input, "files", { value: [file], configurable: true });
         await act(async () => input.dispatchEvent(new window.Event("change", { bubbles: true })));
       }
-      await choose("aviation-records.RAR", 16_106_127_360);
+      await choose(filename, 16_106_127_360);
       assert.equal(container.querySelectorAll(".selected-upload-row").length, 1);
-      assert.equal(container.querySelector(".selected-upload-details strong").textContent, "aviation-records.RAR");
+      assert.equal(container.querySelector(".selected-upload-details strong").textContent, filename);
       await choose("oversized-records.rar", 16_106_127_361);
       assert.equal(container.querySelectorAll(".selected-upload-row").length, 1);
       assert.match(container.textContent, /oversized-records\.rar is larger than the 15 GB per-file limit/);
