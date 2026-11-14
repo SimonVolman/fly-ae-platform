@@ -588,36 +588,14 @@ components:
           maxLength: 64
         filename:
           type: string
-          minLength: 5
+          minLength: 1
           maxLength: 255
-          pattern: "(?i)^.+\\.(pdf|jpe?g|png|gif|webp|heic|heif|mp4|m4v|mov|webm|avi|mpeg|mpg|zip|7z|rar|tar|gz|tgz|bz2|tbz2|xz|txz)$"
+          description: Any filename is accepted, including files without an extension.
         mimeType:
           type: string
-          enum:
-            - application/pdf
-            - image/jpeg
-            - image/png
-            - image/gif
-            - image/webp
-            - image/heic
-            - image/heif
-            - video/mp4
-            - video/x-m4v
-            - video/quicktime
-            - video/webm
-            - video/x-msvideo
-            - video/mpeg
-            - application/zip
-            - application/x-zip-compressed
-            - application/x-7z-compressed
-            - application/vnd.rar
-            - application/x-rar
-            - application/x-rar-compressed
-            - application/x-tar
-            - application/gzip
-            - application/x-gzip
-            - application/x-bzip2
-            - application/x-xz
+          minLength: 1
+          maxLength: 120
+          description: Any media type is accepted. Use application/octet-stream when unknown.
         sizeBytes:
           type: integer
           minimum: 1

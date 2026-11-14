@@ -7,7 +7,6 @@ import ae.fly.backend.auth.AuthenticatedUser
 import ae.fly.backend.auth.FlyPrincipal
 import ae.fly.backend.config.StorageProperties
 import ae.fly.backend.document.DocumentResponse
-import ae.fly.backend.document.hasValidUploadSignature
 import ae.fly.backend.domain.Document
 import ae.fly.backend.domain.DocumentActivityType
 import ae.fly.backend.domain.DocumentStatus
@@ -88,11 +87,9 @@ class UploadService(
         )
 
         val metadata = storage.metadata(document.objectKey)
-        val fileHeader = storage.readPrefix(document.objectKey, 512)
         val storedMimeType = metadata.contentType?.substringBefore(';')?.lowercase()
         val validFile = metadata.contentLength == document.sizeBytes &&
-            storedMimeType == document.mimeType.lowercase() &&
-            hasValidUploadSignature(document.mimeType, fileHeader)
+            storedMimeType == document.mimeType.substringBefore(';').lowercase()
 
         document.multipartUploadId = null
         document.updatedAt = clock.instant()

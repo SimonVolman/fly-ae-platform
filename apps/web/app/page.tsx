@@ -177,62 +177,6 @@ const CATEGORY_CARD_CATALOG = [
   },
 ] as const satisfies readonly Category[];
 
-const SUPPORTED_UPLOAD_TYPES: Record<string, readonly string[]> = {
-  "application/pdf": ["pdf"],
-  "image/jpeg": ["jpg", "jpeg"],
-  "image/png": ["png"],
-  "image/gif": ["gif"],
-  "image/webp": ["webp"],
-  "image/heic": ["heic"],
-  "image/heif": ["heif"],
-  "video/mp4": ["mp4", "m4v"],
-  "video/x-m4v": ["m4v"],
-  "video/quicktime": ["mov"],
-  "video/webm": ["webm"],
-  "video/x-msvideo": ["avi"],
-  "video/mpeg": ["mpeg", "mpg"],
-  "application/zip": ["zip"],
-  "application/x-zip-compressed": ["zip"],
-  "application/x-7z-compressed": ["7z"],
-  "application/vnd.rar": ["rar"],
-  "application/x-rar": ["rar"],
-  "application/x-rar-compressed": ["rar"],
-  "application/x-tar": ["tar"],
-  "application/gzip": ["gz", "tgz"],
-  "application/x-gzip": ["gz", "tgz"],
-  "application/x-bzip2": ["bz2", "tbz2"],
-  "application/x-xz": ["xz", "txz"],
-};
-
-const SUPPORTED_UPLOAD_ACCEPT = Object.entries(SUPPORTED_UPLOAD_TYPES)
-  .flatMap(([mimeType, extensions]) => [
-    mimeType,
-    ...extensions.map((extension) => `.${extension}`),
-  ])
-  .join(",");
-
-const UPPY_ALLOWED_FILE_TYPES = SUPPORTED_UPLOAD_ACCEPT.split(",");
-
-function supportedUploadMimeType(file: File): string | null {
-  const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
-  const declaredMimeType = file.type.toLowerCase();
-
-  if (
-    declaredMimeType &&
-    SUPPORTED_UPLOAD_TYPES[declaredMimeType]?.includes(extension)
-  ) {
-    return declaredMimeType;
-  }
-
-  if (declaredMimeType && declaredMimeType !== "application/octet-stream") return null;
-
-  return (
-    Object.entries(SUPPORTED_UPLOAD_TYPES).find(([, extensions]) =>
-      extensions.includes(extension),
-    )?.[0] ?? null
-  );
-}
-
 type Session = BrowserSession;
 
 type GuestSession = {
@@ -745,13 +689,6 @@ function HomeContent() {
   function selectUploadFiles(files: File[]) {
     setError("");
     if (!files.length) return;
-    const unsupportedFile = files.find((file) => !supportedUploadMimeType(file));
-    if (unsupportedFile) {
-      setError(
-        `${unsupportedFile.name} is not supported. Choose a PDF, image, video, or archive: ZIP, 7Z, RAR, TAR, GZ, BZ2, and XZ are accepted.`,
-      );
-      return;
-    }
     const oversizedFile = files.find((file) => file.size > MAX_FILE_SIZE);
     if (oversizedFile) {
       setError(
@@ -850,11 +787,6 @@ function HomeContent() {
       return;
     }
     const currentSession = session;
-    const unsupportedFile = selectedFiles.find((file) => !supportedUploadMimeType(file));
-    if (unsupportedFile) {
-      setError("Choose a supported PDF, image, video, or archive file.");
-      return;
-    }
     setError("");
     setUploadProgress(0);
     setCompletedUploadCount(0);
@@ -888,8 +820,7 @@ function HomeContent() {
       if (!accessToken) throw new Error("Could not create a secure upload session.");
 
       for (const file of selectedFiles) {
-        const uploadMimeType = supportedUploadMimeType(file);
-        if (!uploadMimeType) throw new Error(`${file.name} is not a supported file type.`);
+        const uploadMimeType = file.type || "application/octet-stream";
         const document = await api<FlyDocument>(
           "/documents",
           {
@@ -912,7 +843,6 @@ function HomeContent() {
         autoProceed: false,
         allowMultipleUploadBatches: false,
         restrictions: {
-          allowedFileTypes: UPPY_ALLOWED_FILE_TYPES,
           maxFileSize: MAX_FILE_SIZE,
           maxNumberOfFiles: selectedFiles.length,
         },
@@ -1804,7 +1734,7 @@ function HomeContent() {
               <p className="eyebrow">Secure document transfer</p>
               <h1 id="upload-title">Upload an aviation file</h1>
               <p>
-                Upload a PDF, image, video, or archive up to {MAX_FILE_SIZE_LABEL} per file.
+                Upload any file up to {MAX_FILE_SIZE_LABEL} per file.
                 The same limit applies with or without signing in. No email required for guest uploads.
               </p>
             </div>
@@ -1972,7 +1902,7 @@ function HomeContent() {
                   <div>
                     <h2>File upload</h2>
                     <p>
-                      PDF, image, video, or archive (ZIP, 7Z, RAR, TAR, GZ, BZ2, XZ) · multiple files allowed.
+                      All file formats accepted · multiple files allowed.
                     </p>
                     <p className="upload-aviation-copy">
                       Please upload only materials related to aviation components, every file is subject to verification.
@@ -1996,7 +1926,6 @@ function HomeContent() {
                   className="visually-hidden"
                   type="file"
                   multiple
-                  accept={SUPPORTED_UPLOAD_ACCEPT}
                   onChange={chooseFile}
                 />
 
@@ -2017,7 +1946,7 @@ function HomeContent() {
                     <span>
                       <strong>{isDraggingFiles ? "Drop files to add them" : "Choose files or drag & drop them here"}</strong>
                       <small id="upload-dropzone-help">
-                        {"Supported: PDF, image, video, or archive (ZIP, RAR, 7Z, TAR, GZ, BZ2, XZ) · Maximum " + MAX_FILE_SIZE_LABEL + " per file"}
+                        {"All file formats accepted · Maximum " + MAX_FILE_SIZE_LABEL + " per file"}
                       </small>
                     </span>
                   </button>

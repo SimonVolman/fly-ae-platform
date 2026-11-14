@@ -19,6 +19,8 @@ import ae.fly.backend.support.MutableClock
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
@@ -132,10 +134,10 @@ class UploadServiceTest {
     }
 
     @Test
-    fun `rejects and removes a stored object with an invalid signature`() {
+    fun `rejects and removes a stored object with an incorrect size`() {
         val session = service.start(owner, documentId)
         storage.metadata = StoredObjectMetadata("application/pdf", 42)
-        storage.prefix = "HELLO".toByteArray()
+        storage.metadata = StoredObjectMetadata("application/pdf", 41)
 
         val result = service.complete(
             owner,
@@ -150,6 +152,35 @@ class UploadServiceTest {
         assertEquals(null, queue.documentId)
         assertEquals(null, notifier.documentId)
         verifyNoInteractions(activities)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "application/vnd.ms-excel.sheet.macroEnabled.12",
+        "text/csv",
+        "application/x-custom-format",
+        "application/octet-stream",
+        "application/vnd.rar",
+        "text/html",
+    ])
+    fun `completes any media type without checking extensions or magic bytes`(mimeType: String) {
+        document.originalFilename = "x"
+        document.mimeType = mimeType
+        val session = service.start(owner, documentId)
+        storage.metadata = StoredObjectMetadata(mimeType, 42)
+        storage.prefix = "arbitrary contents".toByteArray()
+
+        val result = service.complete(
+            owner, documentId, session.uploadId,
+            CompleteMultipartRequest(listOf(CompletedPartRequest(1, "\"etag\""))),
+        )
+
+        assertEquals(DocumentStatus.PENDING, result.status)
+        assertEquals(documentId, queue.documentId)
+        assertEquals(documentId, notifier.documentId)
+        assertEquals(false, storage.deleted)
     }
 
     private class CapturingQueue : JobQueue {
